@@ -55,12 +55,7 @@ export default function CertificateVerificationResultPage() {
 
   const handleDownloadPdf = async () => {
     if (!cert) return;
-    try {
-      const pdf = await generateCertificatePdf(cert);
-      pdf.save(`${cert.code}_Certificate.pdf`);
-    } catch (err) {
-      console.error("PDF generation failed:", err);
-    }
+    window.open(`/verify/${cert.code}/certificate?print=true`, "_blank");
   };
 
   return (

@@ -97,6 +97,9 @@ export interface CertificateRecord {
   status: CertificateStatus;
   source: CertificateSource;
   batchId?: string;
+  templateId?: string;
+  teamName?: string;
+  projectTitle?: string;
   replacedByCode?: string;
   replacementReason?: string;
   revocationDate?: string;

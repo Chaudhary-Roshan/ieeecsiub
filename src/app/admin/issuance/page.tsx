@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
-import { EventItem, Registration, StaffUser, CertificateRecord } from "@/types";
+import { EventItem, Registration, StaffUser, CertificateRecord, CertificateTemplate } from "@/types";
 import { generateCertificateCode } from "@/lib/codeGenerator";
 import { generateCertificatePdf } from "@/lib/certificatePdf";
 import { Button } from "@/components/ui/Button";
@@ -24,12 +24,19 @@ export default function Option2IssuancePage() {
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
   const [issuing, setIssuing] = useState(false);
   const [issuedBatch, setIssuedBatch] = useState<CertificateRecord[]>([]);
+  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   useEffect(() => {
     const allEvts = db.getEvents();
     setEvents(allEvts);
     if (allEvts.length > 0) setSelectedEventId(allEvts[0].id);
     setRegistrations(db.getRegistrations());
+
+    const allTpls = db.getTemplates();
+    setTemplates(allTpls);
+    const activeTpl = db.getActiveTemplate();
+    if (activeTpl) setSelectedTemplateId(activeTpl.id);
 
     const saved = localStorage.getItem("ieee_cs_active_staff");
     if (saved) {
@@ -77,6 +84,7 @@ export default function Option2IssuancePage() {
         approverRole: "Administrator",
         status: "ACTIVE",
         source: "IN_SITE_GENERATED",
+        templateId: selectedTemplateId || undefined,
         sha256Fingerprint: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
         createdAt: new Date().toISOString(),
       };
@@ -98,13 +106,8 @@ export default function Option2IssuancePage() {
     alert(`Successfully generated and published ${generated.length} certificates to /verify!`);
   };
 
-  const handleDownloadSinglePdf = async (cert: CertificateRecord) => {
-    try {
-      const pdf = await generateCertificatePdf(cert);
-      pdf.save(`${cert.code}_Certificate.pdf`);
-    } catch (e) {
-      console.error(e);
-    }
+  const handleDownloadSinglePdf = (cert: CertificateRecord) => {
+    window.open(`/verify/${cert.code}/certificate?print=true`, "_blank");
   };
 
   return (
@@ -124,12 +127,12 @@ export default function Option2IssuancePage() {
           </p>
         </div>
 
-        {/* Event Selector & Rule Box */}
+        {/* Event Selector, Template Selector & Rule Box */}
         <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
             <div>
               <label className="block font-semibold text-gray-700 mb-1">
-                Select Event for Issuance Review
+                1. Select Event for Issuance
               </label>
               <select
                 value={selectedEventId}
@@ -144,16 +147,42 @@ export default function Option2IssuancePage() {
               </select>
             </div>
 
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-semibold text-gray-700">
+                  2. Certificate Design Template
+                </label>
+                <a
+                  href="/admin/templates"
+                  target="_blank"
+                  className="text-[11px] font-bold text-ieee-blue hover:underline"
+                >
+                  Edit Studio ↗
+                </a>
+              </div>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white font-medium"
+              >
+                {templates.map((tpl) => (
+                  <option key={tpl.id} value={tpl.id}>
+                    {tpl.name} {tpl.isDefault ? "★ (Active Default)" : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+
             {selectedEvent && (
               <div className="p-3 bg-gray-50 border rounded-lg space-y-1">
                 <span className="font-bold text-gray-700 block">
-                  Mandatory Published Eligibility Rule:
+                  Published Eligibility Rule:
                 </span>
                 <p className="text-ieee-navy italic">
                   &ldquo;{selectedEvent.certificateRule}&rdquo;
                 </p>
                 <span className="text-[11px] text-gray-500 block">
-                  Certificate Type: {selectedEvent.certificateType}
+                  Recognition: {selectedEvent.certificateType}
                 </span>
               </div>
             )}

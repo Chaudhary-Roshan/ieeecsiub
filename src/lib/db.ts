@@ -338,6 +338,9 @@ class ChapterDatabase {
             status: data.status,
             source: data.source,
             batchId: data.batch_id,
+            templateId: data.template_id || undefined,
+            teamName: data.team_name || undefined,
+            projectTitle: data.project_title || undefined,
             replacedByCode: data.replaced_by_code,
             replacementReason: data.replacement_reason,
             revocationDate: data.revocation_date,
@@ -382,6 +385,9 @@ class ChapterDatabase {
             approverRole: d.approver_role,
             status: d.status,
             source: d.source || "UPLOAD_REGISTRY",
+            templateId: d.template_id || undefined,
+            teamName: d.team_name || undefined,
+            projectTitle: d.project_title || undefined,
             replacedByCode: d.replaced_by_code,
             replacementReason: d.replacement_reason,
             revocationDate: d.revocation_date,
@@ -420,6 +426,9 @@ class ChapterDatabase {
         approver_role: cert.approverRole,
         status: cert.status,
         source: cert.source,
+        template_id: cert.templateId || null,
+        team_name: cert.teamName || null,
+        project_title: cert.projectTitle || null,
         replaced_by_code: cert.replacedByCode,
         replacement_reason: cert.replacementReason,
         revocation_date: cert.revocationDate,
@@ -666,6 +675,26 @@ class ChapterDatabase {
   // --- Certificate Templates ---
   getTemplates(): CertificateTemplate[] {
     return this.getItem("certificate_templates", SEED_TEMPLATES);
+  }
+
+  getActiveTemplate(): CertificateTemplate {
+    const list = this.getTemplates();
+    const active = list.find((t) => t.isDefault) || list[0] || SEED_TEMPLATES[0];
+    return active;
+  }
+
+  setActiveTemplate(id: string): void {
+    const list = this.getTemplates().map((t) => ({
+      ...t,
+      isDefault: t.id === id,
+    }));
+    this.setItem("certificate_templates", list);
+
+    if (supabase) {
+      supabase.from("certificate_templates").update({ is_active: false }).neq("id", id).then(() => {
+        supabase?.from("certificate_templates").update({ is_active: true }).eq("id", id);
+      });
+    }
   }
 
   getTemplateById(id: string): CertificateTemplate | undefined {

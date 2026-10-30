@@ -19,6 +19,7 @@ import {
   Award,
   UserCheck,
   Building,
+  Printer,
 } from "lucide-react";
 
 interface CertificateCardProps {
@@ -250,10 +251,21 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
 
         {/* Actions Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-ieee-border">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            {isActive && (
+              <Link
+                href={`/verify/${certificate.code}/certificate`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center font-montserrat font-bold text-xs uppercase tracking-wider rounded-button transition-all duration-200 px-4 py-2 bg-ieee-navy text-white hover:bg-ieee-blue shadow-sm"
+              >
+                <Printer size={14} className="mr-1.5" /> View & Print Certificate
+              </Link>
+            )}
+
             {onDownloadPdf && isActive && (
-              <Button onClick={onDownloadPdf} variant="primary" size="sm">
-                <FileText size={14} className="mr-1.5" /> Download PDF Certificate
+              <Button onClick={onDownloadPdf} variant="outline" size="sm">
+                <FileText size={14} className="mr-1.5" /> Direct PDF
               </Button>
             )}
 

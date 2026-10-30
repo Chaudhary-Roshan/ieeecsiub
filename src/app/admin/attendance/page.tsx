@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
-import { EventItem, AttendanceRecord, CertificateRecord } from "@/types";
+import { EventItem, AttendanceRecord, CertificateRecord, CertificateTemplate } from "@/types";
 import { generateCertificatePdf } from "@/lib/certificatePdf";
 import { generateCertificateCode } from "@/lib/codeGenerator";
 import { Button } from "@/components/ui/Button";
@@ -32,6 +32,8 @@ export default function AdminAttendancePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isGeneratingPdfs, setIsGeneratingPdfs] = useState(false);
   const [generationProgress, setGenerationProgress] = useState("");
+  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -43,6 +45,10 @@ export default function AdminAttendancePage() {
         setSelectedEventId(defaultId);
         loadAttendance(defaultId);
       }
+      const allTpls = db.getTemplates();
+      setTemplates(allTpls);
+      const activeTpl = db.getActiveTemplate();
+      if (activeTpl) setSelectedTemplateId(activeTpl.id);
     }
     init();
   }, []);
@@ -192,14 +198,14 @@ export default function AdminAttendancePage() {
       approverRole: "Chapter Administrator",
       status: "ACTIVE",
       source: "IN_SITE_GENERATED",
+      templateId: selectedTemplateId || undefined,
       createdAt: new Date().toISOString(),
     };
 
     // Save to database
     db.addCertificate(certRecord);
 
-    const doc = await generateCertificatePdf(certRecord);
-    doc.save(`${certCode}_${rec.name.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`);
+    window.open(`/verify/${certCode}/certificate?print=true`, "_blank");
   };
 
   // Bulk Generate All Attended Certificates as ZIP
@@ -243,6 +249,7 @@ export default function AdminAttendancePage() {
           approverRole: "Chapter Administrator",
           status: "ACTIVE",
           source: "IN_SITE_GENERATED",
+          templateId: selectedTemplateId || undefined,
           createdAt: new Date().toISOString(),
         };
 
@@ -369,25 +376,56 @@ export default function AdminAttendancePage() {
           </div>
         )}
 
-        {/* Event Selector & Stats */}
+        {/* Event Selector, Template Selector & Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm space-y-2 md:col-span-2">
-            <label className="text-xs font-montserrat font-bold text-gray-700 uppercase tracking-wider block">
-              Select Chapter Event:
-            </label>
-            <select
-              value={selectedEventId}
-              onChange={(e) => handleEventChange(e.target.value)}
-              className="w-full p-2.5 border rounded-lg text-xs font-montserrat font-bold text-ieee-navy bg-white focus:outline-none focus:ring-1 focus:ring-ieee-blue"
-            >
-              {events.map((evt) => (
-                <option key={evt.id} value={evt.id}>
-                  {evt.title} ({evt.status})
-                </option>
-              ))}
-            </select>
+          <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm space-y-4 md:col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-montserrat font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                  Select Chapter Event:
+                </label>
+                <select
+                  value={selectedEventId}
+                  onChange={(e) => handleEventChange(e.target.value)}
+                  className="w-full p-2.5 border rounded-lg text-xs font-montserrat font-bold text-ieee-navy bg-white focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                >
+                  {events.map((evt) => (
+                    <option key={evt.id} value={evt.id}>
+                      {evt.title} ({evt.status})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-montserrat font-bold text-gray-700 uppercase tracking-wider block">
+                    Certificate Template:
+                  </label>
+                  <a
+                    href="/admin/templates"
+                    target="_blank"
+                    className="text-[11px] font-bold text-ieee-blue hover:underline"
+                  >
+                    Edit Studio ↗
+                  </a>
+                </div>
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(e.target.value)}
+                  className="w-full p-2.5 border rounded-lg text-xs font-montserrat font-bold text-ieee-navy bg-white focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                >
+                  {templates.map((tpl) => (
+                    <option key={tpl.id} value={tpl.id}>
+                      {tpl.name} {tpl.isDefault ? "★ (Active Default)" : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
             {currentEvent && (
-              <div className="text-[11px] text-gray-500 flex flex-wrap gap-4 pt-1">
+              <div className="text-[11px] text-gray-500 flex flex-wrap gap-4 pt-1 border-t border-gray-100">
                 <span>Date: <strong>{new Date(currentEvent.startDate).toLocaleDateString()}</strong></span>
                 <span>Venue: <strong>{currentEvent.venue}</strong></span>
                 <span>Cert Type: <strong>{currentEvent.certificateType}</strong></span>

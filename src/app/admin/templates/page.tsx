@@ -27,6 +27,8 @@ import {
   ChevronUp,
   Layers,
   CheckCircle2,
+  CheckCircle,
+  Star,
   Plus,
 } from "lucide-react";
 
@@ -155,15 +157,38 @@ export default function AdminCertificateTemplatesPage() {
         .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
         .replace(/<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE<\/div>/g, '{{ieee_logo}}');
       setHtmlCode(cleanHtml);
-      if (target.chairSignatureUrl) setChairSignature(target.chairSignatureUrl);
-      if (target.advisorSignatureUrl) setAdvisorSignature(target.advisorSignatureUrl);
-      if (target.chairName) setChairName(target.chairName);
-      if (target.advisorName) setAdvisorName(target.advisorName);
-      if (target.chapterLogoUrl) setChapterLogo(target.chapterLogoUrl);
-      if (target.universityLogoUrl) setUniversityLogo(target.universityLogoUrl);
-      if (target.ieeeLogoUrl) setIeeeLogo(target.ieeeLogoUrl);
-      if (target.eventLogoUrl) setEventLogo(target.eventLogoUrl);
+
+      // Load signatures (template-specific or global cache fallback)
+      let cachedSigs: any = {};
+      let cachedLogos: any = {};
+      if (typeof window !== "undefined") {
+        try {
+          cachedSigs = JSON.parse(localStorage.getItem("ieee_signatures") || "{}");
+          cachedLogos = JSON.parse(localStorage.getItem("ieee_logos") || "{}");
+        } catch {}
+      }
+
+      setChairSignature(target.chairSignatureUrl || cachedSigs.chairSignature || "");
+      setAdvisorSignature(target.advisorSignatureUrl || cachedSigs.advisorSignature || "");
+      setChairName(target.chairName || cachedSigs.chairName || "Muhammad Roshan Ashraf");
+      setAdvisorName(target.advisorName || cachedSigs.advisorName || "Dr. Asjad Amin");
+
+      setChapterLogo(target.chapterLogoUrl || cachedLogos.chapterLogo || "/ieee-cs-logo.png");
+      setUniversityLogo(target.universityLogoUrl || cachedLogos.universityLogo || "/logo.png");
+      setIeeeLogo(target.ieeeLogoUrl || cachedLogos.ieeeLogo || "");
+      setEventLogo(target.eventLogoUrl || cachedLogos.eventLogo || "");
     }
+  };
+
+  // Set the currently viewed template as the system-wide active default issuing template
+  const handleSetActiveIssuingTemplate = () => {
+    if (!selectedTemplateId) return;
+    db.setActiveTemplate(selectedTemplateId);
+    const updated = db.getTemplates();
+    setTemplates(updated);
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3000);
+    alert(`⭐ Success! "${templateName}" is now set as the active certificate template for all issuance and verification across the platform!`);
   };
 
   // Create new blank template
@@ -216,12 +241,17 @@ export default function AdminCertificateTemplatesPage() {
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
       const dataUrl = uploadEvent.target?.result as string;
+      const cached = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("ieee_logos") || "{}") : {};
+
       if (type === "CHAPTER") {
         setChapterLogo(dataUrl);
+        cached.chapterLogo = dataUrl;
       } else if (type === "UNIVERSITY") {
         setUniversityLogo(dataUrl);
+        cached.universityLogo = dataUrl;
       } else if (type === "IEEE") {
         setIeeeLogo(dataUrl);
+        cached.ieeeLogo = dataUrl;
         setHtmlCode((prev) =>
           prev
             .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
@@ -229,6 +259,11 @@ export default function AdminCertificateTemplatesPage() {
         );
       } else if (type === "EVENT") {
         setEventLogo(dataUrl);
+        cached.eventLogo = dataUrl;
+      }
+
+      if (typeof window !== "undefined") {
+        localStorage.setItem("ieee_logos", JSON.stringify(cached));
       }
     };
     reader.readAsDataURL(file);
@@ -451,14 +486,29 @@ export default function AdminCertificateTemplatesPage() {
               >
                 {templates.map((tpl) => (
                   <option key={tpl.id} value={tpl.id}>
-                    {tpl.name}
+                    {tpl.name} {tpl.isDefault ? "★ (Active Default)" : ""}
                   </option>
                 ))}
               </select>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 pt-2 sm:pt-0">
+          <div className="flex items-center gap-2 pt-2 sm:pt-0 flex-wrap">
+            {templates.find((t) => t.id === selectedTemplateId)?.isDefault ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-300 text-xs font-bold shadow-sm">
+                <CheckCircle size={14} className="text-emerald-600" /> Active Issuing Template
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSetActiveIssuingTemplate}
+                className="px-3 py-1.5 text-xs font-bold text-white bg-ieee-orange hover:bg-orange-600 rounded-lg shadow-sm flex items-center gap-1.5 transition-all cursor-pointer"
+                title="Make this template the system default for all certificates"
+              >
+                <Star size={14} className="fill-white" /> Set as Active Issuing Template
+              </button>
+            )}
+
             <button
               type="button"
               onClick={handleCreateNewTemplate}
@@ -1062,6 +1112,7 @@ export default function AdminCertificateTemplatesPage() {
               <div className="flex-1 w-full bg-gray-100 rounded border border-gray-200 overflow-hidden flex items-center justify-center p-2">
                 <iframe
                   ref={iframeRef}
+                  key={`${selectedTemplateId}-${ieeeLogo ? 'ieee' : 'noieee'}-${chapterLogo ? 'chap' : ''}-${universityLogo ? 'univ' : ''}`}
                   srcDoc={getRenderedHtml()}
                   title="Certificate Visual Studio Preview"
                   className="w-full h-full min-h-[580px] border-0 rounded bg-white shadow"
