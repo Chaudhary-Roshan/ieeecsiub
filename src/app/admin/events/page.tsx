@@ -47,6 +47,8 @@ export default function AdminEventsManagerPage() {
   const [certificateRule, setCertificateRule] = useState("Minimum 80% physical attendance verified via digital check-in");
   const [featuredImage, setFeaturedImage] = useState("https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80");
   const [learningObjectives, setLearningObjectives] = useState("");
+  const [eventReport, setEventReport] = useState("");
+  const [galleryImages, setGalleryImages] = useState("");
 
   const refreshEvents = () => {
     setEvents(db.getEvents());
@@ -76,6 +78,8 @@ export default function AdminEventsManagerPage() {
     setCertificateRule("Minimum 80% physical attendance verified via digital check-in");
     setFeaturedImage("https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80");
     setLearningObjectives("Core technical hands-on skills\nIndustry relevant workflows\nOfficial IEEE certification");
+    setEventReport("");
+    setGalleryImages("");
     setIsModalOpen(true);
   };
 
@@ -97,6 +101,8 @@ export default function AdminEventsManagerPage() {
     setCertificateRule(event.certificateRule);
     setFeaturedImage(event.featuredImage);
     setLearningObjectives(event.learningObjectives ? event.learningObjectives.join("\n") : "");
+    setEventReport(event.eventReport || "");
+    setGalleryImages(event.galleryImages ? event.galleryImages.join("\n") : "");
     setIsModalOpen(true);
   };
 
@@ -108,6 +114,11 @@ export default function AdminEventsManagerPage() {
     }
 
     const objectives = learningObjectives
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const gallery = galleryImages
       .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
@@ -131,6 +142,8 @@ export default function AdminEventsManagerPage() {
       certificateType: certificateType.trim(),
       certificateRule: certificateRule.trim(),
       featuredImage: featuredImage.trim(),
+      galleryImages: gallery.length > 0 ? gallery : undefined,
+      eventReport: eventReport.trim() || undefined,
     };
 
     if (editingEventId) {
@@ -572,6 +585,37 @@ export default function AdminEventsManagerPage() {
                   />
                 </div>
 
+                {/* Event Summary Report (Especially for Completed Events) */}
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    Event Summary / Post-Event Report (Displayed on completed event page)
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={eventReport}
+                    onChange={(e) => setEventReport(e.target.value)}
+                    placeholder="The workshop concluded successfully with 50 attendees. Keynote address and certificates distributed."
+                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                  />
+                </div>
+
+                {/* Event Photo Gallery Images */}
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    Event Photo Gallery Image URLs (One URL per line)
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={galleryImages}
+                    onChange={(e) => setGalleryImages(e.target.value)}
+                    placeholder="https://images.unsplash.com/photo-1&#10;https://images.unsplash.com/photo-2"
+                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-[11px]"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-1">
+                    Photos added here appear in this event's gallery section and in the public Chapter Photo Gallery.
+                  </p>
+                </div>
+
                 {/* Submit Buttons */}
                 <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
                   <button
@@ -593,3 +637,4 @@ export default function AdminEventsManagerPage() {
     </AdminLayout>
   );
 }
+

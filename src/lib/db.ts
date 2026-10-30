@@ -141,6 +141,10 @@ const SEED_EVENTS: EventItem[] = [
     certificateRule: "Submitted PR to chapter practice repository",
     featuredImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80",
     eventReport: "Over 60 students created GitHub accounts and submitted their first open-source contributions. 52 certificates awarded.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80",
+    ],
   },
   {
     id: "evt-past-1",
@@ -167,6 +171,11 @@ const SEED_EVENTS: EventItem[] = [
     vtoolsLink: "https://events.vtools.ieee.org/m/8812",
     featuredImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80",
     eventReport: "28 teams competed across Web, Mobile, and AI tracks. Top 3 teams awarded shields, cash prizes, and official IEEE CS merit certificates.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1531497865144-0464ef8fb9a9?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80",
+    ],
     speakers: [
       {
         name: "Dr. Asjad Amin",
@@ -200,6 +209,10 @@ const SEED_EVENTS: EventItem[] = [
     vtoolsLink: "https://events.vtools.ieee.org/m/8420",
     featuredImage: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
     eventReport: "55 students successfully completed the live Capture-the-Flag (CTF) lab exercises and received certificates.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+    ],
   },
   {
     id: "evt-past-3",
@@ -226,6 +239,10 @@ const SEED_EVENTS: EventItem[] = [
     vtoolsLink: "https://events.vtools.ieee.org/m/7910",
     featuredImage: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
     eventReport: "Covered end-to-end data pipelines from CSV cleaning to model evaluation. 48 verified participants awarded certificates.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=800&q=80",
+    ],
   },
   {
     id: "evt-5",

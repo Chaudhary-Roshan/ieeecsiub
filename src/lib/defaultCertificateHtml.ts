@@ -340,3 +340,4 @@ export const DEFAULT_CERTIFICATE_HTML = `<!DOCTYPE html>
 </body>
 </html>
 `;
+
