@@ -21,6 +21,9 @@ import {
   X,
   Search,
   Filter,
+  Camera,
+  UploadCloud,
+  Image as ImageIcon,
 } from "lucide-react";
 
 export default function AdminEventsManagerPage() {
@@ -600,20 +603,110 @@ export default function AdminEventsManagerPage() {
                 </div>
 
                 {/* Event Photo Gallery Images */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Event Photo Gallery Image URLs (One URL per line)
-                  </label>
+                <div className="space-y-2 p-3.5 bg-blue-50/40 rounded-xl border border-blue-100">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <label className="block font-bold text-ieee-navy text-xs flex items-center gap-1.5">
+                      <Camera size={14} className="text-ieee-blue" />
+                      Event Photo Gallery Images (Displayed in the Photo Gallery section on this event's page)
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const samples = [
+                            "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
+                            "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
+                            "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
+                            "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
+                          ].join("\n");
+                          setGalleryImages(samples);
+                        }}
+                        className="text-[10px] bg-white border border-blue-200 text-ieee-blue px-2 py-1 rounded hover:bg-blue-50 font-semibold"
+                      >
+                        + Insert 4 Sample Photos
+                      </button>
+                      {galleryImages && (
+                        <button
+                          type="button"
+                          onClick={() => setGalleryImages("")}
+                          className="text-[10px] text-red-500 hover:underline font-semibold"
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   <textarea
                     rows={3}
                     value={galleryImages}
                     onChange={(e) => setGalleryImages(e.target.value)}
                     placeholder="https://images.unsplash.com/photo-1&#10;https://images.unsplash.com/photo-2"
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-[11px]"
+                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-[11px] bg-white"
                   />
-                  <p className="text-[10px] text-gray-400 mt-1">
-                    Photos added here appear in this event's gallery section and in the public Chapter Photo Gallery.
-                  </p>
+
+                  {/* Upload from Local Device */}
+                  <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
+                    <span>Or upload image files from your computer:</span>
+                    <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
+                      <UploadCloud size={14} /> Choose Files
+                      <input
+                        type="file"
+                        accept="image/*"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = e.target.files;
+                          if (!files || files.length === 0) return;
+                          Array.from(files).forEach((file) => {
+                            const reader = new FileReader();
+                            reader.onload = (loadEvt) => {
+                              const result = loadEvt.target?.result as string;
+                              if (result) {
+                                setGalleryImages((prev) => (prev ? `${prev}\n${result}` : result));
+                              }
+                            };
+                            reader.readAsDataURL(file);
+                          });
+                        }}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Live Thumbnails Preview */}
+                  {(() => {
+                    const parsed = galleryImages
+                      .split("\n")
+                      .map((s) => s.trim())
+                      .filter(Boolean);
+                    if (parsed.length === 0) return null;
+
+                    return (
+                      <div className="pt-2">
+                        <span className="text-[10px] font-semibold text-gray-600 block mb-1">
+                          Previewing {parsed.length} Photos for this event:
+                        </span>
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                          {parsed.map((imgUrl, idx) => (
+                            <div key={idx} className="relative group h-14 rounded-lg overflow-hidden border border-gray-300 bg-gray-100">
+                              <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updated = parsed.filter((_, i) => i !== idx).join("\n");
+                                  setGalleryImages(updated);
+                                }}
+                                className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                                title="Remove photo"
+                              >
+                                &times;
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Submit Buttons */}

@@ -122,8 +122,10 @@ const SEED_EVENTS: EventItem[] = [
     featuredImage: "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1200&q=80",
     eventReport: "The 2-day workshop concluded successfully with 45 attendees building and deploying working cross-platform mobile apps. Keynote address by Dr. Aoun Muhammad.",
     galleryImages: [
-      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1531497865144-0464ef8fb9a9?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
     ],
   },
   {
@@ -142,8 +144,10 @@ const SEED_EVENTS: EventItem[] = [
     featuredImage: "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1200&q=80",
     eventReport: "Over 60 students created GitHub accounts and submitted their first open-source contributions. 52 certificates awarded.",
     galleryImages: [
-      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1556761175-5973dc0f32e7?auto=format&fit=crop&w=1000&q=80",
     ],
   },
   {
@@ -172,9 +176,10 @@ const SEED_EVENTS: EventItem[] = [
     featuredImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80",
     eventReport: "28 teams competed across Web, Mobile, and AI tracks. Top 3 teams awarded shields, cash prizes, and official IEEE CS merit certificates.",
     galleryImages: [
-      "https://images.unsplash.com/photo-1531497865144-0464ef8fb9a9?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1531497865144-0464ef8fb9a9?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
     ],
     speakers: [
       {
@@ -210,8 +215,10 @@ const SEED_EVENTS: EventItem[] = [
     featuredImage: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
     eventReport: "55 students successfully completed the live Capture-the-Flag (CTF) lab exercises and received certificates.",
     galleryImages: [
-      "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1563986768609-322da13575f3?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
     ],
   },
   {
@@ -240,8 +247,10 @@ const SEED_EVENTS: EventItem[] = [
     featuredImage: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
     eventReport: "Covered end-to-end data pipelines from CSV cleaning to model evaluation. 48 verified participants awarded certificates.",
     galleryImages: [
-      "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80",
-      "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=800&q=80",
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&w=1000&q=80",
+      "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
     ],
   },
   {
@@ -712,12 +721,22 @@ class ChapterDatabase {
   // --- Events ---
   getEvents(): EventItem[] {
     const list = this.getItem("events", SEED_EVENTS);
-    const existingSlugs = new Set(list.map((e) => e.slug));
     let hasNew = false;
     SEED_EVENTS.forEach((seed) => {
-      if (!existingSlugs.has(seed.slug)) {
+      const existing = list.find((e) => e.slug === seed.slug);
+      if (!existing) {
         list.push(seed);
         hasNew = true;
+      } else {
+        // Hydrate or update galleryImages and eventReport for completed events if missing or short
+        if ((!existing.galleryImages || existing.galleryImages.length < (seed.galleryImages?.length || 0)) && seed.galleryImages) {
+          existing.galleryImages = seed.galleryImages;
+          hasNew = true;
+        }
+        if (!existing.eventReport && seed.eventReport) {
+          existing.eventReport = seed.eventReport;
+          hasNew = true;
+        }
       }
     });
     if (hasNew) {

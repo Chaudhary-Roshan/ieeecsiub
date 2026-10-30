@@ -21,14 +21,24 @@ import {
   UploadCloud,
   FileCheck2,
   Lock,
+  Camera,
+  ZoomIn,
+  X,
+  ChevronLeft,
+  ChevronRight,
+  Image as ImageIcon,
 } from "lucide-react";
 
 export default function EventDetailPage() {
   const params = useParams();
-  const rawSlug = params?.slug ? (params.slug as string) : "";
+  const slugParam = params?.slug;
+  const rawSlug = Array.isArray(slugParam)
+    ? slugParam.join("/")
+    : ((slugParam as string) || "");
 
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
 
   // Registration Form State (Option 2)
   const [fullName, setFullName] = useState("");
@@ -52,15 +62,35 @@ export default function EventDetailPage() {
 
   useEffect(() => {
     if (!rawSlug) return;
+    const cleanSlug = rawSlug.replace(/^\/+/, "");
+    const baseSlug = cleanSlug.includes("/")
+      ? cleanSlug.split("/").slice(1).join("/")
+      : cleanSlug;
+
     const found = db.getEvents().find(
       (e) =>
-        e.slug === rawSlug ||
-        e.slug === `2026/${rawSlug}` ||
-        e.slug.endsWith(`/${rawSlug}`)
+        e.slug === cleanSlug ||
+        e.slug === `2026/${cleanSlug}` ||
+        e.slug === `2025/${cleanSlug}` ||
+        e.slug.endsWith(`/${cleanSlug}`) ||
+        e.slug.endsWith(`/${baseSlug}`) ||
+        e.slug === baseSlug
     );
     setEvent(found || null);
     setLoading(false);
   }, [rawSlug]);
+
+  // Keyboard navigation for photo lightbox
+  useEffect(() => {
+    if (activePhotoIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setActivePhotoIndex(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activePhotoIndex]);
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
@@ -339,23 +369,76 @@ export default function EventDetailPage() {
                     </div>
                   </div>
 
-                  {event.galleryImages && event.galleryImages.length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="font-montserrat font-bold text-sm text-ieee-navy">
-                        Event Photo Gallery
-                      </h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        {event.galleryImages.map((img, i) => (
-                          <img
-                            key={i}
-                            src={img}
-                            alt={`Gallery image ${i + 1}`}
-                            className="rounded-lg object-cover h-40 w-full border border-gray-200 shadow-sm"
-                          />
-                        ))}
+                  {/* Event Photo Gallery */}
+                  <div className="space-y-4 pt-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <Camera size={18} className="text-ieee-blue" />
+                          <h4 className="font-montserrat font-bold text-base text-ieee-navy">
+                            Event Photo Gallery
+                          </h4>
+                        </div>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Visual moments, hands-on lab training, and recognition ceremonies.
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-mono bg-blue-50 text-ieee-blue font-semibold px-2.5 py-1 rounded-full border border-blue-200 shadow-xs">
+                          {((event.galleryImages && event.galleryImages.length > 0) ? event.galleryImages : [
+                            "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
+                            "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
+                            "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
+                            "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
+                          ]).length} Official Photos
+                        </span>
+                        <Link
+                          href="/admin/events"
+                          className="text-[11px] font-montserrat font-semibold text-gray-400 hover:text-ieee-blue hover:underline hidden sm:inline"
+                        >
+                          Manage Photos
+                        </Link>
                       </div>
                     </div>
-                  )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {((event.galleryImages && event.galleryImages.length > 0) ? event.galleryImages : [
+                        "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
+                        "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
+                        "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
+                        "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
+                      ]).map((img, i) => (
+                        <div
+                          key={i}
+                          onClick={() => setActivePhotoIndex(i)}
+                          className="group relative h-48 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                        >
+                          <img
+                            src={img}
+                            alt={`${event.title} - Session Snapshot #${i + 1}`}
+                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="lazy"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3.5 text-white">
+                            <div className="self-end bg-black/40 backdrop-blur-xs p-1.5 rounded-full">
+                              <ZoomIn size={16} />
+                            </div>
+                            <div>
+                              <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-blue-200">
+                                Snapshot #{i + 1}
+                              </span>
+                              <p className="font-montserrat font-semibold text-xs leading-tight line-clamp-1">
+                                {event.title}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-gray-400 italic">
+                      Click any photograph to view high-resolution fullscreen preview.
+                    </p>
+                  </div>
                 </div>
               )}
             </div>
@@ -623,6 +706,97 @@ export default function EventDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* Fullscreen Lightbox Modal */}
+        {activePhotoIndex !== null && (
+          (() => {
+            const currentPhotos = (event.galleryImages && event.galleryImages.length > 0)
+              ? event.galleryImages
+              : [
+                  "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
+                  "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
+                  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
+                  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
+                ];
+            const activeUrl = currentPhotos[activePhotoIndex] || currentPhotos[0];
+
+            return (
+              <div
+                className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex items-center justify-center p-4 select-none"
+                onClick={() => setActivePhotoIndex(null)}
+              >
+                {/* Top Bar */}
+                <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-white z-20">
+                  <div className="text-xs font-montserrat font-semibold">
+                    <span className="text-blue-300">{event.title}</span> &bull; Snapshot {activePhotoIndex + 1} of {currentPhotos.length}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={activeUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center gap-1.5 transition-colors"
+                    >
+                      <ExternalLink size={14} /> Open Full Size
+                    </a>
+                    <button
+                      onClick={() => setActivePhotoIndex(null)}
+                      className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/25 flex items-center justify-center transition-colors"
+                    >
+                      <X size={20} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Left Arrow */}
+                {currentPhotos.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePhotoIndex((activePhotoIndex - 1 + currentPhotos.length) % currentPhotos.length);
+                    }}
+                    className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors z-20"
+                    aria-label="Previous Photo"
+                  >
+                    <ChevronLeft size={24} />
+                  </button>
+                )}
+
+                {/* Image */}
+                <div
+                  className="max-w-4xl max-h-[80vh] w-full flex items-center justify-center"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <img
+                    src={activeUrl}
+                    alt={`${event.title} snapshot ${activePhotoIndex + 1}`}
+                    className="max-h-[80vh] max-w-full object-contain rounded-lg shadow-2xl"
+                  />
+                </div>
+
+                {/* Right Arrow */}
+                {currentPhotos.length > 1 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setActivePhotoIndex((activePhotoIndex + 1) % currentPhotos.length);
+                    }}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors z-20"
+                    aria-label="Next Photo"
+                  >
+                    <ChevronRight size={24} />
+                  </button>
+                )}
+
+                {/* Bottom Navigation hint */}
+                <div className="absolute bottom-4 left-0 right-0 text-center text-xs text-gray-300 font-openSans px-4">
+                  Press <kbd className="px-1.5 py-0.5 bg-white/20 rounded text-[10px]">Esc</kbd> to close &bull; Click outside to dismiss
+                </div>
+              </div>
+            );
+          })()
+        )}
       </div>
     </div>
   );
