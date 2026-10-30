@@ -83,7 +83,7 @@ export default function AdminCertificateTemplatesPage() {
   const [showLogosPanel, setShowLogosPanel] = useState(true);
   const [chapterLogo, setChapterLogo] = useState<string>("/ieee-cs-logo.png");
   const [universityLogo, setUniversityLogo] = useState<string>("/logo.png");
-  const [ieeeLogo, setIeeeLogo] = useState<string>("");
+  const [ieeeLogo, setIeeeLogo] = useState<string>("/ieee-logo.svg");
   const [eventLogo, setEventLogo] = useState<string>("");
 
   // Load Templates & Cached Signatures/Logos
@@ -135,10 +135,10 @@ export default function AdminCertificateTemplatesPage() {
       if (savedLogos) {
         try {
           const parsed = JSON.parse(savedLogos);
-          if (parsed.chapterLogo) setChapterLogo((prev) => prev || parsed.chapterLogo);
-          if (parsed.universityLogo) setUniversityLogo((prev) => prev || parsed.universityLogo);
-          if (parsed.ieeeLogo) setIeeeLogo((prev) => prev || parsed.ieeeLogo);
-          if (parsed.eventLogo) setEventLogo((prev) => prev || parsed.eventLogo);
+          if (parsed.chapterLogo) setChapterLogo(parsed.chapterLogo);
+          if (parsed.universityLogo) setUniversityLogo(parsed.universityLogo);
+          if (parsed.ieeeLogo) setIeeeLogo(parsed.ieeeLogo);
+          if (parsed.eventLogo) setEventLogo(parsed.eventLogo);
         } catch (e) {
           console.warn("Failed to load cached logos:", e);
         }
@@ -175,7 +175,7 @@ export default function AdminCertificateTemplatesPage() {
 
       setChapterLogo(target.chapterLogoUrl || cachedLogos.chapterLogo || "/ieee-cs-logo.png");
       setUniversityLogo(target.universityLogoUrl || cachedLogos.universityLogo || "/logo.png");
-      setIeeeLogo(target.ieeeLogoUrl || cachedLogos.ieeeLogo || "");
+      setIeeeLogo(target.ieeeLogoUrl || cachedLogos.ieeeLogo || "/ieee-logo.svg");
       setEventLogo(target.eventLogoUrl || cachedLogos.eventLogo || "");
     }
   };
@@ -281,23 +281,31 @@ export default function AdminCertificateTemplatesPage() {
 
     const activeChapterLogo = chapterLogo || "/ieee-cs-logo.png";
     const activeUnivLogo = universityLogo || "/logo.png";
-    const activeIeeeLogo = ieeeLogo
-      ? `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 46px; max-width: 110px; object-fit: contain; display: block; margin: auto;" />`
-      : `<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>`;
-    const activeEventLogo = eventLogo
-      ? `<img src="${eventLogo}" alt="Event / Sponsor Logo" style="max-height: 52px; max-width: 140px; object-fit: contain; display: inline-block;" />`
+    const activeIeeeLogo = ieeeLogo || "/ieee-logo.svg";
+    const activeEventLogo = eventLogo || "";
+
+    const ieeeLogoImgHtml = `<img src="${activeIeeeLogo}" alt="IEEE Logo" style="max-height: 46px; max-width: 110px; object-fit: contain; display: block; margin: auto;" />`;
+    const eventLogoImgHtml = activeEventLogo
+      ? `<img src="${activeEventLogo}" alt="Event / Sponsor Logo" style="max-height: 52px; max-width: 140px; object-fit: contain; display: inline-block;" />`
       : "";
 
     let rendered = htmlCode
       // Logos dynamic tags
+      .replace(/src=["']{{chapter_logo}}["']/g, `src="${activeChapterLogo}"`)
       .replace(/{{chapter_logo}}/g, activeChapterLogo)
       .replace(/{{logo_url}}/g, activeChapterLogo)
       .replace(/src=["']\/ieee-cs-logo\.png["']/g, `src="${activeChapterLogo}"`)
       .replace(/src=["']\/ieee-cs-logo-white\.png["']/g, `src="${activeChapterLogo}"`)
+
+      .replace(/src=["']{{university_logo}}["']/g, `src="${activeUnivLogo}"`)
       .replace(/src=["']\/logo\.png["']/g, `src="${activeUnivLogo}"`)
       .replace(/{{university_logo}}/g, `<img src="${activeUnivLogo}" alt="University Logo" style="max-height: 60px; max-width: 140px; object-fit: contain; display: inline-block;" />`)
-      .replace(/{{ieee_logo}}/g, activeIeeeLogo)
-      .replace(/{{event_logo}}/g, activeEventLogo)
+
+      .replace(/src=["']{{ieee_logo}}["']/g, `src="${activeIeeeLogo}"`)
+      .replace(/{{ieee_logo}}/g, ieeeLogoImgHtml)
+
+      .replace(/src=["']{{event_logo}}["']/g, `src="${activeEventLogo}"`)
+      .replace(/{{event_logo}}/g, eventLogoImgHtml)
       // Signatures
       .replace(/{{chair_signature}}/g, chairSigImg)
       .replace(/{{advisor_signature}}/g, advisorSigImg)
@@ -325,22 +333,23 @@ export default function AdminCertificateTemplatesPage() {
       .replace(/{{issuer_statement}}/g, "This is an official chapter recognition issued by IEEE CS UCET-IUB Student Branch Chapter.")
       .replace(/{{issue_date}}/g, "June 03, 2026");
 
-    // Dynamic replacement for templates with hardcoded IEEE emblem box containers or text
-    if (ieeeLogo) {
-      // 1. Box container (e.g. Projects Expo 80x54 white box)
-      rendered = rendered.replace(
-        /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
-        (fullMatch, attrs) => {
-          return `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`;
-        }
-      );
-
-      // 2. Standalone text block
-      rendered = rendered.replace(
-        /<div([^>]*)>\s*IEEE\s*<\/div>/gi,
-        `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
-      );
-    }
+    // Dynamic replacement for ANY hardcoded IEEE emblem box container or standalone text
+    rendered = rendered.replace(
+      /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+      (fullMatch, attrs) => `<div${attrs}>${ieeeLogoImgHtml}</div>`
+    );
+    rendered = rendered.replace(
+      /<div([^>]*style=["'][^"']*(?:padding|border)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+      (fullMatch, attrs) => `<div${attrs}>${ieeeLogoImgHtml}</div>`
+    );
+    rendered = rendered.replace(
+      /<div([^>]*style=["'][^"']*letter-spacing[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+      ieeeLogoImgHtml
+    );
+    rendered = rendered.replace(
+      /<div([^>]*)>\s*IEEE\s*<\/div>/gi,
+      ieeeLogoImgHtml
+    );
 
     return rendered;
   };
@@ -880,21 +889,15 @@ export default function AdminCertificateTemplatesPage() {
                         3. IEEE Emblem Logo
                       </span>
                       <span className="text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded">
-                        {ieeeLogo ? "Active" : "Text Default"}
+                        {ieeeLogo.startsWith("data:") ? "Custom" : "Official"}
                       </span>
                     </div>
                     <div className="w-full h-20 rounded border border-gray-300 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:8px_8px] flex items-center justify-center overflow-hidden p-2 bg-white">
-                      {ieeeLogo ? (
-                        <img
-                          src={ieeeLogo}
-                          alt="IEEE Emblem"
-                          className="max-h-full max-w-full object-contain"
-                        />
-                      ) : (
-                        <span className="font-montserrat font-extrabold text-xl text-ieee-blue tracking-wider">
-                          IEEE
-                        </span>
-                      )}
+                      <img
+                        src={ieeeLogo || "/ieee-logo.svg"}
+                        alt="IEEE Emblem"
+                        className="max-h-full max-w-full object-contain"
+                      />
                     </div>
                   </div>
 
@@ -910,14 +913,14 @@ export default function AdminCertificateTemplatesPage() {
                           onChange={(e) => handleLogoUpload(e, "IEEE")}
                         />
                       </label>
-                      {ieeeLogo && (
+                      {ieeeLogo !== "/ieee-logo.svg" && (
                         <button
                           type="button"
-                          onClick={() => setIeeeLogo("")}
-                          className="px-2 py-1.5 text-[11px] text-red-500 hover:text-red-700 border border-gray-300 rounded bg-white hover:bg-red-50"
-                          title="Remove custom IEEE logo"
+                          onClick={() => setIeeeLogo("/ieee-logo.svg")}
+                          className="px-2 py-1.5 text-[11px] text-gray-500 hover:text-purple-700 border border-gray-300 rounded bg-white hover:bg-purple-50"
+                          title="Reset to official /ieee-logo.svg"
                         >
-                          <Trash2 size={12} />
+                          <RotateCcw size={12} />
                         </button>
                       )}
                     </div>

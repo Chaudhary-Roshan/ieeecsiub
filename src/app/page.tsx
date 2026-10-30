@@ -248,59 +248,62 @@ export default function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-              {upcomingEvents.map((evt) => (
-                <div
-                  key={evt.id}
-                  className="bg-white border border-ieee-border rounded-card overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md transition-all group"
-                >
-                  <div>
-                    <div className="relative h-44 w-full bg-gray-200 overflow-hidden">
-                      <img
-                        src={evt.featuredImage}
-                        alt={evt.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute top-3 right-3">
-                        <Badge status={evt.status} />
+              {upcomingEvents.map((evt) => {
+                const eventSlug = evt.slug.includes("/") ? evt.slug.split("/")[1] : evt.slug;
+                return (
+                  <div
+                    key={evt.id}
+                    className="bg-white border border-ieee-border rounded-card overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md transition-all group"
+                  >
+                    <div>
+                      <div className="relative h-44 w-full bg-gray-200 overflow-hidden">
+                        <img
+                          src={evt.featuredImage || "/ieee-cs-logo.png"}
+                          alt={evt.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute top-3 right-3">
+                          <Badge status={evt.status} />
+                        </div>
+                      </div>
+
+                      <div className="p-6 space-y-3">
+                        <div className="flex items-center gap-1.5 text-xs text-ieee-blue font-semibold">
+                          <Calendar size={14} />
+                          <span>{formatPKTDateTime(evt.startDate)}</span>
+                        </div>
+
+                        <h3 className="font-montserrat font-bold text-lg text-ieee-navy group-hover:text-ieee-blue transition-colors line-clamp-2">
+                          <Link href={`/events/${eventSlug}`}>
+                            {evt.title}
+                          </Link>
+                        </h3>
+
+                        <p className="text-xs text-gray-600 line-clamp-2">
+                          {evt.description}
+                        </p>
+
+                        <div className="flex items-center gap-1.5 text-xs text-gray-500 pt-1">
+                          <MapPin size={13} className="text-ieee-muted" />
+                          <span className="truncate">{evt.venue}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="p-6 space-y-3">
-                      <div className="flex items-center gap-1.5 text-xs text-ieee-blue font-semibold">
-                        <Calendar size={14} />
-                        <span>{formatPKTDateTime(evt.startDate)}</span>
-                      </div>
-
-                      <h3 className="font-montserrat font-bold text-lg text-ieee-navy group-hover:text-ieee-blue transition-colors line-clamp-2">
-                        <Link href={`/events/${evt.slug.split("/")[1] || evt.slug}`}>
-                          {evt.title}
-                        </Link>
-                      </h3>
-
-                      <p className="text-xs text-gray-600 line-clamp-2">
-                        {evt.description}
-                      </p>
-
-                      <div className="flex items-center gap-1.5 text-xs text-gray-500 pt-1">
-                        <MapPin size={13} className="text-ieee-muted" />
-                        <span className="truncate">{evt.venue}</span>
-                      </div>
+                    <div className="p-6 pt-0 border-t border-gray-100 mt-4 flex items-center justify-between">
+                      <span className="text-xs font-bold text-gray-700">
+                        {evt.feePkr > 0 ? `PKR ${evt.feePkr}` : "Free Event"}
+                      </span>
+                      <Link
+                        href={`/events/${eventSlug}`}
+                        className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue hover:underline"
+                      >
+                        View & Register &rarr;
+                      </Link>
                     </div>
                   </div>
-
-                  <div className="p-6 pt-0 border-t border-gray-100 mt-4 flex items-center justify-between">
-                    <span className="text-xs font-bold text-gray-700">
-                      {evt.feePkr > 0 ? `PKR ${evt.feePkr}` : "Free Event"}
-                    </span>
-                    <Link
-                      href={`/events/${evt.slug.split("/")[1] || evt.slug}`}
-                      className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue hover:underline"
-                    >
-                      View & Register &rarr;
-                    </Link>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
@@ -322,51 +325,54 @@ export default function HomePage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {completedEvents.map((evt) => (
-            <div
-              key={evt.id}
-              className="bg-white border border-ieee-border rounded-card overflow-hidden flex flex-col sm:flex-row shadow-sm group"
-            >
-              <div className="sm:w-2/5 h-48 sm:h-auto relative bg-gray-200">
-                <img
-                  src={evt.featuredImage}
-                  alt={evt.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-              </div>
+          {completedEvents.map((evt) => {
+            const eventSlug = evt.slug.includes("/") ? evt.slug.split("/")[1] : evt.slug;
+            return (
+              <div
+                key={evt.id}
+                className="bg-white border border-ieee-border rounded-card overflow-hidden flex flex-col sm:flex-row shadow-sm group"
+              >
+                <div className="sm:w-2/5 h-48 sm:h-auto relative bg-gray-200">
+                  <img
+                    src={evt.featuredImage || "/ieee-cs-logo.png"}
+                    alt={evt.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                </div>
 
-              <div className="p-6 sm:w-3/5 flex flex-col justify-between space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs text-ieee-muted">
-                    <span>{formatPKTDateOnly(evt.startDate)}</span>
-                    <Badge status="COMPLETED" size="sm" />
+                <div className="p-6 sm:w-3/5 flex flex-col justify-between space-y-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-xs text-ieee-muted">
+                      <span>{formatPKTDateOnly(evt.startDate)}</span>
+                      <Badge status="COMPLETED" size="sm" />
+                    </div>
+
+                    <h3 className="font-montserrat font-bold text-base text-ieee-navy group-hover:text-ieee-blue transition-colors">
+                      <Link href={`/events/${eventSlug}`}>
+                        {evt.title}
+                      </Link>
+                    </h3>
+
+                    <p className="text-xs text-gray-600 line-clamp-3">
+                      {evt.eventReport || evt.description}
+                    </p>
                   </div>
 
-                  <h3 className="font-montserrat font-bold text-base text-ieee-navy group-hover:text-ieee-blue transition-colors">
-                    <Link href={`/events/${evt.slug.split("/")[1]}`}>
-                      {evt.title}
+                  <div className="pt-2 flex items-center justify-between">
+                    <span className="text-[11px] text-ieee-muted">
+                      vTools L31 Filed
+                    </span>
+                    <Link
+                      href={`/events/${eventSlug}`}
+                      className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue hover:underline"
+                    >
+                      View Report & Photos <ArrowRight size={12} className="ml-1" />
                     </Link>
-                  </h3>
-
-                  <p className="text-xs text-gray-600 line-clamp-3">
-                    {evt.eventReport || evt.description}
-                  </p>
-                </div>
-
-                <div className="pt-2 flex items-center justify-between">
-                  <span className="text-[11px] text-ieee-muted">
-                    vTools L31 Filed
-                  </span>
-                  <Link
-                    href={`/events/${evt.slug.split("/")[1]}`}
-                    className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue hover:underline"
-                  >
-                    View Report & Photos <ArrowRight size={12} className="ml-1" />
-                  </Link>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

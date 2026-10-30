@@ -107,7 +107,7 @@ export default function EventsListPage() {
                     {/* Event Image */}
                     <div className="relative h-48 w-full bg-gray-200 overflow-hidden">
                       <img
-                        src={evt.featuredImage}
+                        src={evt.featuredImage || "/ieee-cs-logo.png"}
                         alt={evt.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />

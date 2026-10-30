@@ -55,7 +55,7 @@ export async function renderCertificateHtml(
 
   const chapterLogo = template?.chapterLogoUrl || globalLogos.chapterLogo || "/ieee-cs-logo.png";
   const universityLogo = template?.universityLogoUrl || globalLogos.universityLogo || "/logo.png";
-  const ieeeLogo = template?.ieeeLogoUrl || globalLogos.ieeeLogo || "";
+  const ieeeLogo = template?.ieeeLogoUrl || globalLogos.ieeeLogo || "/ieee-logo.svg";
   const eventLogo = template?.eventLogoUrl || globalLogos.eventLogo || "";
 
   const chairSigHtml = chairSigUrl
@@ -66,9 +66,7 @@ export async function renderCertificateHtml(
     ? `<img src="${advisorSigUrl}" alt="Advisor Signature" style="max-height: 48px; max-width: 160px; object-fit: contain; display: block; margin: 0 auto;" />`
     : `<div style="height: 36px"></div>`;
 
-  const activeIeeeLogoHtml = ieeeLogo
-    ? `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 46px; max-width: 110px; object-fit: contain; display: block; margin: auto;" />`
-    : `<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>`;
+  const activeIeeeLogoHtml = `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 46px; max-width: 110px; object-fit: contain; display: block; margin: auto;" />`;
 
   const activeEventLogoHtml = eventLogo
     ? `<img src="${eventLogo}" alt="Event / Partner Logo" style="max-height: 52px; max-width: 140px; object-fit: contain; display: inline-block;" />`
@@ -105,19 +103,30 @@ export async function renderCertificateHtml(
     .replace(/{{advisor_name}}/g, advisorName)
 
     // Logos
+    .replace(/src=["']{{chapter_logo}}["']/g, `src="${chapterLogo}"`)
     .replace(/{{chapter_logo}}/g, chapterLogo)
     .replace(/{{logo_url}}/g, chapterLogo)
     .replace(/src=["']\/ieee-cs-logo\.png["']/g, `src="${chapterLogo}"`)
     .replace(/src=["']\/ieee-cs-logo-white\.png["']/g, `src="${chapterLogo}"`)
+
+    .replace(/src=["']{{university_logo}}["']/g, `src="${universityLogo}"`)
     .replace(/src=["']\/logo\.png["']/g, `src="${universityLogo}"`)
     .replace(/{{university_logo}}/g, `<img src="${universityLogo}" alt="University Logo" style="max-height: 60px; max-width: 140px; object-fit: contain; display: inline-block;" />`)
+
+    .replace(/src=["']{{ieee_logo}}["']/g, `src="${ieeeLogo}"`)
     .replace(/{{ieee_logo}}/g, activeIeeeLogoHtml)
+
+    .replace(/src=["']{{event_logo}}["']/g, `src="${eventLogo}"`)
     .replace(/{{event_logo}}/g, activeEventLogoHtml);
 
   // 5. Intelligent fallback: if ieeeLogo exists, replace any hardcoded IEEE emblem box container or standalone text
   if (ieeeLogo) {
     rendered = rendered.replace(
       /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+      (match, attrs) => `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`
+    );
+    rendered = rendered.replace(
+      /<div([^>]*style=["'][^"']*(?:padding|border)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
       (match, attrs) => `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`
     );
     rendered = rendered.replace(

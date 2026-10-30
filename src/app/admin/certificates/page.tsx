@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
-import { CertificateRecord, StaffUser } from "@/types";
+import { CertificateRecord, StaffUser, CertificateTemplate } from "@/types";
 import { generateCertificateCode } from "@/lib/codeGenerator";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -34,6 +34,8 @@ export default function AdminCertificatesPage() {
   const [replacingCert, setReplacingCert] = useState<CertificateRecord | null>(null);
   const [correctedName, setCorrectedName] = useState("");
   const [replaceReason, setReplaceReason] = useState("Name spelling correction per verified participant request.");
+  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   // Legacy Import State
   const [showLegacyModal, setShowLegacyModal] = useState(false);
@@ -45,6 +47,7 @@ export default function AdminCertificatesPage() {
     async function load() {
       const live = await db.fetchCertificates();
       setCerts(live);
+      setTemplates(db.getTemplates());
     }
     load();
     const saved = localStorage.getItem("ieee_cs_active_staff");
@@ -114,7 +117,7 @@ export default function AdminCertificatesPage() {
       approverRole: "Administrator",
       status: "ACTIVE",
       source: replacingCert.source,
-      templateId: replacingCert.templateId,
+      templateId: selectedTemplateId || replacingCert.templateId || db.getActiveTemplate().id,
       teamName: replacingCert.teamName,
       projectTitle: replacingCert.projectTitle,
       createdAt: new Date().toISOString(),
@@ -303,6 +306,7 @@ export default function AdminCertificatesPage() {
                             onClick={() => {
                               setReplacingCert(cert);
                               setCorrectedName(cert.recipientName);
+                              setSelectedTemplateId(cert.templateId || db.getActiveTemplate().id);
                             }}
                             className="inline-flex items-center gap-1 text-[11px] font-semibold text-ieee-blue hover:underline bg-ieee-surfaceTint/50 px-2.5 py-1 rounded"
                           >
@@ -406,6 +410,23 @@ export default function AdminCertificatesPage() {
                     onChange={(e) => setCorrectedName(e.target.value)}
                     className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    Certificate Design Template *
+                  </label>
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white text-xs font-semibold"
+                  >
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>
+                        {t.name} {t.isDefault ? "★ (Active Default)" : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div>

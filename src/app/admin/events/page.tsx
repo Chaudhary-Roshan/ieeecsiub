@@ -217,14 +217,22 @@ export default function AdminEventsManagerPage() {
       .map((s) => s.trim())
       .filter(Boolean);
 
+    const cleanSlug = slug.trim().replace(/^\/+/, "");
+    let safeStart = new Date().toISOString();
+    let safeEnd = new Date(Date.now() + 86400000).toISOString();
+    try {
+      if (startDate) safeStart = new Date(startDate).toISOString();
+      if (endDate) safeEnd = new Date(endDate).toISOString();
+    } catch {}
+
     const eventPayload: EventItem = {
       id: editingEventId || `evt-${Date.now()}`,
-      slug: slug.trim(),
+      slug: cleanSlug,
       title: title.trim(),
       description: description.trim(),
       learningObjectives: objectives,
-      startDate: new Date(startDate).toISOString(),
-      endDate: new Date(endDate).toISOString(),
+      startDate: safeStart,
+      endDate: safeEnd,
       venue: venue.trim(),
       isOnline,
       meetingLink: isOnline ? meetingLink.trim() : undefined,

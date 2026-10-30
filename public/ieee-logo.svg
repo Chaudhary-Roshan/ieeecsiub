@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" fill="none">
+  <!-- Official IEEE Emblem (Diamond + Arrows) & Wordmark -->
+  <g fill="#00629B">
+    <!-- Diamond outer -->
+    <path d="M25 3 L47 25 L25 47 L3 25 Z" fill="#00629B"/>
+    <!-- Diamond inner white boundary -->
+    <path d="M25 7 L43 25 L25 43 L7 25 Z" fill="#FFFFFF"/>
+    <!-- Diamond core -->
+    <path d="M25 10 L40 25 L25 40 L10 25 Z" fill="#00629B"/>
+    <!-- Right-hand rule induction lines -->
+    <circle cx="25" cy="25" r="4.5" fill="#FFFFFF"/>
+    <path d="M25 14 L25 36 M14 25 L36 25" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M22 17 L25 14 L28 17" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M33 22 L36 25 L33 28" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <!-- Wordmark IEEE -->
+    <path d="M58 13 H66 V37 H58 Z" />
+    <path d="M72 13 H93 V18 H80 V22 H91 V27 H80 V32 H93 V37 H72 Z" />
+    <path d="M99 13 H120 V18 H107 V22 H118 V27 H107 V32 H120 V37 H99 Z" />
+    <path d="M126 13 H147 V18 H134 V22 H145 V27 H134 V32 H147 V37 H126 Z" />
+  </g>
+</svg>

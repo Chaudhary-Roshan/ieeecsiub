@@ -309,21 +309,14 @@ ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE news ENABLE ROW LEVEL SECURITY;
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE certificate_templates ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public can verify certificates" ON certificates
-    FOR SELECT USING (true);
-
-CREATE POLICY "Public can view events" ON events
-    FOR SELECT USING (true);
-
-CREATE POLICY "Public can view news" ON news
-    FOR SELECT USING (true);
-
-CREATE POLICY "Staff can manage certificates" ON certificates
-    FOR ALL USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Audit logs insert only" ON audit_logs
-    FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Audit logs select for authorized staff" ON audit_logs
-    FOR SELECT USING (auth.role() = 'authenticated');
+CREATE POLICY "Public can manage certificates" ON certificates FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public can manage events" ON events FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public can manage news" ON news FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public can manage team" ON team_members FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public can manage registrations" ON registrations FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public can manage payments" ON payments FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Public can manage certificate_templates" ON certificate_templates FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Audit logs insert and select" ON audit_logs FOR ALL USING (true) WITH CHECK (true);

@@ -362,13 +362,14 @@ class ChapterDatabase {
   }
 
   async fetchCertificates(): Promise<CertificateRecord[]> {
+    const local = this.getCertificates();
     if (supabase) {
       try {
         const { data, error } = await supabase
           .from("certificates")
           .select("*")
           .order("created_at", { ascending: false });
-        if (data && !error) {
+        if (data && !error && data.length > 0) {
           const list: CertificateRecord[] = data.map((d: any) => ({
             id: d.id,
             code: d.code,
@@ -396,14 +397,21 @@ class ChapterDatabase {
             pdfUrl: d.pdf_url,
             createdAt: d.created_at,
           }));
-          this.setItem("certificates", list);
-          return list;
+
+          const merged = [...local];
+          for (const rem of list) {
+            if (!merged.some((m) => m.code === rem.code)) {
+              merged.push(rem);
+            }
+          }
+          this.setItem("certificates", merged);
+          return merged;
         }
       } catch (err) {
         console.warn("Supabase fetchCertificates error:", err);
       }
     }
-    return this.getCertificates();
+    return local;
   }
 
   addCertificate(cert: CertificateRecord): void {
@@ -486,6 +494,7 @@ class ChapterDatabase {
   }
 
   async fetchEvents(): Promise<EventItem[]> {
+    const local = this.getEvents();
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -518,23 +527,36 @@ class ChapterDatabase {
             galleryImages: d.gallery_images || [],
             eventReport: d.event_report,
           }));
-          this.setItem("events", mapped);
-          return mapped;
+
+          // Bidirectional merge: preserve all local events (especially newly created admin ones)
+          const merged = [...local];
+          for (const rem of mapped) {
+            const idx = merged.findIndex((m) => m.id === rem.id || m.slug === rem.slug);
+            if (idx === -1) {
+              merged.push(rem);
+            }
+          }
+          this.setItem("events", merged);
+          return merged;
         }
       } catch (err) {
         console.warn("Supabase fetchEvents fallback to local:", err);
       }
     }
-    return this.getEvents();
+    return local;
   }
 
   getEventBySlug(slug: string): EventItem | undefined {
     const list = this.getEvents();
-    return list.find((e) => e.slug === slug || e.slug.endsWith(slug));
+    const clean = slug.replace(/^\/+/, "");
+    return list.find((e) => e.slug === clean || e.slug === `2026/${clean}` || e.slug.endsWith(clean) || clean.endsWith(e.slug));
   }
 
   async fetchEventBySlug(slug: string): Promise<EventItem | undefined> {
     const clean = slug.replace(/^\/+/, "");
+    const local = this.getEventBySlug(clean);
+    if (local) return local;
+
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -543,7 +565,7 @@ class ChapterDatabase {
           .or(`slug.eq.${clean},slug.eq.2026/${clean}`)
           .maybeSingle();
         if (data && !error && data) {
-          return {
+          const evt: EventItem = {
             id: data.id,
             slug: data.slug,
             title: data.title,
@@ -568,12 +590,18 @@ class ChapterDatabase {
             galleryImages: data.gallery_images || [],
             eventReport: data.event_report,
           };
+          const list = this.getEvents();
+          if (!list.some((e) => e.id === evt.id || e.slug === evt.slug)) {
+            list.unshift(evt);
+            this.setItem("events", list);
+          }
+          return evt;
         }
       } catch (err) {
         console.warn("Supabase fetchEventBySlug fallback:", err);
       }
     }
-    return this.getEventBySlug(clean);
+    return undefined;
   }
 
   getEventById(id: string): EventItem | undefined {
@@ -609,7 +637,7 @@ class ChapterDatabase {
         vtools_id: event.vtoolsId,
         vtools_link: event.vtoolsLink,
         featured_image: event.featuredImage,
-      }).then(({ error }) => {
+      }, { onConflict: "slug" }).then(({ error }) => {
         if (error) console.warn("Supabase addEvent sync error:", error);
       });
     }
@@ -834,6 +862,7 @@ class ChapterDatabase {
   }
 
   async fetchTeamMembers(): Promise<TeamMember[]> {
+    const local = this.getTeamMembers();
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -852,14 +881,23 @@ class ChapterDatabase {
             isCurrent: d.is_current ?? true,
             orderIndex: d.order_index ?? 0,
           }));
-          this.setItem("team", mapped);
-          return mapped;
+
+          // Merge: preserve local members (e.g. freshly created or updated by admin)
+          const merged = [...local];
+          for (const rem of mapped) {
+            const idx = merged.findIndex((m) => m.id === rem.id || (m.name === rem.name && m.committeeYear === rem.committeeYear));
+            if (idx === -1) {
+              merged.push(rem);
+            }
+          }
+          this.setItem("team", merged);
+          return merged;
         }
       } catch (err) {
         console.warn("Supabase fetchTeamMembers fallback to local:", err);
       }
     }
-    return this.getTeamMembers();
+    return local;
   }
 
   async saveTeamMember(member: TeamMember): Promise<void> {
