@@ -13,6 +13,7 @@ import {
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
+import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_TEAMS } from "./digitalFestData";
 
 // Seed Templates
 const SEED_TEMPLATES: CertificateTemplate[] = [
@@ -48,8 +49,8 @@ const SEED_EVENTS: EventItem[] = [
     venue: "Department of Information & Communication Engineering, The Islamia University of Bahawalpur (IUB)",
     isOnline: false,
     status: "COMPLETED",
-    seatsLimit: 120,
-    registeredCount: 96,
+    seatsLimit: 160,
+    registeredCount: 156,
     feePkr: 0,
     certificateType: "Certificate of Participation & Project Merit",
     certificateRule: "Successfully set up project booth, demonstrated functional prototype, and presented project to evaluation jury at the Expo",
@@ -78,8 +79,25 @@ const SEED_EVENTS: EventItem[] = [
   },
 ];
 
-// Clean Certificates Registry (Fetched in real time from database)
-const SEED_CERTIFICATES: CertificateRecord[] = [];
+// Official IEEE DigitalFest 2026 Certificates Registry (156 Participants Across 60 Teams)
+const SEED_CERTIFICATES: CertificateRecord[] = DIGITALFEST_PARTICIPANTS.map((p, idx) => ({
+  id: `cert-df-${idx + 1}`,
+  code: p.certificateCode,
+  recipientName: p.name,
+  publicNameFormat: "FULL_NAME",
+  eventId: "evt-digitalfest-2026",
+  eventTitle: `IEEE DigitalFest 2026 – Projects Expo (Project: "${p.projectTitle}" · Team: ${p.teamName})`,
+  certificateType: "Certificate of Participation & Project Merit",
+  recognitionLevel: "CHAPTER_RECOGNITION",
+  issuerStatement: "Official chapter recognition issued by IEEE Computer Society Student Branch Chapter UCET-IUB in collaboration with Cyber Security Student Club, Department of Information & Communication Engineering, IUB.",
+  activityDate: "2026-06-03",
+  issueDate: "2026-06-03",
+  approverName: "Muhammad Roshan Ashraf",
+  approverRole: "Chapter Administrator & Event Lead",
+  status: "ACTIVE",
+  source: "IN_SITE_GENERATED",
+  createdAt: "2026-06-03T10:00:00Z",
+}));
 
 // Seed Team
 const SEED_TEAM: TeamMember[] = [
@@ -152,8 +170,24 @@ const SEED_TEAM: TeamMember[] = [
 // Clean Upload Batches (Fetched in real time from database)
 const SEED_BATCHES: UploadBatch[] = [];
 
-// Clean Event Registrations & Tickets (Fetched in real time from database)
-const SEED_REGISTRATIONS: Registration[] = [];
+// Official IEEE DigitalFest 2026 Event Registrations & Tickets (156 Participants Across 60 Teams)
+const SEED_REGISTRATIONS: Registration[] = DIGITALFEST_PARTICIPANTS.map((p) => ({
+  id: p.id,
+  eventId: "evt-digitalfest-2026",
+  privateToken: `token-${p.id}`,
+  fullName: p.name,
+  namePreference: "FULL_NAME",
+  email: `${p.name.toLowerCase().replace(/[^a-z]/g, "")}@iub.edu.pk`,
+  phone: "+92-300-0000000",
+  department: "Department of Information & Communication Engineering, IUB",
+  rollNumber: `${p.semester} Semester • Team ${p.teamName}`,
+  isIeeeMember: p.isLeader,
+  photoConsent: true,
+  status: "ATTENDED",
+  ticketCode: `TCK-DF26-${p.certificateCode.slice(-4)}`,
+  checkedInAt: "2026-06-03T08:45:00Z",
+  createdAt: "2026-05-20T10:00:00Z",
+}));
 
 // Clean Payment Proofs (Fetched in real time from database)
 const SEED_PAYMENTS: PaymentProof[] = [];
@@ -176,8 +210,9 @@ class ChapterDatabase {
       localStorage.removeItem("ieee_cs_payments");
       localStorage.removeItem("ieee_cs_audit");
       localStorage.removeItem("ieee_cs_attendance");
+      localStorage.removeItem("ieee_cs_attendance_records");
       localStorage.removeItem("ieee_cs_events");
-      localStorage.setItem("ieee_cs_cache_version", "v4_clean_realtime");
+      localStorage.setItem("ieee_cs_cache_version", "v5_digitalfest_full");
     } catch (e) {
       console.error("Purge error:", e);
     }
@@ -186,7 +221,7 @@ class ChapterDatabase {
   private getItem<T>(key: string, fallback: T): T {
     if (!this.isBrowser()) return fallback;
     try {
-      if (localStorage.getItem("ieee_cs_cache_version") !== "v4_clean_realtime") {
+      if (localStorage.getItem("ieee_cs_cache_version") !== "v5_digitalfest_full") {
         this.purgeAllTestData();
         return fallback;
       }
@@ -617,16 +652,20 @@ class ChapterDatabase {
     }
     // Auto-generate initial attendance list from registrations if empty
     const regs = this.getRegistrations().filter((r) => r.eventId === eventId);
-    return regs.map((r) => ({
-      id: r.id,
-      eventId: r.eventId,
-      name: r.fullName,
-      rollNumber: r.rollNumber,
-      email: r.email,
-      attended: r.status === "ATTENDED",
-      certificateCode: r.ticketCode ? `CSIUB-26-${r.ticketCode.slice(-4)}-AUTO` : undefined,
-      checkedInAt: r.checkedInAt,
-    }));
+    const certs = this.getCertificates().filter((c) => c.eventId === eventId);
+    return regs.map((r) => {
+      const matchCert = certs.find((c) => c.recipientName.trim().toLowerCase() === r.fullName.trim().toLowerCase());
+      return {
+        id: r.id,
+        eventId: r.eventId,
+        name: r.fullName,
+        rollNumber: r.rollNumber,
+        email: r.email,
+        attended: r.status === "ATTENDED",
+        certificateCode: matchCert?.code || (r.ticketCode ? `CSIUB-26-${r.ticketCode.slice(-4)}` : undefined),
+        checkedInAt: r.checkedInAt,
+      };
+    });
   }
 
   saveAttendance(eventId: string, records: AttendanceRecord[]): void {

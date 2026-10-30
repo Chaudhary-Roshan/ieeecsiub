@@ -114,7 +114,7 @@ export interface Registration {
   fullName: string;
   namePreference: "FULL_NAME" | "FIRST_INITIAL";
   email: string;
-  phone: string;
+  phone?: string;
   rollNumber: string;
   isIeeeMember: boolean;
   ieeeMembershipNumber?: string;
