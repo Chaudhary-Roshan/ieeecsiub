@@ -1219,6 +1219,10 @@ class ChapterDatabase {
     return this.getRegistrations();
   }
 
+  saveRegistrations(regs: Registration[]): void {
+    this.setItem("registrations", regs);
+  }
+
   addRegistration(reg: Registration): void {
     const list = this.getRegistrations();
     list.unshift(reg);
