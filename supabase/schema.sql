@@ -1,22 +1,44 @@
 -- ====================================================================
 -- IEEE CS UCET-IUB Official Database Schema (PostgreSQL / Supabase)
 -- IEEE Computer Society Student Branch Chapter, UCET - IUB
+-- Idempotent / Safe to re-run
 -- ====================================================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Certificate Status Enum
-CREATE TYPE certificate_status AS ENUM ('ACTIVE', 'REVOKED', 'REPLACED');
-CREATE TYPE certificate_source AS ENUM ('UPLOAD_REGISTRY', 'IN_SITE_GENERATED', 'LEGACY_IMPORT');
-CREATE TYPE event_status AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'POSTPONED', 'CANCELLED');
-CREATE TYPE batch_status AS ENUM ('STAGED', 'APPROVED', 'REJECTED');
-CREATE TYPE payment_status AS ENUM ('PENDING', 'VERIFIED', 'REJECTED');
-CREATE TYPE registration_status AS ENUM ('REGISTERED', 'PAYMENT_PENDING', 'CONFIRMED', 'ATTENDED', 'CANCELLED');
-CREATE TYPE staff_role_type AS ENUM ('SITE_ADMIN', 'CONTENT_MANAGER', 'CERTIFICATE_APPROVER', 'TREASURER', 'CHECKIN_STAFF');
+-- Safe Enum Type Creations (will not fail if already created)
+DO $$ BEGIN
+    CREATE TYPE certificate_status AS ENUM ('ACTIVE', 'REVOKED', 'REPLACED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE certificate_source AS ENUM ('UPLOAD_REGISTRY', 'IN_SITE_GENERATED', 'LEGACY_IMPORT');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE event_status AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'POSTPONED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE batch_status AS ENUM ('STAGED', 'APPROVED', 'REJECTED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE payment_status AS ENUM ('PENDING', 'VERIFIED', 'REJECTED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE registration_status AS ENUM ('REGISTERED', 'PAYMENT_PENDING', 'CONFIRMED', 'ATTENDED', 'CANCELLED');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
+
+DO $$ BEGIN
+    CREATE TYPE staff_role_type AS ENUM ('SITE_ADMIN', 'CONTENT_MANAGER', 'CERTIFICATE_APPROVER', 'TREASURER', 'CHECKIN_STAFF');
+EXCEPTION WHEN duplicate_object THEN null; END $$;
 
 -- 1. Staff Users and Role-Based Access Control
-CREATE TABLE staff_users (
+CREATE TABLE IF NOT EXISTS staff_users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL,
@@ -30,11 +52,11 @@ CREATE TABLE staff_users (
 );
 
 -- 2. Team Members (Advisors, ExCom & Archive)
-CREATE TABLE team_members (
+CREATE TABLE IF NOT EXISTS team_members (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     position TEXT NOT NULL,
-    committee_year TEXT NOT NULL, -- e.g. "2026-2027", "2025-2026"
+    committee_year TEXT NOT NULL,
     photo_url TEXT,
     approved_bio TEXT,
     order_index INT DEFAULT 0,
@@ -43,26 +65,26 @@ CREATE TABLE team_members (
 );
 
 -- 3. Events Table
-CREATE TABLE events (
+CREATE TABLE IF NOT EXISTS events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    slug TEXT UNIQUE NOT NULL, -- Permanent URL: e.g. 2026/flutter-workshop
+    slug TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     learning_objectives TEXT,
     target_audience TEXT,
-    start_date TIMESTAMPTZ NOT NULL, -- UTC
-    end_date TIMESTAMPTZ NOT NULL,   -- UTC
+    start_date TIMESTAMPTZ NOT NULL,
+    end_date TIMESTAMPTZ NOT NULL,
     venue TEXT NOT NULL,
     is_online BOOLEAN DEFAULT FALSE,
     meeting_link TEXT,
     status event_status DEFAULT 'UPCOMING',
-    status_reason TEXT, -- For postponed/cancelled banners
+    status_reason TEXT,
     seats_limit INT,
     registration_deadline TIMESTAMPTZ,
     fee_pkr NUMERIC(10, 2) DEFAULT 0.00,
     payment_instructions TEXT,
-    certificate_type TEXT NOT NULL, -- e.g. "Certificate of Participation", "Merit"
-    certificate_rule TEXT, -- e.g. "Attend both days and submit the lab task"
+    certificate_type TEXT NOT NULL,
+    certificate_rule TEXT,
     vtools_id TEXT,
     vtools_link TEXT,
     featured_image TEXT,
@@ -73,7 +95,7 @@ CREATE TABLE events (
 );
 
 -- 4. Upload Batches (Option 1 Staging & Two-Officer Approval)
-CREATE TABLE upload_batches (
+CREATE TABLE IF NOT EXISTS upload_batches (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID REFERENCES events(id) ON DELETE SET NULL,
     filename TEXT NOT NULL,
@@ -87,35 +109,35 @@ CREATE TABLE upload_batches (
 );
 
 -- 5. Certificates Table (Verified on the public /verify page)
-CREATE TABLE certificates (
+CREATE TABLE IF NOT EXISTS certificates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    code TEXT UNIQUE NOT NULL, -- e.g. CSIUB-26-7K3M-Q9TD (Random + Checksum)
+    code TEXT UNIQUE NOT NULL,
     recipient_name TEXT NOT NULL,
-    public_name_format TEXT NOT NULL DEFAULT 'FULL_NAME', -- 'FULL_NAME' or 'FIRST_INITIAL'
+    public_name_format TEXT NOT NULL DEFAULT 'FULL_NAME',
     event_id UUID REFERENCES events(id) ON DELETE RESTRICT,
     event_title TEXT NOT NULL,
-    certificate_type TEXT NOT NULL, -- Participation, Completion, Appreciation, Speaker
-    recognition_level TEXT DEFAULT 'CHAPTER_RECOGNITION', -- Chapter-issued vs Joint
+    certificate_type TEXT NOT NULL,
+    recognition_level TEXT DEFAULT 'CHAPTER_RECOGNITION',
     issuer_statement TEXT DEFAULT 'This is a chapter recognition, not an IEEE credential.',
     activity_date DATE NOT NULL,
     issue_date DATE NOT NULL DEFAULT CURRENT_DATE,
     approver_name TEXT NOT NULL,
-    approver_role TEXT NOT NULL, -- e.g. "Chapter Chair", "Faculty Advisor"
+    approver_role TEXT NOT NULL,
     status certificate_status DEFAULT 'ACTIVE',
     source certificate_source NOT NULL DEFAULT 'UPLOAD_REGISTRY',
     batch_id UUID REFERENCES upload_batches(id) ON DELETE SET NULL,
-    replaced_by_code TEXT, -- If REPLACED, links to new certificate code
+    replaced_by_code TEXT,
     replacement_reason TEXT,
     revocation_date DATE,
     revocation_reason TEXT,
-    sha256_fingerprint TEXT, -- SHA-256 hash of official original PDF
+    sha256_fingerprint TEXT,
     pdf_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 6. Certificate Versions & Snapshots
-CREATE TABLE certificate_versions (
+CREATE TABLE IF NOT EXISTS certificate_versions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     certificate_id UUID NOT NULL REFERENCES certificates(id) ON DELETE CASCADE,
     version_number INT NOT NULL,
@@ -128,12 +150,12 @@ CREATE TABLE certificate_versions (
 );
 
 -- 7. Option 2: Event Registrations
-CREATE TABLE registrations (
+CREATE TABLE IF NOT EXISTS registrations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     private_token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(24), 'hex'),
     full_name TEXT NOT NULL,
-    name_display_preference TEXT NOT NULL DEFAULT 'FULL_NAME', -- or 'INITIAL_SURNAME'
+    name_display_preference TEXT NOT NULL DEFAULT 'FULL_NAME',
     email TEXT NOT NULL,
     phone TEXT NOT NULL,
     roll_number TEXT,
@@ -147,13 +169,13 @@ CREATE TABLE registrations (
 );
 
 -- 8. Option 2: Payments Queue
-CREATE TABLE payments (
+CREATE TABLE IF NOT EXISTS payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     registration_id UUID NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
     amount_pkr NUMERIC(10, 2) NOT NULL,
-    payment_method TEXT NOT NULL, -- 'Raast', 'Bank Transfer', 'EasyPaisa/JazzCash Manual'
-    transaction_id TEXT UNIQUE NOT NULL, -- Enforces duplicate detection
-    proof_image_url TEXT NOT NULL, -- Private storage bucket link
+    payment_method TEXT NOT NULL,
+    transaction_id TEXT UNIQUE NOT NULL,
+    proof_image_url TEXT NOT NULL,
     status payment_status DEFAULT 'PENDING',
     verified_by UUID REFERENCES staff_users(id),
     verified_at TIMESTAMPTZ,
@@ -162,10 +184,10 @@ CREATE TABLE payments (
 );
 
 -- 9. Option 2: Tickets & Attendance Check-in
-CREATE TABLE tickets (
+CREATE TABLE IF NOT EXISTS tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     registration_id UUID UNIQUE NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
-    ticket_code TEXT UNIQUE NOT NULL, -- Distinct QR ticket code (not certificate code)
+    ticket_code TEXT UNIQUE NOT NULL,
     is_used BOOLEAN DEFAULT FALSE,
     checked_in_at TIMESTAMPTZ,
     checked_in_by UUID REFERENCES staff_users(id),
@@ -174,7 +196,7 @@ CREATE TABLE tickets (
 );
 
 -- 10. Option 2: Certificate Templates
-CREATE TABLE certificate_templates (
+CREATE TABLE IF NOT EXISTS certificate_templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     background_svg_url TEXT,
@@ -187,12 +209,12 @@ CREATE TABLE certificate_templates (
 );
 
 -- 11. Append-Only Audit Logs
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     staff_user_id UUID REFERENCES staff_users(id),
     staff_email TEXT NOT NULL,
-    action TEXT NOT NULL, -- 'GENERATE_CODES', 'STAGED_UPLOAD', 'APPROVE_BATCH', 'REVOKE_CERT', 'REPLACE_CERT', 'VERIFY_PAYMENT', 'CHECKIN'
-    entity_type TEXT NOT NULL, -- 'certificate', 'payment', 'batch', 'event'
+    action TEXT NOT NULL,
+    entity_type TEXT NOT NULL,
     entity_id TEXT,
     before_state JSONB,
     after_state JSONB,
@@ -201,7 +223,7 @@ CREATE TABLE audit_logs (
 );
 
 -- 12. News & Announcements
-CREATE TABLE news (
+CREATE TABLE IF NOT EXISTS news (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
@@ -213,7 +235,7 @@ CREATE TABLE news (
 );
 
 -- 13. Contact & Enquiry Messages
-CREATE TABLE contact_messages (
+CREATE TABLE IF NOT EXISTS contact_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     email TEXT NOT NULL,
@@ -224,16 +246,16 @@ CREATE TABLE contact_messages (
 );
 
 -- -------------------------------------------------------------
--- Performance Indexes
+-- Performance Indexes (Safe)
 -- -------------------------------------------------------------
-CREATE INDEX idx_certificates_code ON certificates(code);
-CREATE INDEX idx_certificates_status ON certificates(status);
-CREATE INDEX idx_certificates_event ON certificates(event_id);
-CREATE INDEX idx_events_slug ON events(slug);
-CREATE INDEX idx_events_status ON events(status);
-CREATE INDEX idx_payments_transaction_id ON payments(transaction_id);
-CREATE INDEX idx_tickets_code ON tickets(ticket_code);
-CREATE INDEX idx_audit_created ON audit_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_certificates_code ON certificates(code);
+CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status);
+CREATE INDEX IF NOT EXISTS idx_certificates_event ON certificates(event_id);
+CREATE INDEX IF NOT EXISTS idx_events_slug ON events(slug);
+CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
+CREATE INDEX IF NOT EXISTS idx_payments_transaction_id ON payments(transaction_id);
+CREATE INDEX IF NOT EXISTS idx_tickets_code ON tickets(ticket_code);
+CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
 
 -- -------------------------------------------------------------
 -- Security: Row Level Security (RLS)
@@ -243,24 +265,29 @@ ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE news ENABLE ROW LEVEL SECURITY;
 
--- Public can read active and historical certificate records for verification
+-- Drop existing policies first to prevent duplication errors
+DROP POLICY IF EXISTS "Public can verify certificates" ON certificates;
 CREATE POLICY "Public can verify certificates" ON certificates
     FOR SELECT USING (true);
 
--- Public can read events and news
+DROP POLICY IF EXISTS "Public can view events" ON events;
 CREATE POLICY "Public can view events" ON events
     FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "Public can view news" ON news;
 CREATE POLICY "Public can view news" ON news
     FOR SELECT USING (true);
 
--- Only authenticated staff can manage certificates
+DROP POLICY IF EXISTS "Staff can manage certificates" ON certificates;
 CREATE POLICY "Staff can manage certificates" ON certificates
     FOR ALL USING (auth.role() = 'authenticated');
 
--- Audit logs are append-only: no updates or deletes allowed
+DROP POLICY IF EXISTS "Audit logs insert only" ON audit_logs;
 CREATE POLICY "Audit logs insert only" ON audit_logs
     FOR INSERT WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Audit logs select for authorized staff" ON audit_logs;
 CREATE POLICY "Audit logs select for authorized staff" ON audit_logs
     FOR SELECT USING (auth.role() = 'authenticated');
