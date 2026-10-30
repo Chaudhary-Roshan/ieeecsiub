@@ -57,13 +57,6 @@ export default function AdminCertificatesPage() {
   const handleRevokeSubmit = () => {
     if (!revokingCert || !revokeReason.trim() || !currentUser) return;
 
-    if (currentUser.role !== "CERTIFICATE_APPROVER") {
-      alert(
-        `Permission Denied: Your current role is "${currentUser.role}".\n\nOnly a "CERTIFICATE_APPROVER" (e.g. Dr. Aoun Muhammad / Faculty Advisor) can revoke certificates. Please switch active role in the sidebar.`
-      );
-      return;
-    }
-
     const today = new Date().toISOString().split("T")[0];
     db.updateCertificate(revokingCert.code, {
       status: "REVOKED",
@@ -87,13 +80,6 @@ export default function AdminCertificatesPage() {
 
   const handleReplaceSubmit = () => {
     if (!replacingCert || !correctedName.trim() || !currentUser) return;
-
-    if (currentUser.role !== "CERTIFICATE_APPROVER") {
-      alert(
-        `Permission Denied: Your current role is "${currentUser.role}".\n\nOnly a "CERTIFICATE_APPROVER" can authorize replacements. Please switch active role in the sidebar.`
-      );
-      return;
-    }
 
     const newCode = generateCertificateCode("26");
     const today = new Date().toISOString().split("T")[0];
@@ -119,7 +105,7 @@ export default function AdminCertificatesPage() {
       activityDate: replacingCert.activityDate,
       issueDate: today,
       approverName: currentUser.name,
-      approverRole: "Certificate Approver",
+      approverRole: "Administrator",
       status: "ACTIVE",
       source: replacingCert.source,
       createdAt: new Date().toISOString(),
@@ -144,11 +130,6 @@ export default function AdminCertificatesPage() {
     e.preventDefault();
     if (!legacyName || !legacyEvent || !currentUser) return;
 
-    if (currentUser.role !== "CERTIFICATE_APPROVER") {
-      alert("Permission Denied: Only a CERTIFICATE_APPROVER can authorize legacy imports.");
-      return;
-    }
-
     const legacyCode = `CSIUB-${legacyYear.slice(2)}-LEG-${Math.floor(1000 + Math.random() * 9000)}`;
     const newCert: CertificateRecord = {
       id: `cert-leg-${Date.now()}`,
@@ -163,7 +144,7 @@ export default function AdminCertificatesPage() {
       activityDate: `${legacyYear}-06-15`,
       issueDate: `${legacyYear}-06-20`,
       approverName: currentUser.name,
-      approverRole: "Certificate Approver",
+      approverRole: "Administrator",
       status: "ACTIVE",
       source: "LEGACY_IMPORT",
       createdAt: new Date().toISOString(),

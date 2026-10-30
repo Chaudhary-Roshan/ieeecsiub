@@ -11,7 +11,7 @@ import { Lock, ShieldCheck, KeyRound, ArrowRight } from "lucide-react";
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [selectedStaffId, setSelectedStaffId] = useState(INITIAL_STAFF_USERS[1].id);
+  const [selectedStaffId, setSelectedStaffId] = useState(INITIAL_STAFF_USERS[0].id);
   const [otp, setOtp] = useState("889214");
   const [loading, setLoading] = useState(false);
 
@@ -19,10 +19,8 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
 
-    const user = INITIAL_STAFF_USERS.find((u) => u.id === selectedStaffId);
-    if (user) {
-      localStorage.setItem("ieee_cs_active_staff", JSON.stringify(user));
-    }
+    const user = INITIAL_STAFF_USERS.find((u) => u.id === selectedStaffId) || INITIAL_STAFF_USERS[0];
+    localStorage.setItem("ieee_cs_active_staff", JSON.stringify(user));
 
     setTimeout(() => {
       setLoading(false);
@@ -38,29 +36,24 @@ export default function AdminLoginPage() {
             <ChapterLogo theme="light" />
           </div>
           <h1 className="font-montserrat font-extrabold text-2xl text-ieee-navy">
-            Staff Portal Login
+            Administrator Portal Login
           </h1>
           <p className="text-xs text-gray-500">
-            Mandatory Two-Factor Authentication (2FA) for Chapter Officers
+            Authenticated Access for Chapter Administrator
           </p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4 text-xs">
           <div>
             <label className="block font-semibold text-gray-700 mb-1">
-              Select Staff Account
+              Administrator Account
             </label>
-            <select
-              value={selectedStaffId}
-              onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white font-medium text-gray-800"
-            >
-              {INITIAL_STAFF_USERS.map((u) => (
-                <option key={u.id} value={u.id}>
-                  {u.name} — {u.role}
-                </option>
-              ))}
-            </select>
+            <div className="w-full p-2.5 border rounded-lg bg-gray-50 font-medium text-gray-800 flex items-center justify-between">
+              <span>{INITIAL_STAFF_USERS[0].name}</span>
+              <span className="text-[10px] bg-ieee-blue text-white px-2 py-0.5 rounded font-bold">
+                {INITIAL_STAFF_USERS[0].role}
+              </span>
+            </div>
           </div>
 
           <div>

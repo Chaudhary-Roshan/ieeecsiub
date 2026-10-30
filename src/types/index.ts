@@ -3,12 +3,7 @@ export type CertificateSource = "UPLOAD_REGISTRY" | "IN_SITE_GENERATED" | "LEGAC
 
 export type EventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "POSTPONED" | "CANCELLED";
 
-export type StaffRole = 
-  | "SITE_ADMIN"
-  | "CONTENT_MANAGER"
-  | "CERTIFICATE_APPROVER"
-  | "TREASURER"
-  | "CHECKIN_STAFF";
+export type StaffRole = "ADMIN" | "SITE_ADMIN";
 
 export interface StaffUser {
   id: string;

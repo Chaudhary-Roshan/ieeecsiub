@@ -25,31 +25,36 @@ import clsx from "clsx";
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
-  const [currentUser, setCurrentUser] = useState<StaffUser>(INITIAL_STAFF_USERS[1]); // Default to Certificate Approver (Dr. Aoun Muhammad)
+  const [currentUser, setCurrentUser] = useState<StaffUser>(INITIAL_STAFF_USERS[0]); // Dedicated Administrator
 
   useEffect(() => {
     const saved = localStorage.getItem("ieee_cs_active_staff");
     if (saved) {
       try {
-        setCurrentUser(JSON.parse(saved));
-      } catch {}
+        const parsed = JSON.parse(saved);
+        if (parsed.id === INITIAL_STAFF_USERS[0].id) {
+          setCurrentUser(parsed);
+        } else {
+          setCurrentUser(INITIAL_STAFF_USERS[0]);
+          localStorage.setItem("ieee_cs_active_staff", JSON.stringify(INITIAL_STAFF_USERS[0]));
+        }
+      } catch {
+        setCurrentUser(INITIAL_STAFF_USERS[0]);
+      }
+    } else {
+      localStorage.setItem("ieee_cs_active_staff", JSON.stringify(INITIAL_STAFF_USERS[0]));
     }
   }, []);
 
-  const handleSwitchUser = (user: StaffUser) => {
-    setCurrentUser(user);
-    localStorage.setItem("ieee_cs_active_staff", JSON.stringify(user));
-  };
-
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { label: "Option 1: Code Generator & Staging", href: "/admin/registry", icon: FileSpreadsheet },
-    { label: "Certificate Records (Revoke/Replace)", href: "/admin/certificates", icon: Award },
-    { label: "Option 2: Payments Queue (Treasurer)", href: "/admin/payments", icon: CreditCard },
-    { label: "Option 2: Mobile Check-in Scanner", href: "/admin/checkin", icon: QrCode },
-    { label: "Option 2: Eligibility & In-site Issuance", href: "/admin/issuance", icon: CheckCircle2 },
-    { label: "vTools L31 Reporting", href: "/admin/vtools-export", icon: FileText },
-    { label: "Immutable Audit Logs", href: "/admin/audit", icon: History },
+    { label: "Certificate Registry & Generator", href: "/admin/registry", icon: FileSpreadsheet },
+    { label: "Manage Certificates (Revoke/Replace)", href: "/admin/certificates", icon: Award },
+    { label: "Payment Verification Queue", href: "/admin/payments", icon: CreditCard },
+    { label: "Mobile Check-in Scanner", href: "/admin/checkin", icon: QrCode },
+    { label: "Eligibility & In-Site Issuance", href: "/admin/issuance", icon: CheckCircle2 },
+    { label: "vTools Reporting Export", href: "/admin/vtools-export", icon: FileText },
+    { label: "Audit Logs", href: "/admin/audit", icon: History },
   ];
 
   return (
@@ -70,28 +75,24 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </div>
           </div>
 
-          {/* Role Switcher for Pair-Programming Testing */}
+          {/* Dedicated Administrator Profile */}
           <div className="p-4 bg-black/20 border-b border-white/10 text-xs">
-            <label className="text-[10px] uppercase font-bold text-gray-400 block mb-1.5 flex items-center gap-1">
-              <UserCheck size={12} className="text-ieee-orange" /> Active Role Simulation
-            </label>
-            <select
-              value={currentUser.id}
-              onChange={(e) => {
-                const found = INITIAL_STAFF_USERS.find((u) => u.id === e.target.value);
-                if (found) handleSwitchUser(found);
-              }}
-              className="w-full bg-white/10 text-white text-xs rounded-lg px-2.5 py-1.5 border border-white/20 focus:outline-none focus:ring-1 focus:ring-ieee-orange"
-            >
-              {INITIAL_STAFF_USERS.map((u) => (
-                <option key={u.id} value={u.id} className="bg-ieee-navy text-white">
-                  {u.name} ({u.role})
-                </option>
-              ))}
-            </select>
-            <div className="mt-2 text-[10px] text-gray-300 flex items-center justify-between">
-              <span>Role: <strong className="text-ieee-orange">{currentUser.role}</strong></span>
-              <span>Tenure: {currentUser.tenureEnd.slice(0, 4)}</span>
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-full bg-ieee-orange text-black font-montserrat font-bold flex items-center justify-center text-xs shadow-sm">
+                A
+              </div>
+              <div className="overflow-hidden">
+                <div className="font-montserrat font-bold text-white text-xs truncate">
+                  {currentUser.name}
+                </div>
+                <div className="text-[10px] text-ieee-cyan font-semibold flex items-center gap-1">
+                  <UserCheck size={11} /> System Administrator
+                </div>
+              </div>
+            </div>
+            <div className="mt-2.5 text-[10px] text-gray-300 flex items-center justify-between border-t border-white/10 pt-2">
+              <span>Authority: <strong className="text-status-active">Full Admin Access</strong></span>
+              <span className="text-gray-400">All Modules</span>
             </div>
           </div>
 

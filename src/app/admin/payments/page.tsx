@@ -40,13 +40,6 @@ export default function AdminPaymentsQueuePage() {
   ) => {
     if (!currentUser) return;
 
-    if (currentUser.role !== "TREASURER" && currentUser.role !== "SITE_ADMIN") {
-      alert(
-        `Permission Notice: Your active role is "${currentUser.role}".\n\nPayment verification is primarily reserved for the "TREASURER" (e.g. Hamza Tariq). Please switch active role in the sidebar.`
-      );
-      return;
-    }
-
     db.verifyPayment(paymentId, currentUser.name, decision, reason);
     refreshPayments();
   };

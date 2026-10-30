@@ -165,14 +165,6 @@ export default function Option1RegistryPage() {
   const handleApproveBatch = (batchId: string) => {
     if (!currentUser) return;
 
-    // Strict Enforcement per Plan: Site Admin cannot approve certificates!
-    if (currentUser.role !== "CERTIFICATE_APPROVER") {
-      alert(
-        `Permission Denied: Your current role is "${currentUser.role}".\n\nPer the IEEE CS UCET-IUB governance plan, Site Admin and uploaders cannot approve certificates. Only a "CERTIFICATE_APPROVER" (e.g. Dr. Aoun Muhammad / Faculty Advisor) can authorize records to go live on the public Verify page.\n\nPlease switch role in the sidebar to test approval.`
-      );
-      return;
-    }
-
     const success = db.approveBatch(batchId, currentUser.name);
     if (success) {
       setBatches(db.getBatches());
@@ -340,10 +332,10 @@ export default function Option1RegistryPage() {
             <div>
               <h2 className="font-montserrat font-bold text-lg text-ieee-navy flex items-center gap-2">
                 <FileCheck2 className="text-[#00843D]" size={20} />
-                2. Staging Batches & Dual-Officer Approval Queue
+                2. Staged Batches & Admin Publishing Queue
               </h2>
               <p className="text-xs text-gray-500 mt-0.5">
-                Uploaded batches remain staged until approved by a Certificate Approver.
+                Review staged batches and authorize records to publish directly to the public registry.
               </p>
             </div>
 

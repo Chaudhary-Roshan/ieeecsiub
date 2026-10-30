@@ -654,7 +654,7 @@ class ChapterDatabase {
         activityDate: new Date().toISOString().split("T")[0],
         issueDate: new Date().toISOString().split("T")[0],
         approverName: approverName,
-        approverRole: "Certificate Approver",
+        approverRole: "Administrator",
         status: "ACTIVE",
         source: "UPLOAD_REGISTRY",
         batchId: batch.id,

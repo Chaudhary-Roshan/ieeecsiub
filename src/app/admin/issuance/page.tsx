@@ -50,13 +50,6 @@ export default function Option2IssuancePage() {
   const handleIssueBatch = async () => {
     if (!currentUser || !selectedEvent) return;
 
-    if (currentUser.role !== "CERTIFICATE_APPROVER") {
-      alert(
-        `Permission Denied: Your current role is "${currentUser.role}".\n\nOnly a "CERTIFICATE_APPROVER" (e.g. Dr. Aoun Muhammad / Faculty Advisor) can sign off and issue certificates under Option 2.\n\nPlease switch role in the sidebar.`
-      );
-      return;
-    }
-
     if (eligibleAttendees.length === 0) {
       alert("No attendees currently meet the eligibility criteria (Attended status required).");
       return;
@@ -81,7 +74,7 @@ export default function Option2IssuancePage() {
         activityDate: selectedEvent.startDate.split("T")[0],
         issueDate: today,
         approverName: currentUser.name,
-        approverRole: "Faculty Advisor",
+        approverRole: "Administrator",
         status: "ACTIVE",
         source: "IN_SITE_GENERATED",
         sha256Fingerprint: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
