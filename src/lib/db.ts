@@ -1337,6 +1337,25 @@ class ChapterDatabase {
       }
     }
 
+    if (supabase) {
+      supabase.from("payments").update({
+        status,
+        verified_by: verifiedBy,
+        verified_at: pay.verifiedAt,
+        rejection_reason: reason || null,
+      }).eq("id", paymentId).then(({ error }) => {
+        if (error) console.warn("Supabase verifyPayment sync error:", error);
+      });
+
+      if (status === "VERIFIED") {
+        supabase.from("registrations").update({
+          status: "CONFIRMED"
+        }).eq("id", pay.registrationId).then(({ error }) => {
+          if (error) console.warn("Supabase registration confirm error:", error);
+        });
+      }
+    }
+
     this.addAuditLog(
       verifiedBy,
       `PAYMENT_${status}`,
@@ -1364,6 +1383,15 @@ class ChapterDatabase {
     reg.status = "ATTENDED";
     reg.checkedInAt = new Date().toISOString();
     this.setItem("registrations", regs);
+
+    if (supabase) {
+      supabase.from("registrations").update({
+        status: "ATTENDED",
+        checked_in_at: reg.checkedInAt,
+      }).eq("id", reg.id).then(({ error }) => {
+        if (error) console.warn("Supabase recordCheckin sync error:", error);
+      });
+    }
 
     this.addAuditLog(
       staffName,

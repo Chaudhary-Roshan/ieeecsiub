@@ -14,10 +14,13 @@ export default function VtoolsReportingPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
 
   useEffect(() => {
-    const evts = db.getEvents();
-    setEvents(evts);
-    if (evts.length > 0) setSelectedEventId(evts[0].id);
-    setRegistrations(db.getRegistrations());
+    async function load() {
+      const evts = await db.fetchEvents();
+      setEvents(evts);
+      if (evts.length > 0) setSelectedEventId(evts[0].id);
+      setRegistrations(db.getRegistrations());
+    }
+    load();
   }, []);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);

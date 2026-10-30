@@ -45,7 +45,32 @@ export default function NewsPage() {
           console.warn("Supabase news load fallback:", err);
         }
       }
-      setArticles([]);
+      setArticles([
+        {
+          id: "news-df-2026",
+          title: "IEEE DigitalFest 2026 – Projects Expo Concludes Successfully with 60+ Teams",
+          date: "2026-06-03",
+          category: "Expos & Competitions",
+          summary: "Premier student innovation expo featured hardware prototypes, AI/ML models, cybersecurity defenses, and robotics judged by senior faculty. Cash awards and official chapter certificates presented.",
+          imageUrl: "/ieee-cs-logo.png",
+        },
+        {
+          id: "news-portal-launch",
+          title: "Official Launch of IEEE CS UCET IUB Web Platform & Verifiable Credentials",
+          date: "2026-06-10",
+          category: "Announcements",
+          summary: "The chapter unveiled its automated credential verification system, allowing students, recruiters, and institutions to verify certificates with live cryptographic SHA-256 validation.",
+          imageUrl: "/logo.png",
+        },
+        {
+          id: "news-membership-drive",
+          title: "IEEE Computer Society Student Branch Chapter Announces 2026-2027 Programs",
+          date: "2026-07-15",
+          category: "Workshops",
+          summary: "Technical workshops on Cloud Computing, Mobile Development, and AI System Architecture scheduled for the upcoming academic semester under the guidance of Dr. Asjad Amin and Dr. Aoun Muhammad.",
+          imageUrl: "/ieee-cs-logo.png",
+        },
+      ]);
       setLoading(false);
     }
 

@@ -17,6 +17,7 @@ import {
   ShieldAlert,
   FilePlus,
   CheckCircle,
+  Printer,
   X,
 } from "lucide-react";
 
@@ -113,6 +114,9 @@ export default function AdminCertificatesPage() {
       approverRole: "Administrator",
       status: "ACTIVE",
       source: replacingCert.source,
+      templateId: replacingCert.templateId,
+      teamName: replacingCert.teamName,
+      projectTitle: replacingCert.projectTitle,
       createdAt: new Date().toISOString(),
     };
     db.addCertificate(newCert);
@@ -283,6 +287,16 @@ export default function AdminCertificatesPage() {
                     </td>
 
                     <td className="p-4 text-right space-x-2 whitespace-nowrap">
+                      <a
+                        href={`/verify/${cert.code}/certificate`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-ieee-navy bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded"
+                        title="View / Print Printable Certificate"
+                      >
+                        <Printer size={11} /> Print
+                      </a>
+
                       {cert.status === "ACTIVE" && (
                         <>
                           <button

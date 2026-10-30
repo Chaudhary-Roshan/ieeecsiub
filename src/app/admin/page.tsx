@@ -25,10 +25,16 @@ export default function AdminDashboardPage() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   useEffect(() => {
-    setCertsCount(db.getCertificates().length);
-    setStagedBatches(db.getBatches().filter((b) => b.status === "STAGED"));
-    setPendingPayments(db.getPayments().filter((p) => p.status === "PENDING"));
-    setAuditLogs(db.getAuditLogs().slice(0, 5));
+    async function loadStats() {
+      const liveCerts = await db.fetchCertificates();
+      setCertsCount(liveCerts.length);
+      const livePayments = await db.fetchPayments();
+      setPendingPayments(livePayments.filter((p) => p.status === "PENDING"));
+      const liveAudit = await db.fetchAuditLogs();
+      setAuditLogs(liveAudit.slice(0, 5));
+      setStagedBatches(db.getBatches().filter((b) => b.status === "STAGED"));
+    }
+    loadStats();
   }, []);
 
   return (

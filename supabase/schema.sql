@@ -152,6 +152,9 @@ CREATE TABLE certificates (
     status certificate_status DEFAULT 'ACTIVE',
     source certificate_source NOT NULL DEFAULT 'UPLOAD_REGISTRY',
     batch_id UUID REFERENCES upload_batches(id) ON DELETE SET NULL,
+    template_id TEXT,
+    team_name TEXT,
+    project_title TEXT,
     replaced_by_code TEXT,
     replacement_reason TEXT,
     revocation_date DATE,
@@ -161,28 +164,6 @@ CREATE TABLE certificates (
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
-
--- 4. Event Teams & Projects (Competitions, Expos & Hackathons)
-CREATE TABLE event_teams (
-    id TEXT PRIMARY KEY,
-    event_id TEXT NOT NULL,
-    sr INT DEFAULT 1,
-    team_name TEXT NOT NULL,
-    project_title TEXT NOT NULL,
-    team_leader TEXT NOT NULL,
-    semester TEXT,
-    member_count INT DEFAULT 1,
-    team_members TEXT[] NOT NULL DEFAULT '{}',
-    project_domain TEXT,
-    position_award TEXT,
-    demo_url TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE INDEX idx_event_teams_event ON event_teams(event_id);
-ALTER TABLE event_teams ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Public can view event teams" ON event_teams FOR SELECT USING (true);
-CREATE POLICY "Staff can manage event teams" ON event_teams FOR ALL USING (true);
 
 -- 6. Certificate Versions & Snapshots
 CREATE TABLE certificate_versions (
