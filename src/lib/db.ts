@@ -9,6 +9,7 @@ import {
   StaffUser 
 } from "@/types";
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
+import { supabase, isSupabaseConfigured } from "./supabase";
 
 // Seed Events
 const SEED_EVENTS: EventItem[] = [
@@ -471,18 +472,123 @@ class ChapterDatabase {
     return list.find((c) => c.code.toUpperCase() === clean);
   }
 
+  async fetchCertificateByCode(code: string): Promise<CertificateRecord | undefined> {
+    const clean = code.trim().toUpperCase();
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("certificates")
+          .select("*")
+          .eq("code", clean)
+          .maybeSingle();
+
+        if (data && !error) {
+          const mapped: CertificateRecord = {
+            id: data.id,
+            code: data.code,
+            recipientName: data.recipient_name,
+            publicNameFormat: (data.public_name_format as any) || "FULL_NAME",
+            eventId: data.event_id || "",
+            eventTitle: data.event_title,
+            certificateType: data.certificate_type,
+            recognitionLevel: (data.recognition_level as any) || "CHAPTER_RECOGNITION",
+            issuerStatement: data.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+            activityDate: data.activity_date,
+            issueDate: data.issue_date,
+            approverName: data.approver_name,
+            approverRole: data.approver_role,
+            status: data.status,
+            source: data.source,
+            batchId: data.batch_id,
+            replacedByCode: data.replaced_by_code,
+            replacementReason: data.replacement_reason,
+            revocationDate: data.revocation_date,
+            revocationReason: data.revocation_reason,
+            sha256Fingerprint: data.sha256_fingerprint,
+            pdfUrl: data.pdf_url,
+            createdAt: data.created_at,
+          };
+          // Also cache locally
+          this.updateCertificate(clean, mapped);
+          return mapped;
+        }
+      } catch (err) {
+        console.warn("Supabase fetchCertificateByCode fallback to local:", err);
+      }
+    }
+
+    return this.getCertificateByCode(clean);
+  }
+
   addCertificate(cert: CertificateRecord): void {
     const list = this.getCertificates();
     list.unshift(cert);
     this.setItem("certificates", list);
+
+    if (supabase) {
+      supabase.from("certificates").upsert({
+        code: cert.code,
+        recipient_name: cert.recipientName,
+        public_name_format: cert.publicNameFormat,
+        event_title: cert.eventTitle,
+        certificate_type: cert.certificateType,
+        recognition_level: cert.recognitionLevel,
+        issuer_statement: cert.issuerStatement,
+        activity_date: cert.activityDate,
+        issue_date: cert.issueDate,
+        approver_name: cert.approverName,
+        approver_role: cert.approverRole,
+        status: cert.status,
+        source: cert.source,
+        replaced_by_code: cert.replacedByCode,
+        replacement_reason: cert.replacementReason,
+        revocation_date: cert.revocationDate,
+        revocation_reason: cert.revocationReason,
+        sha256_fingerprint: cert.sha256Fingerprint,
+        pdf_url: cert.pdfUrl,
+      }).then(({ error }) => {
+        if (error) console.warn("Supabase addCertificate sync error:", error);
+      });
+    }
   }
 
   updateCertificate(code: string, updates: Partial<CertificateRecord>): boolean {
     const list = this.getCertificates();
     const index = list.findIndex((c) => c.code.toUpperCase() === code.trim().toUpperCase());
-    if (index === -1) return false;
-    list[index] = { ...list[index], ...updates };
-    this.setItem("certificates", list);
+    if (index === -1) {
+      if (updates.code) {
+        list.unshift(updates as CertificateRecord);
+        this.setItem("certificates", list);
+      } else {
+        return false;
+      }
+    } else {
+      list[index] = { ...list[index], ...updates };
+      this.setItem("certificates", list);
+    }
+
+    if (supabase) {
+      const payload: Record<string, any> = {};
+      if (updates.status) payload.status = updates.status;
+      if (updates.recipientName) payload.recipient_name = updates.recipientName;
+      if (updates.replacedByCode) payload.replaced_by_code = updates.replacedByCode;
+      if (updates.replacementReason) payload.replacement_reason = updates.replacementReason;
+      if (updates.revocationDate) payload.revocation_date = updates.revocationDate;
+      if (updates.revocationReason) payload.revocation_reason = updates.revocationReason;
+      if (updates.sha256Fingerprint) payload.sha256_fingerprint = updates.sha256Fingerprint;
+
+      if (Object.keys(payload).length > 0) {
+        supabase
+          .from("certificates")
+          .update(payload)
+          .eq("code", code.trim().toUpperCase())
+          .then(({ error }) => {
+            if (error) console.warn("Supabase updateCertificate sync error:", error);
+          });
+      }
+    }
+
     return true;
   }
 
@@ -579,6 +685,23 @@ class ChapterDatabase {
     const list = this.getRegistrations();
     list.unshift(reg);
     this.setItem("registrations", list);
+
+    if (supabase) {
+      supabase.from("registrations").insert({
+        full_name: reg.fullName,
+        name_display_preference: reg.namePreference || "FULL_NAME",
+        email: reg.email,
+        phone: reg.phone,
+        roll_number: reg.rollNumber,
+        is_ieee_member: reg.isIeeeMember,
+        ieee_membership_number: reg.ieeeNumber,
+        department: reg.department,
+        photo_consent: reg.photoConsent,
+        status: reg.status,
+      }).then(({ error }) => {
+        if (error) console.warn("Supabase addRegistration sync error:", error);
+      });
+    }
   }
 
   getPayments(): PaymentProof[] {
@@ -668,6 +791,18 @@ class ChapterDatabase {
       timestamp: new Date().toISOString(),
     });
     this.setItem("audit_logs", logs);
+
+    if (supabase) {
+      supabase.from("audit_logs").insert({
+        staff_email: staffUser,
+        action,
+        entity_type: entityType,
+        entity_id: entityId,
+        after_state: { details },
+      }).then(({ error }) => {
+        if (error) console.warn("Supabase addAuditLog sync error:", error);
+      });
+    }
   }
 
   // Reset database back to default seed state

@@ -31,10 +31,19 @@ export default function CertificateVerificationResultPage() {
   useEffect(() => {
     if (!rawCode) return;
     setLoading(true);
-    // Look up certificate in local database
-    const found = db.getCertificateByCode(rawCode);
-    setCert(found || null);
-    setLoading(false);
+    let active = true;
+
+    // Look up certificate in Supabase (with fallback to local storage)
+    db.fetchCertificateByCode(rawCode).then((found) => {
+      if (active) {
+        setCert(found || null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
   }, [rawCode]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
