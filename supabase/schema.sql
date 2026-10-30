@@ -1,44 +1,48 @@
 -- ====================================================================
 -- IEEE CS UCET-IUB Official Database Schema (PostgreSQL / Supabase)
 -- IEEE Computer Society Student Branch Chapter, UCET - IUB
--- Idempotent / Safe to re-run
 -- ====================================================================
+
+-- -------------------------------------------------------------
+-- 0. Clean Cleanup (Ensures clean setup if re-running)
+-- -------------------------------------------------------------
+DROP TABLE IF EXISTS audit_logs CASCADE;
+DROP TABLE IF EXISTS contact_messages CASCADE;
+DROP TABLE IF EXISTS news CASCADE;
+DROP TABLE IF EXISTS certificate_templates CASCADE;
+DROP TABLE IF EXISTS tickets CASCADE;
+DROP TABLE IF EXISTS payments CASCADE;
+DROP TABLE IF EXISTS registrations CASCADE;
+DROP TABLE IF EXISTS certificate_versions CASCADE;
+DROP TABLE IF EXISTS certificates CASCADE;
+DROP TABLE IF EXISTS upload_batches CASCADE;
+DROP TABLE IF EXISTS events CASCADE;
+DROP TABLE IF EXISTS team_members CASCADE;
+DROP TABLE IF EXISTS staff_users CASCADE;
+
+DROP TYPE IF EXISTS certificate_status CASCADE;
+DROP TYPE IF EXISTS certificate_source CASCADE;
+DROP TYPE IF EXISTS event_status CASCADE;
+DROP TYPE IF EXISTS batch_status CASCADE;
+DROP TYPE IF EXISTS payment_status CASCADE;
+DROP TYPE IF EXISTS registration_status CASCADE;
+DROP TYPE IF EXISTS staff_role_type CASCADE;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Safe Enum Type Creations (will not fail if already created)
-DO $$ BEGIN
-    CREATE TYPE certificate_status AS ENUM ('ACTIVE', 'REVOKED', 'REPLACED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE certificate_source AS ENUM ('UPLOAD_REGISTRY', 'IN_SITE_GENERATED', 'LEGACY_IMPORT');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE event_status AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'POSTPONED', 'CANCELLED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE batch_status AS ENUM ('STAGED', 'APPROVED', 'REJECTED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE payment_status AS ENUM ('PENDING', 'VERIFIED', 'REJECTED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE registration_status AS ENUM ('REGISTERED', 'PAYMENT_PENDING', 'CONFIRMED', 'ATTENDED', 'CANCELLED');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
-
-DO $$ BEGIN
-    CREATE TYPE staff_role_type AS ENUM ('SITE_ADMIN', 'CONTENT_MANAGER', 'CERTIFICATE_APPROVER', 'TREASURER', 'CHECKIN_STAFF');
-EXCEPTION WHEN duplicate_object THEN null; END $$;
+-- Custom Types / Enums
+CREATE TYPE certificate_status AS ENUM ('ACTIVE', 'REVOKED', 'REPLACED');
+CREATE TYPE certificate_source AS ENUM ('UPLOAD_REGISTRY', 'IN_SITE_GENERATED', 'LEGACY_IMPORT');
+CREATE TYPE event_status AS ENUM ('UPCOMING', 'ONGOING', 'COMPLETED', 'POSTPONED', 'CANCELLED');
+CREATE TYPE batch_status AS ENUM ('STAGED', 'APPROVED', 'REJECTED');
+CREATE TYPE payment_status AS ENUM ('PENDING', 'VERIFIED', 'REJECTED');
+CREATE TYPE registration_status AS ENUM ('REGISTERED', 'PAYMENT_PENDING', 'CONFIRMED', 'ATTENDED', 'CANCELLED');
+CREATE TYPE staff_role_type AS ENUM ('SITE_ADMIN', 'CONTENT_MANAGER', 'CERTIFICATE_APPROVER', 'TREASURER', 'CHECKIN_STAFF');
 
 -- 1. Staff Users and Role-Based Access Control
-CREATE TABLE IF NOT EXISTS staff_users (
+CREATE TABLE staff_users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     email TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL,
@@ -52,7 +56,7 @@ CREATE TABLE IF NOT EXISTS staff_users (
 );
 
 -- 2. Team Members (Advisors, ExCom & Archive)
-CREATE TABLE IF NOT EXISTS team_members (
+CREATE TABLE team_members (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     position TEXT NOT NULL,
@@ -65,7 +69,7 @@ CREATE TABLE IF NOT EXISTS team_members (
 );
 
 -- 3. Events Table
-CREATE TABLE IF NOT EXISTS events (
+CREATE TABLE events (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     slug TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL,
@@ -95,7 +99,7 @@ CREATE TABLE IF NOT EXISTS events (
 );
 
 -- 4. Upload Batches (Option 1 Staging & Two-Officer Approval)
-CREATE TABLE IF NOT EXISTS upload_batches (
+CREATE TABLE upload_batches (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID REFERENCES events(id) ON DELETE SET NULL,
     filename TEXT NOT NULL,
@@ -109,7 +113,7 @@ CREATE TABLE IF NOT EXISTS upload_batches (
 );
 
 -- 5. Certificates Table (Verified on the public /verify page)
-CREATE TABLE IF NOT EXISTS certificates (
+CREATE TABLE certificates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     code TEXT UNIQUE NOT NULL,
     recipient_name TEXT NOT NULL,
@@ -137,7 +141,7 @@ CREATE TABLE IF NOT EXISTS certificates (
 );
 
 -- 6. Certificate Versions & Snapshots
-CREATE TABLE IF NOT EXISTS certificate_versions (
+CREATE TABLE certificate_versions (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     certificate_id UUID NOT NULL REFERENCES certificates(id) ON DELETE CASCADE,
     version_number INT NOT NULL,
@@ -150,7 +154,7 @@ CREATE TABLE IF NOT EXISTS certificate_versions (
 );
 
 -- 7. Option 2: Event Registrations
-CREATE TABLE IF NOT EXISTS registrations (
+CREATE TABLE registrations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     private_token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(24), 'hex'),
@@ -169,7 +173,7 @@ CREATE TABLE IF NOT EXISTS registrations (
 );
 
 -- 8. Option 2: Payments Queue
-CREATE TABLE IF NOT EXISTS payments (
+CREATE TABLE payments (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     registration_id UUID NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
     amount_pkr NUMERIC(10, 2) NOT NULL,
@@ -184,7 +188,7 @@ CREATE TABLE IF NOT EXISTS payments (
 );
 
 -- 9. Option 2: Tickets & Attendance Check-in
-CREATE TABLE IF NOT EXISTS tickets (
+CREATE TABLE tickets (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     registration_id UUID UNIQUE NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
     ticket_code TEXT UNIQUE NOT NULL,
@@ -196,7 +200,7 @@ CREATE TABLE IF NOT EXISTS tickets (
 );
 
 -- 10. Option 2: Certificate Templates
-CREATE TABLE IF NOT EXISTS certificate_templates (
+CREATE TABLE certificate_templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     background_svg_url TEXT,
@@ -209,7 +213,7 @@ CREATE TABLE IF NOT EXISTS certificate_templates (
 );
 
 -- 11. Append-Only Audit Logs
-CREATE TABLE IF NOT EXISTS audit_logs (
+CREATE TABLE audit_logs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     staff_user_id UUID REFERENCES staff_users(id),
     staff_email TEXT NOT NULL,
@@ -223,7 +227,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 -- 12. News & Announcements
-CREATE TABLE IF NOT EXISTS news (
+CREATE TABLE news (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title TEXT NOT NULL,
     slug TEXT UNIQUE NOT NULL,
@@ -235,7 +239,7 @@ CREATE TABLE IF NOT EXISTS news (
 );
 
 -- 13. Contact & Enquiry Messages
-CREATE TABLE IF NOT EXISTS contact_messages (
+CREATE TABLE contact_messages (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
     email TEXT NOT NULL,
@@ -246,16 +250,16 @@ CREATE TABLE IF NOT EXISTS contact_messages (
 );
 
 -- -------------------------------------------------------------
--- Performance Indexes (Safe)
+-- Performance Indexes
 -- -------------------------------------------------------------
-CREATE INDEX IF NOT EXISTS idx_certificates_code ON certificates(code);
-CREATE INDEX IF NOT EXISTS idx_certificates_status ON certificates(status);
-CREATE INDEX IF NOT EXISTS idx_certificates_event ON certificates(event_id);
-CREATE INDEX IF NOT EXISTS idx_events_slug ON events(slug);
-CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
-CREATE INDEX IF NOT EXISTS idx_payments_transaction_id ON payments(transaction_id);
-CREATE INDEX IF NOT EXISTS idx_tickets_code ON tickets(ticket_code);
-CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_logs(created_at);
+CREATE INDEX idx_certificates_code ON certificates(code);
+CREATE INDEX idx_certificates_status ON certificates(status);
+CREATE INDEX idx_certificates_event ON certificates(event_id);
+CREATE INDEX idx_events_slug ON events(slug);
+CREATE INDEX idx_events_status ON events(status);
+CREATE INDEX idx_payments_transaction_id ON payments(transaction_id);
+CREATE INDEX idx_tickets_code ON tickets(ticket_code);
+CREATE INDEX idx_audit_created ON audit_logs(created_at);
 
 -- -------------------------------------------------------------
 -- Security: Row Level Security (RLS)
@@ -267,27 +271,20 @@ ALTER TABLE payments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE news ENABLE ROW LEVEL SECURITY;
 
--- Drop existing policies first to prevent duplication errors
-DROP POLICY IF EXISTS "Public can verify certificates" ON certificates;
 CREATE POLICY "Public can verify certificates" ON certificates
     FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "Public can view events" ON events;
 CREATE POLICY "Public can view events" ON events
     FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "Public can view news" ON news;
 CREATE POLICY "Public can view news" ON news
     FOR SELECT USING (true);
 
-DROP POLICY IF EXISTS "Staff can manage certificates" ON certificates;
 CREATE POLICY "Staff can manage certificates" ON certificates
     FOR ALL USING (auth.role() = 'authenticated');
 
-DROP POLICY IF EXISTS "Audit logs insert only" ON audit_logs;
 CREATE POLICY "Audit logs insert only" ON audit_logs
     FOR INSERT WITH CHECK (true);
 
-DROP POLICY IF EXISTS "Audit logs select for authorized staff" ON audit_logs;
 CREATE POLICY "Audit logs select for authorized staff" ON audit_logs
     FOR SELECT USING (auth.role() = 'authenticated');
