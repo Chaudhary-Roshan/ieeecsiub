@@ -69,13 +69,13 @@ const TPL_DESIGN1_SIMPLE = wrapTemplate("IEEE CS UCET IUB — Design 1 — Simpl
 
     <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 48px">
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 36px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{chair_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 15px; color: #1A1A1A">{{approver_name}}</div>
         <div style="font-size: 13px; color: #4A4D50">Chair, IEEE CS Student Branch Chapter</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 36px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{advisor_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 15px; color: #1A1A1A">{{advisor_name}}</div>
         <div style="font-size: 13px; color: #4A4D50">Advisor, IEEE CS Student Branch Chapter</div>
@@ -156,13 +156,13 @@ const TPL_DESIGN2_BLUE_PANEL = wrapTemplate("IEEE CS UCET IUB — Design 2 — B
 
     <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 24px">
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 40px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{chair_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{approver_name}}</div>
         <div style="font-size: 12px; line-height: 1.4; color: #4A4D50">Chair, IEEE CS Student Branch Chapter</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 40px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{advisor_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{advisor_name}}</div>
         <div style="font-size: 12px; line-height: 1.4; color: #4A4D50">Advisor, IEEE CS Student Branch Chapter</div>
@@ -223,13 +223,13 @@ const TPL_DESIGN3_CENTERED = wrapTemplate("IEEE CS UCET IUB — Design 3 — Cen
 
     <div style="margin-top: 36px; width: 840px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 64px; text-align: center">
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 34px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{chair_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{approver_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Chair, IEEE CS Student Chapter</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 34px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{advisor_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{advisor_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Advisor, IEEE CS Student Branch Chapter</div>
@@ -309,13 +309,13 @@ const TPL_SERIES1_VOLUNTEER = wrapTemplate("IEEE CS UCET IUB — Series 1 — Vo
 
     <div style="margin-top: 26px; width: 560px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 56px">
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 30px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{chair_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{approver_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Chair, IEEE CS Student Chapter</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 30px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{advisor_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{advisor_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Advisor, IEEE CS Student Branch Chapter</div>
@@ -391,13 +391,13 @@ const TPL_EXPO_WINNER_MEMBERS = wrapTemplate("IEEE CS UCET IUB — Projects Expo
 
     <div style="margin-top: 26px; width: 520px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px">
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 28px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{chair_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{approver_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Chair, IEEE CS Student Chapter</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 28px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{advisor_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{advisor_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Advisor, IEEE CS Student Branch Chapter</div>
@@ -506,13 +506,13 @@ const TPL_EXPO_PARTICIPATION_MEMBERS = wrapTemplate("IEEE CS UCET IUB — Projec
 
     <div style="margin-top: 26px; width: 520px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 48px">
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 28px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{chair_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{approver_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Chair, IEEE CS Student Chapter</div>
       </div>
       <div style="display: flex; flex-direction: column; gap: 4px">
-        <div style="height: 28px"></div>
+        <div style="height: 44px; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 2px;">{{advisor_signature}}</div>
         <div style="height: 1.5px; background: #1A1A1A"></div>
         <div style="margin-top: 6px; font-family: Montserrat, sans-serif; font-weight: 700; font-size: 14px; color: #1A1A1A">{{advisor_name}}</div>
         <div style="font-size: 12px; color: #4A4D50">Advisor, IEEE CS Student Branch Chapter</div>

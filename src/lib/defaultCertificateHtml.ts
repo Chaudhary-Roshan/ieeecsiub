@@ -308,6 +308,7 @@ export const DEFAULT_CERTIFICATE_HTML = `<!DOCTYPE html>
           <div class="footer-area">
             <!-- Signature 1: Chapter Admin / Chair -->
             <div class="sig-block">
+              <div style="height: 40px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 4px;">{{chair_signature}}</div>
               <div class="signature-line"></div>
               <div class="sig-name">{{approver_name}}</div>
               <div class="sig-role">{{approver_role}}</div>
@@ -326,8 +327,9 @@ export const DEFAULT_CERTIFICATE_HTML = `<!DOCTYPE html>
 
             <!-- Signature 2: Advisor / Academic Oversight -->
             <div class="sig-block">
+              <div style="height: 40px; display: flex; align-items: flex-end; justify-content: center; margin-bottom: 4px;">{{advisor_signature}}</div>
               <div class="signature-line"></div>
-              <div class="sig-name">Academic Board</div>
+              <div class="sig-name">{{advisor_name}}</div>
               <div class="sig-role">Faculty Advisory Committee</div>
             </div>
           </div>

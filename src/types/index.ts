@@ -176,6 +176,12 @@ export interface CertificateTemplate {
   description?: string;
   htmlContent: string;
   isDefault: boolean;
+  chairSignatureUrl?: string;
+  advisorSignatureUrl?: string;
+  chairName?: string;
+  chairTitle?: string;
+  advisorName?: string;
+  advisorTitle?: string;
   createdAt: string;
 }
 

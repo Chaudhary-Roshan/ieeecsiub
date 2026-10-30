@@ -672,6 +672,45 @@ class ChapterDatabase {
     return this.getTemplates().find((t) => t.id === id);
   }
 
+  async fetchTemplates(): Promise<CertificateTemplate[]> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("certificate_templates")
+          .select("*")
+          .order("created_at", { ascending: true });
+        if (data && !error && data.length > 0) {
+          const mapped: CertificateTemplate[] = data.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            description: d.description || "",
+            htmlContent: d.html_content || "",
+            isDefault: d.is_default || d.is_active || false,
+            chairSignatureUrl: d.chair_signature_url || "",
+            advisorSignatureUrl: d.advisor_signature_url || "",
+            chairName: d.chair_name || "",
+            chairTitle: d.chair_title || "",
+            advisorName: d.advisor_name || "",
+            advisorTitle: d.advisor_title || "",
+            createdAt: d.created_at,
+          }));
+          const local = this.getTemplates();
+          const merged = [...mapped];
+          for (const s of local) {
+            if (!merged.some((m) => m.id === s.id || m.name === s.name)) {
+              merged.push(s);
+            }
+          }
+          this.setItem("certificate_templates", merged);
+          return merged;
+        }
+      } catch (err) {
+        console.warn("Supabase fetchTemplates fallback:", err);
+      }
+    }
+    return this.getTemplates();
+  }
+
   saveTemplate(tpl: CertificateTemplate): void {
     const list = this.getTemplates();
     const index = list.findIndex((t) => t.id === tpl.id);
@@ -684,9 +723,17 @@ class ChapterDatabase {
 
     if (supabase) {
       supabase.from("certificate_templates").upsert({
+        id: tpl.id.startsWith("tpl-") ? undefined : tpl.id,
         name: tpl.name,
+        description: tpl.description || null,
         html_content: tpl.htmlContent,
-        is_active: true,
+        chair_signature_url: tpl.chairSignatureUrl || null,
+        advisor_signature_url: tpl.advisorSignatureUrl || null,
+        chair_name: tpl.chairName || null,
+        chair_title: tpl.chairTitle || null,
+        advisor_name: tpl.advisorName || null,
+        advisor_title: tpl.advisorTitle || null,
+        is_active: tpl.isDefault ?? true,
       }).then(({ error }) => {
         if (error) console.warn("Supabase saveTemplate sync error:", error);
       });

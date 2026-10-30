@@ -247,12 +247,17 @@ CREATE TABLE tickets (
 CREATE TABLE certificate_templates (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name TEXT NOT NULL,
+    description TEXT,
     background_svg_url TEXT,
     title_text TEXT NOT NULL DEFAULT 'CERTIFICATE OF PARTICIPATION',
     body_template TEXT NOT NULL DEFAULT '',
     html_content TEXT,
     chair_signature_url TEXT,
     advisor_signature_url TEXT,
+    chair_name TEXT DEFAULT 'Muhammad Roshan Ashraf',
+    chair_title TEXT DEFAULT 'Chair, IEEE CS Student Branch Chapter',
+    advisor_name TEXT DEFAULT 'Dr. Asjad Amin',
+    advisor_title TEXT DEFAULT 'Advisor, IEEE CS Student Branch Chapter',
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
