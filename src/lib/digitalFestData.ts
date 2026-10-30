@@ -1,3 +1,5 @@
+import { EventTeam } from "@/types";
+
 // ====================================================================
 // IEEE DigitalFest 2026 – Projects Expo: Official Team & Participant Data
 // Department of Information & Communication Engineering, IUB
@@ -2345,3 +2347,15 @@ export const DIGITALFEST_PARTICIPANTS: ExpoParticipant[] = [
     "certificateCode": "CSIUB-26-DF156-GP6G"
   }
 ];
+
+export const DIGITALFEST_EVENT_TEAMS: EventTeam[] = DIGITALFEST_TEAMS.map((t) => ({
+  id: `team-df-${t.sr}`,
+  eventId: "evt-digitalfest-2026",
+  sr: t.sr,
+  teamName: t.teamName,
+  projectTitle: t.projectTitle,
+  teamLeader: t.leader,
+  semester: t.semester,
+  memberCount: t.memberCount,
+  teamMembers: t.members,
+}));

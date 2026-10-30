@@ -60,6 +60,23 @@ export interface EventItem {
     bio: string;
     photoUrl?: string;
   }[];
+  teams?: EventTeam[];
+}
+
+export interface EventTeam {
+  id: string;
+  eventId: string;
+  sr: number;
+  teamName: string;
+  projectTitle: string;
+  teamLeader: string;
+  semester: string;
+  memberCount: number;
+  teamMembers: string[];
+  projectDomain?: string;
+  positionAward?: string; // e.g. "1st Position", "2nd Position", "3rd Position", "Finalist", "Participant"
+  demoUrl?: string;
+  createdAt?: string;
 }
 
 export interface CertificateRecord {

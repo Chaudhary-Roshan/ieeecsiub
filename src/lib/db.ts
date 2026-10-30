@@ -8,12 +8,13 @@ import {
   AuditLogItem, 
   StaffUser,
   CertificateTemplate,
-  AttendanceRecord
+  AttendanceRecord,
+  EventTeam
 } from "@/types";
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
-import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_TEAMS } from "./digitalFestData";
+import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_TEAMS, DIGITALFEST_EVENT_TEAMS } from "./digitalFestData";
 
 // Seed Templates
 const SEED_TEMPLATES: CertificateTemplate[] = [
@@ -760,6 +761,252 @@ class ChapterDatabase {
         console.warn("Supabase deleteTeamMember error:", err);
       }
     }
+  }
+
+  // --- Event Teams & Projects (Competitions, Expos & Hackathons) ---
+  getEventTeams(eventId: string): EventTeam[] {
+    const stored = this.getItem<Record<string, EventTeam[]>>("event_teams", {});
+    if (stored[eventId] && stored[eventId].length > 0) {
+      return stored[eventId];
+    }
+    if (eventId === "evt-digitalfest-2026") {
+      return DIGITALFEST_EVENT_TEAMS;
+    }
+    return [];
+  }
+
+  async fetchEventTeams(eventId: string): Promise<EventTeam[]> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("event_teams")
+          .select("*")
+          .eq("event_id", eventId)
+          .order("sr", { ascending: true });
+
+        if (data && !error && data.length > 0) {
+          const mapped: EventTeam[] = data.map((d: any) => ({
+            id: d.id,
+            eventId: d.event_id,
+            sr: d.sr ?? 0,
+            teamName: d.team_name,
+            projectTitle: d.project_title,
+            teamLeader: d.team_leader,
+            semester: d.semester || "",
+            memberCount: d.member_count || (d.team_members?.length || 1),
+            teamMembers: Array.isArray(d.team_members) ? d.team_members : [],
+            projectDomain: d.project_domain || undefined,
+            positionAward: d.position_award || undefined,
+            demoUrl: d.demo_url || undefined,
+            createdAt: d.created_at,
+          }));
+          const stored = this.getItem<Record<string, EventTeam[]>>("event_teams", {});
+          stored[eventId] = mapped;
+          this.setItem("event_teams", stored);
+          return mapped;
+        }
+      } catch (err) {
+        console.warn("Supabase fetchEventTeams fallback to local:", err);
+      }
+    }
+    return this.getEventTeams(eventId);
+  }
+
+  async saveEventTeam(team: EventTeam): Promise<void> {
+    const stored = this.getItem<Record<string, EventTeam[]>>("event_teams", {});
+    const list = stored[team.eventId] || (team.eventId === "evt-digitalfest-2026" ? [...DIGITALFEST_EVENT_TEAMS] : []);
+    const idx = list.findIndex((t) => t.id === team.id || (t.sr === team.sr && t.teamName === team.teamName));
+    if (idx >= 0) {
+      list[idx] = team;
+    } else {
+      list.push(team);
+    }
+    stored[team.eventId] = list;
+    this.setItem("event_teams", stored);
+
+    if (supabase) {
+      try {
+        await supabase.from("event_teams").upsert({
+          id: team.id,
+          event_id: team.eventId,
+          sr: team.sr,
+          team_name: team.teamName,
+          project_title: team.projectTitle,
+          team_leader: team.teamLeader,
+          semester: team.semester,
+          member_count: team.memberCount,
+          team_members: team.teamMembers,
+          project_domain: team.projectDomain || null,
+          position_award: team.positionAward || null,
+          demo_url: team.demoUrl || null,
+        });
+      } catch (err) {
+        console.warn("Supabase saveEventTeam error:", err);
+      }
+    }
+  }
+
+  async deleteEventTeam(eventId: string, teamId: string): Promise<void> {
+    const stored = this.getItem<Record<string, EventTeam[]>>("event_teams", {});
+    const list = (stored[eventId] || this.getEventTeams(eventId)).filter((t) => t.id !== teamId);
+    stored[eventId] = list;
+    this.setItem("event_teams", stored);
+
+    if (supabase) {
+      try {
+        await supabase.from("event_teams").delete().eq("id", teamId);
+      } catch (err) {
+        console.warn("Supabase deleteEventTeam error:", err);
+      }
+    }
+  }
+
+  async importTeamsFromText(eventId: string, rawText: string): Promise<{ teamsAdded: number; participantsAdded: number }> {
+    const lines = rawText.split("\n").map((l) => l.trim()).filter((l) => l.length > 0);
+    const event = this.getEvents().find((e) => e.id === eventId);
+    const existingTeams = this.getEventTeams(eventId);
+    const newTeams: EventTeam[] = [];
+    const newRegs: Registration[] = [];
+    const newCerts: CertificateRecord[] = [];
+    const chars = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
+
+    let currentSr = existingTeams.length > 0 ? Math.max(...existingTeams.map((t) => t.sr)) + 1 : 1;
+
+    for (const line of lines) {
+      // Check if it's header line
+      if (line.toLowerCase().includes("team name") || line.toLowerCase().includes("project title") || line.toLowerCase().includes("no. of members")) {
+        continue;
+      }
+
+      // Support TSV (tab), CSV (comma), or Pipe (|)
+      let parts: string[] = [];
+      if (line.includes("\t")) {
+        parts = line.split("\t").map((p) => p.trim());
+      } else if (line.includes("|")) {
+        parts = line.split("|").map((p) => p.trim());
+      } else {
+        parts = line.split(",").map((p) => p.trim());
+      }
+
+      if (parts.length < 3) continue;
+
+      let sr = currentSr;
+      let teamName = "";
+      let memberCount = 1;
+      let leader = "";
+      let semester = "Current";
+      let membersStr = "";
+      let projectTitle = "";
+
+      if (parts.length >= 7) {
+        sr = parseInt(parts[0], 10) || currentSr;
+        teamName = parts[1];
+        memberCount = parseInt(parts[2], 10) || 1;
+        leader = parts[3];
+        semester = parts[4];
+        membersStr = parts[5];
+        projectTitle = parts[6];
+      } else if (parts.length >= 5) {
+        teamName = parts[0];
+        leader = parts[1];
+        semester = parts[2];
+        membersStr = parts[3];
+        projectTitle = parts[4];
+      } else if (parts.length >= 3) {
+        teamName = parts[0];
+        projectTitle = parts[1];
+        membersStr = parts[2];
+        leader = membersStr.split(/[,&]/)[0]?.trim() || teamName;
+      }
+
+      if (!teamName || !projectTitle) continue;
+
+      const memberNames = membersStr
+        ? membersStr.split(/[,&]/).map((m) => m.trim()).filter(Boolean)
+        : [leader || teamName];
+
+      if (leader && !memberNames.includes(leader)) {
+        memberNames.unshift(leader);
+      }
+
+      const teamId = `team-${eventId.replace("evt-", "")}-${sr}-${Date.now().toString().slice(-4)}`;
+      const teamObj: EventTeam = {
+        id: teamId,
+        eventId,
+        sr,
+        teamName,
+        projectTitle,
+        teamLeader: leader || memberNames[0] || "Team Leader",
+        semester,
+        memberCount: memberNames.length,
+        teamMembers: memberNames,
+      };
+
+      newTeams.push(teamObj);
+      await this.saveEventTeam(teamObj);
+
+      // Create Registrations and Certificates for each team member
+      memberNames.forEach((studentName, sIdx) => {
+        const rand = (sr * 997 + sIdx * 31 + Date.now()) % 100000;
+        const code1 = chars[rand % chars.length] + chars[(rand + 5) % chars.length];
+        const code2 = chars[(rand + 11) % chars.length] + chars[(rand + 17) % chars.length];
+        const certCode = `CSIUB-26-T${String(sr).padStart(2, "0")}-${code1}${code2}`;
+        const regId = `reg-${eventId.replace("evt-", "")}-${sr}-${sIdx + 1}`;
+
+        const reg: Registration = {
+          id: regId,
+          eventId,
+          privateToken: `token-${regId}`,
+          fullName: studentName,
+          namePreference: "FULL_NAME",
+          email: `${studentName.toLowerCase().replace(/[^a-z]/g, "")}@iub.edu.pk`,
+          phone: "+92-300-0000000",
+          department: "Department of Information & Communication Engineering, IUB",
+          rollNumber: `${semester} Semester • Team ${teamName}`,
+          isIeeeMember: studentName === teamObj.teamLeader,
+          photoConsent: true,
+          status: "ATTENDED",
+          ticketCode: `TCK-${certCode.slice(-4)}`,
+          checkedInAt: new Date().toISOString(),
+          createdAt: new Date().toISOString(),
+        };
+
+        const cert: CertificateRecord = {
+          id: `cert-${regId}`,
+          code: certCode,
+          recipientName: studentName,
+          publicNameFormat: "FULL_NAME",
+          eventId,
+          eventTitle: `${event?.title || "IEEE Chapter Event"} (Project: "${projectTitle}" · Team: ${teamName})`,
+          certificateType: event?.certificateType || "Certificate of Participation & Project Merit",
+          recognitionLevel: "CHAPTER_RECOGNITION",
+          issuerStatement: "Official chapter recognition issued by IEEE Computer Society Student Branch Chapter UCET-IUB in collaboration with Cyber Security Student Club, Department of Information & Communication Engineering, IUB.",
+          activityDate: event?.startDate.split("T")[0] || "2026-06-03",
+          issueDate: new Date().toISOString().split("T")[0],
+          approverName: "Muhammad Roshan Ashraf",
+          approverRole: "Chapter Administrator & Event Lead",
+          status: "ACTIVE",
+          source: "IN_SITE_GENERATED",
+          createdAt: new Date().toISOString(),
+        };
+
+        this.addRegistration(reg);
+        this.addCertificate(cert);
+        newRegs.push(reg);
+        newCerts.push(cert);
+      });
+
+      currentSr++;
+    }
+
+    if (event) {
+      this.updateEvent(eventId, {
+        registeredCount: (event.registeredCount || 0) + newRegs.length,
+        seatsLimit: Math.max(event.seatsLimit || 0, (event.registeredCount || 0) + newRegs.length + 20),
+      });
+    }
+
+    return { teamsAdded: newTeams.length, participantsAdded: newRegs.length };
   }
 
   // --- Upload Batches (Option 1) ---

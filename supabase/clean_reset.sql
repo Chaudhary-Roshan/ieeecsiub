@@ -14,6 +14,7 @@ TRUNCATE TABLE audit_logs CASCADE;
 TRUNCATE TABLE contact_messages CASCADE;
 TRUNCATE TABLE news CASCADE;
 TRUNCATE TABLE team_members CASCADE;
+TRUNCATE TABLE event_teams CASCADE;
 
 -- 2. Clear events and insert the real event: IEEE DigitalFest 2026 – Projects Expo
 DELETE FROM events;

@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
-import { EventItem, Registration } from "@/types";
+import { EventItem, Registration, EventTeam } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import clsx from "clsx";
@@ -46,6 +46,7 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
+  const [eventTeams, setEventTeams] = useState<EventTeam[]>([]);
   const [teamSearch, setTeamSearch] = useState("");
   const [selectedSemester, setSelectedSemester] = useState("ALL");
 
@@ -78,10 +79,9 @@ export default function EventDetailPage() {
 
     async function loadEvent() {
       const live = await db.fetchEventBySlug(cleanSlug);
-      if (live) {
-        setEvent(live);
-      } else {
-        const found = db.getEvents().find(
+      let currentEvt: EventItem | null = live || null;
+      if (!currentEvt) {
+        currentEvt = db.getEvents().find(
           (e) =>
             e.slug === cleanSlug ||
             e.slug === `2026/${cleanSlug}` ||
@@ -89,8 +89,12 @@ export default function EventDetailPage() {
             e.slug.endsWith(`/${cleanSlug}`) ||
             e.slug.endsWith(`/${baseSlug}`) ||
             e.slug === baseSlug
-        );
-        setEvent(found || null);
+        ) || null;
+      }
+      setEvent(currentEvt);
+      if (currentEvt) {
+        const teams = await db.fetchEventTeams(currentEvt.id);
+        setEventTeams(teams);
       }
       setLoading(false);
     }
