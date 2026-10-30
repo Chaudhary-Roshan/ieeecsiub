@@ -694,7 +694,7 @@ class ChapterDatabase {
         phone: reg.phone,
         roll_number: reg.rollNumber,
         is_ieee_member: reg.isIeeeMember,
-        ieee_membership_number: reg.ieeeNumber,
+        ieee_membership_number: reg.ieeeMembershipNumber,
         department: reg.department,
         photo_consent: reg.photoConsent,
         status: reg.status,
