@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Certificate {{certType}} - {{recipientName}}</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Montserrat:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;0,700;1,400&family=Alex+Brush&display=swap');
+    @page { size: A4 landscape; margin: 0; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #f0f2f5;
+      display: flex; justify-content: center; align-items: center;
+      min-height: 100vh; color: #1a1a2e;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+    }
+    .cert {
+      width: 1050px; height: 742px;
+      background: #ffffff;
+      position: relative; overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.12);
+    }
+    /* Top accent bar */
+    .top-bar {
+      height: 8px;
+      background: linear-gradient(90deg, #002855 0%, #00629B 50%, #FFA300 100%);
+    }
+    /* Three-logo header */
+    .header-row {
+      display: flex; justify-content: center; align-items: center;
+      gap: 30px; padding: 24px 40px 10px 40px;
+    }
+    .logo-box { width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; }
+    .logo-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .header-divider { width: 1.5px; height: 50px; background: #cbd5e1; }
+    /* Chapter name */
+    .chapter-title {
+      text-align: center; margin-top: 4px;
+    }
+    .chapter-title h2 {
+      font-family: 'Cinzel', serif; font-size: 14px; font-weight: 800;
+      color: #002855; letter-spacing: 2px; text-transform: uppercase;
+    }
+    .chapter-title p {
+      font-size: 10px; color: #64748b; font-weight: 600;
+      letter-spacing: 1px; text-transform: uppercase; margin-top: 2px;
+    }
+    /* Title */
+    .cert-title {
+      text-align: center; margin-top: 16px;
+    }
+    .cert-title h1 {
+      font-family: 'Cinzel', serif; font-size: 30px; font-weight: 800;
+      color: #002855; letter-spacing: 4px; text-transform: uppercase;
+    }
+    .cert-title .cert-subtype {
+      font-family: 'Cinzel', serif; font-size: 16px; font-weight: 700;
+      color: #00629B; letter-spacing: 3px; text-transform: uppercase;
+      margin-top: 2px;
+    }
+    /* Decorative line */
+    .gold-line {
+      width: 120px; height: 3px; background: #FFA300;
+      margin: 10px auto;
+    }
+    /* Recipient */
+    .recipient-section { text-align: center; margin-top: 10px; }
+    .present-label {
+      font-size: 12px; color: #475569; font-style: italic;
+      font-family: 'Playfair Display', serif;
+    }
+    .recipient-name {
+      font-family: 'Playfair Display', serif; font-size: 36px; font-weight: 700;
+      color: #002855; margin: 6px 0; display: inline-block;
+      border-bottom: 2px solid #FFA300; padding: 0 28px 4px;
+    }
+    .citation {
+      font-size: 12.5px; line-height: 1.6; color: #334155;
+      max-width: 750px; margin: 8px auto 0;
+    }
+    .citation strong { color: #002855; font-weight: 700; }
+    /* Signatures & QR */
+    .footer-row {
+      display: flex; justify-content: space-between; align-items: flex-end;
+      padding: 0 50px; margin-top: 18px;
+    }
+    .sig-block { text-align: center; width: 200px; }
+    .sig-line { width: 100%; height: 1.5px; background: #94a3b8; margin: 32px auto 5px; }
+    .sig-name { font-size: 12px; font-weight: 700; color: #002855; }
+    .sig-role { font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+    .qr-block {
+      display: flex; align-items: center; gap: 10px;
+      background: #f8fafc; padding: 8px 12px; border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+    .qr-block img { width: 56px; height: 56px; border: 1px solid #cbd5e1; border-radius: 4px; padding: 2px; background: #fff; }
+    .qr-details { text-align: left; }
+    .qr-details .code-label { font-size: 8px; text-transform: uppercase; font-weight: 700; color: #64748b; }
+    .qr-details .code-value { font-family: monospace; font-size: 12px; font-weight: 700; color: #00629B; letter-spacing: 1px; }
+    .qr-details .verify-url { font-size: 8px; color: #475569; margin-top: 1px; }
+    /* Binary band footer */
+    .binary-band {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      height: 28px; background: #002855; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .binary-text {
+      font-family: 'Courier New', monospace; font-size: 10px;
+      color: rgba(255,163,0,0.25); letter-spacing: 2px; white-space: nowrap;
+    }
+    .binary-band .band-center {
+      position: absolute; display: flex; align-items: center; gap: 8px;
+    }
+    .band-center span {
+      font-size: 8px; color: #FFA300; font-weight: 700;
+      letter-spacing: 1.5px; text-transform: uppercase;
+    }
+    /* Issuer statement */
+    .issuer-stmt {
+      text-align: center; font-size: 8px; color: #94a3b8; margin-top: 10px;
+      padding: 0 60px;
+    }
+  </style>
+</head>
+<body>
+  <div class="cert">
+    <div class="top-bar"></div>
+
+    <!-- Logos row -->
+    <div class="header-row">
+      <div class="logo-box">
+        <img src="/ieee-cs-logo.png" alt="IEEE CS UCET IUB" style="max-width:100%;max-height:100%;object-fit:contain">
+      </div>
+      <div class="header-divider"></div>
+      <div class="logo-box">
+        <img src="/iub-logo.png" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
+      </div>
+      <div class="header-divider"></div>
+      <div class="logo-box">
+        <img src="/ieee-logo.png" alt="IEEE" style="max-width:100%;max-height:100%;object-fit:contain">
+      </div>
+    </div>
+
+    <!-- Chapter branding -->
+    <div class="chapter-title">
+      <h2>IEEE Computer Society — UCET IUB</h2>
+      <p>Student Branch Chapter · Lahore Section · {{societyCode}}</p>
+    </div>
+
+    <!-- Certificate title -->
+    <div class="cert-title">
+      <h1>CERTIFICATE</h1>
+      <div class="cert-subtype">{{certType}}</div>
+    </div>
+    <div class="gold-line"></div>
+
+    <!-- Recipient -->
+    <div class="recipient-section">
+      <p class="present-label">This certificate is proudly presented to</p>
+      <div class="recipient-name">{{recipientName}}</div>
+      <p class="citation">
+        in recognition of active participation and successful completion of
+        <strong>"{{eventTitle}}"</strong> held on <strong>{{eventDate}}</strong>
+        at the Department of Information &amp; Communication Engineering,
+        The Islamia University of Bahawalpur.
+      </p>
+    </div>
+
+    <!-- Signatures & QR -->
+    <div class="footer-row">
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-name">{{chairName}}</div>
+        <div class="sig-role">Chapter Chair</div>
+      </div>
+
+      <div class="qr-block">
+        <img src="{{qr_code}}" alt="QR" />
+        <div class="qr-details">
+          <div class="code-label">Verification Code</div>
+          <div class="code-value">{{certificateCode}}</div>
+          <div class="verify-url">Verify at {{chapterWebsite}}/verify/{{certificateCode}}</div>
+        </div>
+      </div>
+
+      <div class="sig-block">
+        <div class="sig-line"></div>
+        <div class="sig-name">{{advisorName}}</div>
+        <div class="sig-role">Faculty Advisor</div>
+      </div>
+    </div>
+
+    <div class="issuer-stmt">
+      This is an official chapter recognition issued by IEEE Computer Society Student Branch Chapter UCET-IUB. Authenticity verifiable on the official registry.
+    </div>
+
+    <!-- Binary code band -->
+    <div class="binary-band">
+      <div class="binary-text">01001001 01000101 01000101 01000101 00100000 01000011 01010011 00100000 01010101 01000011 01000101 01010100 00100000 01001001 01010101 01000010</div>
+      <div class="band-center">
+        <span>IEEE CS · UCET · IUB</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

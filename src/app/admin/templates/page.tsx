@@ -23,14 +23,20 @@ import {
 const PLACEHOLDERS = [
   { tag: "{{logo_url}}", desc: "Official IEEE Computer Society Logo URL (/ieee-cs-logo.png)" },
   { tag: "{{recipient_name}}", desc: "Student Full Name" },
-  { tag: "{{event_title}}", desc: "Workshop or Seminar Title" },
+  { tag: "{{event_title}}", desc: "Workshop, Seminar, or Expo Title" },
   { tag: "{{activity_date}}", desc: "Date of Event" },
   { tag: "{{certificate_type}}", desc: "e.g. Certificate of Participation" },
   { tag: "{{recognition_level}}", desc: "Chapter Recognition / Joint" },
   { tag: "{{code}}", desc: "Unique Verification Code (CSIUB-26-XXXX)" },
   { tag: "{{qr_code}}", desc: "QR Code Image Source (data:image/png;base64)" },
-  { tag: "{{approver_name}}", desc: "Approver / Admin Name" },
-  { tag: "{{approver_role}}", desc: "Approver Official Role" },
+  { tag: "{{approver_name}}", desc: "Chair / Administrator Name" },
+  { tag: "{{advisor_name}}", desc: "Faculty Advisor Name" },
+  { tag: "{{team_name}}", desc: "Project Expo Team Name" },
+  { tag: "{{project_title}}", desc: "Exhibited Project Title" },
+  { tag: "{{member_1}}", desc: "Team Member 1" },
+  { tag: "{{member_2}}", desc: "Team Member 2" },
+  { tag: "{{society_code}}", desc: "IEEE Chapter Society Code" },
+  { tag: "{{chapter_website}}", desc: "Chapter Verification Portal Host" },
   { tag: "{{issuer_statement}}", desc: "Official Compliance Statement" },
   { tag: "{{issue_date}}", desc: "Issuance Date" },
 ];
@@ -76,6 +82,15 @@ export default function AdminCertificateTemplatesPage() {
       .replace(/{{qr_code}}/g, sampleQr || "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CSIUB-26-DEMO")
       .replace(/{{approver_name}}/g, "Muhammad Roshan Ashraf")
       .replace(/{{approver_role}}/g, "Chapter Administrator & President")
+      .replace(/{{advisor_name}}/g, "Dr. Asjad Amin")
+      .replace(/{{team_name}}/g, "ByteForge")
+      .replace(/{{project_title}}/g, "Synapse Vault")
+      .replace(/{{member_1}}/g, "Asadullah Yousaf")
+      .replace(/{{member_2}}/g, "Muhammad Ahmad")
+      .replace(/{{member_3}}/g, "Ali Raza")
+      .replace(/{{member_4}}/g, "Hamza Tariq")
+      .replace(/{{society_code}}/g, "01001001 · SBC65421")
+      .replace(/{{chapter_website}}/g, "ieeecsiub.vercel.app")
       .replace(/{{issuer_statement}}/g, "This is an official chapter recognition issued by IEEE CS UCET-IUB Student Branch Chapter.")
       .replace(/{{issue_date}}/g, "June 03, 2026");
   };

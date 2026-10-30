@@ -14,6 +14,14 @@ import {
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
+import {
+  TEMPLATE_DESIGN1_SIMPLE,
+  TEMPLATE_DESIGN2_BLUE_PANEL,
+  TEMPLATE_DESIGN3_CENTERED,
+  TEMPLATE_SERIES1_VOLUNTEER,
+  TEMPLATE_EXPO_WINNER_MEMBERS,
+  TEMPLATE_EXPO_PARTICIPATION_MEMBERS,
+} from "./certificateTemplates";
 import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_TEAMS, DIGITALFEST_EVENT_TEAMS } from "./digitalFestData";
 
 // Seed Templates
@@ -25,6 +33,54 @@ const SEED_TEMPLATES: CertificateTemplate[] = [
     htmlContent: DEFAULT_CERTIFICATE_HTML,
     isDefault: true,
     createdAt: "2026-10-30T00:00:00Z",
+  },
+  {
+    id: "tpl-design1-simple",
+    name: "Design 1 — Simple Side Bar (Participation)",
+    description: "Clean layout with IEEE CS vertical navy bar, orange accent, and geometric corner markers",
+    htmlContent: TEMPLATE_DESIGN1_SIMPLE,
+    isDefault: false,
+    createdAt: "2026-10-31T00:00:00Z",
+  },
+  {
+    id: "tpl-design2-blue-panel",
+    name: "Design 2 — Blue Angled Panel",
+    description: "Modern angled dual-layer polygon side panel with binary watermark and dual accent underlines",
+    htmlContent: TEMPLATE_DESIGN2_BLUE_PANEL,
+    isDefault: false,
+    createdAt: "2026-10-31T00:00:00Z",
+  },
+  {
+    id: "tpl-design3-centered",
+    name: "Design 3 — Centered with Binary Band",
+    description: "Signature centered layout with bottom binary wave and dark navy verification block",
+    htmlContent: TEMPLATE_DESIGN3_CENTERED,
+    isDefault: false,
+    createdAt: "2026-10-31T00:00:00Z",
+  },
+  {
+    id: "tpl-series1-volunteer",
+    name: "Series 1 — Volunteer Appreciation",
+    description: "Volunteer recognition with gold/navy heart seal medal and binary wave",
+    htmlContent: TEMPLATE_SERIES1_VOLUNTEER,
+    isDefault: false,
+    createdAt: "2026-10-31T00:00:00Z",
+  },
+  {
+    id: "tpl-expo-winner-members",
+    name: "Projects Expo — Winner Award (with Team Members)",
+    description: "Prestigious gold medal ribbon, project title, and team member badges",
+    htmlContent: TEMPLATE_EXPO_WINNER_MEMBERS,
+    isDefault: false,
+    createdAt: "2026-10-31T00:00:00Z",
+  },
+  {
+    id: "tpl-expo-participation-members",
+    name: "Projects Expo — Participation (with Team Members)",
+    description: "Hardware microchip emblem, project title, and team member badges",
+    htmlContent: TEMPLATE_EXPO_PARTICIPATION_MEMBERS,
+    isDefault: false,
+    createdAt: "2026-10-31T00:00:00Z",
   },
 ];
 
