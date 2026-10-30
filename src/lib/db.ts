@@ -143,6 +143,91 @@ const SEED_EVENTS: EventItem[] = [
     eventReport: "Over 60 students created GitHub accounts and submitted their first open-source contributions. 52 certificates awarded.",
   },
   {
+    id: "evt-past-1",
+    slug: "2025/techsprint-hackathon",
+    title: "UCET TechSprint: 24-Hour Web & AI Hackathon 2025",
+    description: "Annual flagship 24-hour university hackathon featuring 28 student teams developing AI-powered community solutions.",
+    learningObjectives: [
+      "Rapid product prototyping and team collaboration",
+      "Full-stack web architecture under time constraints",
+      "Pitching technical projects before academic and industry judges",
+    ],
+    targetAudience: "All undergraduate computing and engineering students",
+    startDate: "2025-11-22T09:00:00Z",
+    endDate: "2025-11-23T12:00:00Z",
+    venue: "Main IT Auditorium & Software Lab 1, UCET IUB",
+    isOnline: false,
+    status: "COMPLETED",
+    seatsLimit: 120,
+    registeredCount: 112,
+    feePkr: 0,
+    certificateType: "Certificate of Merit & Participation",
+    certificateRule: "Participated in all 24 hours of the sprint and submitted a functional prototype",
+    vtoolsId: "vtools-evt-8812",
+    vtoolsLink: "https://events.vtools.ieee.org/m/8812",
+    featuredImage: "https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80",
+    eventReport: "28 teams competed across Web, Mobile, and AI tracks. Top 3 teams awarded shields, cash prizes, and official IEEE CS merit certificates.",
+    speakers: [
+      {
+        name: "Dr. Asjad Amin",
+        role: "Branch Counselor",
+        bio: "Presided over the closing ceremony and award distribution.",
+      },
+    ],
+  },
+  {
+    id: "evt-past-2",
+    slug: "2025/cybersecurity-fundamentals",
+    title: "Ethical Hacking & Network Security Workshop",
+    description: "Hands-on penetration testing, OWASP Top 10 web vulnerabilities, network packet analysis with Wireshark, and defensive hardening.",
+    learningObjectives: [
+      "Understand network traffic analysis with Wireshark",
+      "Identify and remediate OWASP Top 10 vulnerabilities",
+      "Participate in Capture-the-Flag (CTF) security challenges",
+    ],
+    targetAudience: "CS, SE, and IT undergraduate students",
+    startDate: "2025-10-14T10:00:00Z",
+    endDate: "2025-10-14T16:00:00Z",
+    venue: "Software Engineering Lab 2, UCET IUB",
+    isOnline: false,
+    status: "COMPLETED",
+    seatsLimit: 60,
+    registeredCount: 58,
+    feePkr: 0,
+    certificateType: "Certificate of Participation",
+    certificateRule: "Completed all live hands-on CTF challenge flags",
+    vtoolsId: "vtools-evt-8420",
+    vtoolsLink: "https://events.vtools.ieee.org/m/8420",
+    featuredImage: "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?auto=format&fit=crop&w=1200&q=80",
+    eventReport: "55 students successfully completed the live Capture-the-Flag (CTF) lab exercises and received certificates.",
+  },
+  {
+    id: "evt-past-3",
+    slug: "2025/python-data-science",
+    title: "Python for Data Science & Machine Learning Bootcamp",
+    description: "Comprehensive practical introduction to NumPy, Pandas, Matplotlib, Scikit-Learn, and regression modeling for engineering data.",
+    learningObjectives: [
+      "Data wrangling and feature engineering with Pandas",
+      "Visualizing statistical distributions with Matplotlib & Seaborn",
+      "Training linear and logistic regression models",
+    ],
+    targetAudience: "Engineering & Computing students conducting research",
+    startDate: "2025-05-18T09:00:00Z",
+    endDate: "2025-05-19T16:00:00Z",
+    venue: "Computer Center Seminar Hall, UCET IUB",
+    isOnline: false,
+    status: "COMPLETED",
+    seatsLimit: 50,
+    registeredCount: 50,
+    feePkr: 0,
+    certificateType: "Certificate of Completion",
+    certificateRule: "Submitted the final Jupyter notebook predicting housing prices",
+    vtoolsId: "vtools-evt-7910",
+    vtoolsLink: "https://events.vtools.ieee.org/m/7910",
+    featuredImage: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1200&q=80",
+    eventReport: "Covered end-to-end data pipelines from CSV cleaning to model evaluation. 48 verified participants awarded certificates.",
+  },
+  {
     id: "evt-5",
     slug: "2026/robotics-competition-camp",
     title: "National Robotics Competition Training Camp",
@@ -609,7 +694,19 @@ class ChapterDatabase {
 
   // --- Events ---
   getEvents(): EventItem[] {
-    return this.getItem("events", SEED_EVENTS);
+    const list = this.getItem("events", SEED_EVENTS);
+    const existingSlugs = new Set(list.map((e) => e.slug));
+    let hasNew = false;
+    SEED_EVENTS.forEach((seed) => {
+      if (!existingSlugs.has(seed.slug)) {
+        list.push(seed);
+        hasNew = true;
+      }
+    });
+    if (hasNew) {
+      this.setItem("events", list);
+    }
+    return list;
   }
 
   getEventBySlug(slug: string): EventItem | undefined {
