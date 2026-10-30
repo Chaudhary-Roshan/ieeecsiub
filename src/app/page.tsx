@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { db } from "@/lib/db";
@@ -36,21 +37,23 @@ export default function HomePage() {
 
   return (
     <div className="flex flex-col w-full">
-      {/* 1. Hero Section with Real Event Photo & Navy Overlay */}
-      <section className="relative min-h-[520px] md:min-h-[580px] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1920&q=80')`,
-          }}
-        />
-
-        {/* Navy Overlay (#002855 with opacity) as mandated by IEEE Brand Guide */}
-        <div className="absolute inset-0 bg-ieee-navy/85 backdrop-blur-[1px]" />
+      {/* 1. Hero Section with Brand IEEE Navy Gradient */}
+      <section className="relative min-h-[520px] md:min-h-[580px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#001733] via-ieee-navy to-[#003B73]">
+        {/* Subtle geometric grid backdrop */}
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
 
         {/* Content Container */}
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-8 py-20 text-center text-white space-y-6">
+          <div className="flex justify-center mb-2">
+            <Image
+              src="/ieee-cs-logo-white.png"
+              alt="IEEE Computer Society"
+              width={240}
+              height={73}
+              priority
+              className="h-12 sm:h-14 md:h-16 w-auto object-contain drop-shadow-md"
+            />
+          </div>
           <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 px-4 py-1.5 rounded-full text-xs font-montserrat font-semibold tracking-wide text-ieee-cyan">
             <Sparkles size={14} />
             Official Student Branch Chapter • UCET, IUB

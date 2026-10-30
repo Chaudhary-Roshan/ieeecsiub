@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import {
   CheckCircle,
@@ -185,18 +186,25 @@ export default function MembershipPage() {
           {/* Column 2: Official Global IEEE / IEEE CS Membership (Paid) */}
           <div className="bg-white border border-gray-300 rounded-card p-8 md:p-10 shadow-sm flex flex-col justify-between space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-montserrat font-bold text-gray-500 uppercase tracking-wider block">
-                    International Society
-                  </span>
-                  <h2 className="text-2xl font-montserrat font-extrabold text-ieee-navy">
-                    Global IEEE CS Member
-                  </h2>
-                </div>
+              <div className="flex items-center justify-between gap-3">
+                <Image
+                  src="/ieee-cs-logo.png"
+                  alt="IEEE Computer Society"
+                  width={140}
+                  height={43}
+                  className="h-8 w-auto object-contain"
+                />
                 <span className="bg-gray-100 text-gray-800 text-xs font-bold px-3 py-1 rounded-full">
                   Paid via IEEE.org
                 </span>
+              </div>
+              <div>
+                <span className="text-xs font-montserrat font-bold text-gray-500 uppercase tracking-wider block">
+                  International Society
+                </span>
+                <h2 className="text-2xl font-montserrat font-extrabold text-ieee-navy">
+                  Global IEEE CS Member
+                </h2>
               </div>
 
               <p className="text-xs text-gray-600 leading-relaxed">

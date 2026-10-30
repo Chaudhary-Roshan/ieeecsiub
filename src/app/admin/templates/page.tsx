@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 
 const PLACEHOLDERS = [
+  { tag: "{{logo_url}}", desc: "Official IEEE Computer Society Logo URL (/ieee-cs-logo.png)" },
   { tag: "{{recipient_name}}", desc: "Student Full Name" },
   { tag: "{{event_title}}", desc: "Workshop or Seminar Title" },
   { tag: "{{activity_date}}", desc: "Date of Event" },
@@ -65,6 +66,7 @@ export default function AdminCertificateTemplatesPage() {
   // Compute rendered HTML with sample values
   const getRenderedHtml = () => {
     return htmlCode
+      .replace(/{{logo_url}}/g, "/ieee-cs-logo.png")
       .replace(/{{recipient_name}}/g, "Muhammad Roshan Ashraf")
       .replace(/{{event_title}}/g, "IEEE DigitalFest 2026 – Projects Expo")
       .replace(/{{activity_date}}/g, "June 03, 2026")

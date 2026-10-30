@@ -144,7 +144,7 @@ export default function EventDetailPage() {
         amountPkr: event.feePkr,
         paymentMethod,
         transactionId: txId.trim(),
-        proofImageUrl: "https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=600&q=80",
+        proofImageUrl: "",
         status: "PENDING",
         createdAt: new Date().toISOString(),
       });
@@ -392,61 +392,67 @@ export default function EventDetailPage() {
                           Visual moments, hands-on lab training, and recognition ceremonies.
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono bg-blue-50 text-ieee-blue font-semibold px-2.5 py-1 rounded-full border border-blue-200 shadow-xs">
-                          {((event.galleryImages && event.galleryImages.length > 0) ? event.galleryImages : [
-                            "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
-                            "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
-                            "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
-                            "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
-                          ]).length} Official Photos
-                        </span>
-                        <Link
-                          href="/admin/events"
-                          className="text-[11px] font-montserrat font-semibold text-gray-400 hover:text-ieee-blue hover:underline hidden sm:inline"
-                        >
-                          Manage Photos
-                        </Link>
-                      </div>
+                      {event.galleryImages && event.galleryImages.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <span className="text-[11px] font-mono bg-blue-50 text-ieee-blue font-semibold px-2.5 py-1 rounded-full border border-blue-200 shadow-xs">
+                            {event.galleryImages.length} Official Photos
+                          </span>
+                          <Link
+                            href="/admin/events"
+                            className="text-[11px] font-montserrat font-semibold text-gray-400 hover:text-ieee-blue hover:underline hidden sm:inline"
+                          >
+                            Manage Photos
+                          </Link>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {((event.galleryImages && event.galleryImages.length > 0) ? event.galleryImages : [
-                        "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
-                        "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
-                        "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
-                        "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
-                      ]).map((img, i) => (
-                        <div
-                          key={i}
-                          onClick={() => setActivePhotoIndex(i)}
-                          className="group relative h-48 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
-                        >
-                          <img
-                            src={img}
-                            alt={`${event.title} - Session Snapshot #${i + 1}`}
-                            className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            loading="lazy"
-                          />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3.5 text-white">
-                            <div className="self-end bg-black/40 backdrop-blur-xs p-1.5 rounded-full">
-                              <ZoomIn size={16} />
-                            </div>
-                            <div>
-                              <span className="text-[10px] font-mono font-semibold uppercase tracking-wider text-blue-200">
-                                Snapshot #{i + 1}
-                              </span>
-                              <p className="font-montserrat font-semibold text-xs leading-tight line-clamp-1">
-                                {event.title}
-                              </p>
+                    {event.galleryImages && event.galleryImages.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {event.galleryImages.map((img, i) => (
+                          <div
+                            key={i}
+                            onClick={() => setActivePhotoIndex(i)}
+                            className="group relative h-48 rounded-xl overflow-hidden border border-gray-200 bg-gray-100 shadow-sm hover:shadow-md transition-all cursor-pointer"
+                          >
+                            <img
+                              src={img}
+                              alt={`${event.title} - Session Snapshot #${i + 1}`}
+                              className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              loading="lazy"
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/15 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-between p-3.5 text-white">
+                              <div className="self-end bg-black/40 backdrop-blur-xs p-1.5 rounded-full">
+                                <ZoomIn size={16} />
+                              </div>
+                              <div>
+                                <span className="text-[10px] uppercase font-bold tracking-wider text-ieee-cyan block">
+                                  {event.title}
+                                </span>
+                                <span className="text-xs font-semibold">
+                                  Official Photo #{i + 1}
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="text-[11px] text-gray-400 italic">
-                      Click any photograph to view high-resolution fullscreen preview.
-                    </p>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-8 border border-dashed border-gray-300 rounded-xl text-center bg-gray-50/50 space-y-2">
+                        <Camera className="mx-auto text-gray-400" size={28} />
+                        <p className="text-xs font-montserrat font-semibold text-gray-600">
+                          No event gallery photos uploaded yet.
+                        </p>
+                        <p className="text-[11px] text-gray-400">
+                          Session snapshots and ceremonies will be displayed here once posted by the Chapter Administrator.
+                        </p>
+                      </div>
+                    )}
+                    {event.galleryImages && event.galleryImages.length > 0 && (
+                      <p className="text-[11px] text-gray-400 italic">
+                        Click any photograph to view high-resolution fullscreen preview.
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -717,16 +723,9 @@ export default function EventDetailPage() {
         </div>
 
         {/* Fullscreen Lightbox Modal */}
-        {activePhotoIndex !== null && (
+        {activePhotoIndex !== null && event.galleryImages && event.galleryImages.length > 0 && (
           (() => {
-            const currentPhotos = (event.galleryImages && event.galleryImages.length > 0)
-              ? event.galleryImages
-              : [
-                  "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
-                  "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
-                  "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
-                  "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
-                ];
+            const currentPhotos = event.galleryImages;
             const activeUrl = currentPhotos[activePhotoIndex] || currentPhotos[0];
 
             return (

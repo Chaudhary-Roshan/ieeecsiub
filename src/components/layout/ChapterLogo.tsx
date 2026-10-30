@@ -1,99 +1,85 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 import clsx from "clsx";
 
 interface ChapterLogoProps {
   theme?: "light" | "dark"; // 'light' for white/light bg, 'dark' for navy/blue bg
   className?: string;
   condensed?: boolean;
+  standaloneLogoOnly?: boolean;
 }
 
 export const ChapterLogo: React.FC<ChapterLogoProps> = ({
   theme = "light",
   className,
   condensed = false,
+  standaloneLogoOnly = false,
 }) => {
   const isDark = theme === "dark";
+  const logoSrc = isDark ? "/ieee-cs-logo-white.png" : "/ieee-cs-logo.png";
 
   return (
-    <Link href="/" className={clsx("flex items-center gap-3 group select-none", className)}>
-      {/* IEEE CS Brand Mark (1/0 circular emblem) */}
-      <div className="flex-shrink-0 flex items-center justify-center">
-        <svg
-          width="44"
-          height="44"
-          viewBox="0 0 100 100"
-          fill="none"
-          xmlns="http://www.w3.org/2000/svg"
-          className="transition-transform group-hover:scale-105"
-        >
-          {/* Outer circle with official IEEE CS Orange */}
-          <circle cx="50" cy="50" r="46" stroke="#FFA300" strokeWidth="8" />
-          {/* Inner 1 and 0 stylized digital geometry */}
-          {/* Digit 1 */}
-          <rect x="33" y="27" width="8" height="46" rx="2" fill={isDark ? "#FFFFFF" : "#002855"} />
-          <path d="M26 36L34 27H40V33L26 36Z" fill={isDark ? "#FFFFFF" : "#002855"} />
-          <rect x="25" y="70" width="24" height="6" rx="2" fill={isDark ? "#FFFFFF" : "#002855"} />
-          {/* Digit 0 */}
-          <rect
-            x="53"
-            y="27"
-            width="22"
-            height="46"
-            rx="11"
-            stroke={isDark ? "#FFFFFF" : "#002855"}
-            strokeWidth="8"
-          />
-          {/* Trademark symbol */}
-          <text
-            x="78"
-            y="30"
-            fontSize="10"
-            fontWeight="bold"
-            fill={isDark ? "#FFFFFF" : "#002855"}
-            fontFamily="Montserrat, sans-serif"
-          >
-            ™
-          </text>
-        </svg>
+    <Link
+      href="/"
+      className={clsx(
+        "flex items-center gap-2.5 sm:gap-3 group select-none transition-opacity hover:opacity-95",
+        className
+      )}
+    >
+      {/* Official IEEE Computer Society Primary Logo */}
+      <div className="flex-shrink-0 flex items-center">
+        <Image
+          src={logoSrc}
+          alt="IEEE Computer Society"
+          width={condensed ? 140 : 160}
+          height={condensed ? 43 : 49}
+          priority
+          className={clsx(
+            "w-auto object-contain transition-transform group-hover:scale-[1.02]",
+            condensed ? "h-8 sm:h-9" : "h-9 sm:h-10 md:h-11"
+          )}
+        />
       </div>
 
-      {/* Typography Lockup */}
-      <div className="flex flex-col justify-center">
-        {/* IEEE Master Brand & Computer Society Primary Name */}
-        <div className="flex items-center gap-1.5 leading-none">
+      {/* Chapter Sub-Brand Identifier Lockup */}
+      {!standaloneLogoOnly && (
+        <div
+          className={clsx(
+            "flex flex-col justify-center border-l pl-2.5 sm:pl-3",
+            isDark ? "border-white/25" : "border-gray-300"
+          )}
+        >
           <span
             className={clsx(
-              "font-montserrat font-extrabold tracking-wider text-xs md:text-sm",
+              "font-montserrat font-extrabold text-[11px] sm:text-xs tracking-tight uppercase leading-snug",
               isDark ? "text-white" : "text-ieee-navy"
             )}
           >
-            IEEE <span className="text-ieee-orange font-black">COMPUTER SOCIETY</span>
+            UCET – IUB
           </span>
-        </div>
-
-        {/* Sub-Brand: Student Branch Chapter Details */}
-        <div className="leading-tight mt-0.5">
           <span
             className={clsx(
-              "block font-montserrat font-bold text-[10px] md:text-[11px] tracking-tight uppercase",
-              isDark ? "text-[#CCE0EB]" : "text-ieee-blue"
+              "block font-montserrat font-bold text-[9px] sm:text-[10px] tracking-tight uppercase leading-none mt-0.5",
+              isDark ? "text-ieee-cyan" : "text-ieee-blue"
             )}
           >
-            UCET – The Islamia University of Bahawalpur
+            Student Branch Chapter
           </span>
           {!condensed && (
             <span
               className={clsx(
-                "block font-openSans text-[9px] tracking-normal",
+                "hidden sm:block font-openSans text-[8.5px] tracking-normal leading-tight mt-0.5",
                 isDark ? "text-gray-300" : "text-ieee-muted"
               )}
             >
-              Student Branch Chapter • Lahore Section
+              Lahore Section • Region 10
             </span>
           )}
         </div>
-      </div>
+      )}
     </Link>
   );
 };

@@ -48,7 +48,7 @@ export default function AdminEventsManagerPage() {
   const [seatsLimit, setSeatsLimit] = useState(60);
   const [certificateType, setCertificateType] = useState("Certificate of Participation");
   const [certificateRule, setCertificateRule] = useState("Minimum 80% physical attendance verified via digital check-in");
-  const [featuredImage, setFeaturedImage] = useState("https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80");
+  const [featuredImage, setFeaturedImage] = useState("");
   const [learningObjectives, setLearningObjectives] = useState("");
   const [eventReport, setEventReport] = useState("");
   const [galleryImages, setGalleryImages] = useState("");
@@ -80,7 +80,7 @@ export default function AdminEventsManagerPage() {
     setSeatsLimit(60);
     setCertificateType("Certificate of Participation");
     setCertificateRule("Minimum 80% physical attendance verified via digital check-in");
-    setFeaturedImage("https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1200&q=80");
+    setFeaturedImage("");
     setLearningObjectives("Core technical hands-on skills\nIndustry relevant workflows\nOfficial IEEE certification");
     setEventReport("");
     setGalleryImages("");
@@ -570,7 +570,7 @@ export default function AdminEventsManagerPage() {
                     type="url"
                     value={featuredImage}
                     onChange={(e) => setFeaturedImage(e.target.value)}
-                    placeholder="https://images.unsplash.com/..."
+                    placeholder="https://example.com/banner.jpg or /ieee-cs-logo.png"
                     className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none text-xs font-mono"
                   />
                 </div>
@@ -611,21 +611,6 @@ export default function AdminEventsManagerPage() {
                       Event Photo Gallery Images (Displayed in the Photo Gallery section on this event's page)
                     </label>
                     <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const samples = [
-                            "https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1000&q=80",
-                            "https://images.unsplash.com/photo-1524178232363-1fb2b075b655?auto=format&fit=crop&w=1000&q=80",
-                            "https://images.unsplash.com/photo-1522071820081-009f0129c71c?auto=format&fit=crop&w=1000&q=80",
-                            "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1000&q=80",
-                          ].join("\n");
-                          setGalleryImages(samples);
-                        }}
-                        className="text-[10px] bg-white border border-blue-200 text-ieee-blue px-2 py-1 rounded hover:bg-blue-50 font-semibold"
-                      >
-                        + Insert 4 Sample Photos
-                      </button>
                       {galleryImages && (
                         <button
                           type="button"
@@ -642,7 +627,7 @@ export default function AdminEventsManagerPage() {
                     rows={3}
                     value={galleryImages}
                     onChange={(e) => setGalleryImages(e.target.value)}
-                    placeholder="https://images.unsplash.com/photo-1&#10;https://images.unsplash.com/photo-2"
+                    placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"
                     className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-[11px] bg-white"
                   />
 

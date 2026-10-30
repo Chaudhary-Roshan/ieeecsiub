@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { CertificateRecord } from "@/types";
 import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
@@ -121,6 +122,18 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
       <div className="p-6 md:p-8 space-y-6">
         {/* Recipient Header */}
         <div className="border-b border-ieee-border pb-6">
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <Image
+              src="/ieee-cs-logo.png"
+              alt="IEEE Computer Society"
+              width={140}
+              height={43}
+              className="h-8 sm:h-9 w-auto object-contain"
+            />
+            <span className="text-[11px] font-montserrat font-bold text-ieee-blue uppercase tracking-wider hidden sm:inline-block">
+              Official Chapter Registry
+            </span>
+          </div>
           <span className="text-xs uppercase tracking-wider font-semibold text-ieee-muted block mb-1">
             Certified Recipient
           </span>

@@ -3,6 +3,7 @@ import QRCode from "qrcode";
 import { CertificateRecord } from "@/types";
 import { CHAPTER_INFO } from "./constants";
 import { formatPKTDateOnly } from "./sha256";
+import { IEEE_CS_LOGO_COLOR_DATA_URI } from "./logoBase64";
 
 export async function generateCertificatePdf(cert: CertificateRecord): Promise<jsPDF> {
   // Landscape A4: 297mm x 210mm
@@ -35,27 +36,37 @@ export async function generateCertificatePdf(cert: CertificateRecord): Promise<j
   doc.rect(width - 18, height - 11, 10, 3, "F");
   doc.rect(width - 11, height - 18, 3, 10, "F");
 
-  // 2. Header: IEEE COMPUTER SOCIETY
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(16);
-  doc.setTextColor(0, 40, 85); // Navy
-  doc.text("IEEE COMPUTER SOCIETY", width / 2, 28, { align: "center" });
+  // 2. Header: Official IEEE Computer Society Logo & Sub-Brand
+  try {
+    const logoWidth = 46;
+    const logoHeight = 14;
+    doc.addImage(IEEE_CS_LOGO_COLOR_DATA_URI, "PNG", (width - logoWidth) / 2, 16, logoWidth, logoHeight);
+  } catch {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.setTextColor(0, 40, 85); // Navy
+    doc.text("IEEE COMPUTER SOCIETY", width / 2, 26, { align: "center" });
+  }
 
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9.5);
   doc.setTextColor(0, 98, 155); // IEEE Blue
   doc.text("STUDENT BRANCH CHAPTER", width / 2, 33, { align: "center" });
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(70, 80, 95);
   doc.text(
     "University College of Engineering & Technology • The Islamia University of Bahawalpur",
     width / 2,
-    38,
+    37.5,
     { align: "center" }
   );
 
   // Thin separator rule
   doc.setDrawColor(255, 163, 0); // Orange
   doc.setLineWidth(0.8);
-  doc.line(width / 2 - 50, 42, width / 2 + 50, 42);
+  doc.line(width / 2 - 50, 41, width / 2 + 50, 41);
 
   // 3. Certificate Type Title
   doc.setFont("helvetica", "bold");

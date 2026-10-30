@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { PdfVerifyModal } from "@/components/certificates/PdfVerifyModal";
 import { CHAPTER_INFO } from "@/lib/constants";
@@ -36,7 +37,17 @@ export default function VerifyPage() {
     <div className="flex-1 bg-gray-50 py-12 md:py-20 px-4 sm:px-8">
       <div className="max-w-3xl mx-auto space-y-10">
         {/* Page Title & Subtitle */}
-        <div className="text-center space-y-3">
+        <div className="text-center space-y-4">
+          <div className="flex justify-center mb-1">
+            <Image
+              src="/ieee-cs-logo.png"
+              alt="IEEE Computer Society"
+              width={180}
+              height={55}
+              priority
+              className="h-10 sm:h-12 w-auto object-contain"
+            />
+          </div>
           <div className="inline-flex items-center gap-2 bg-ieee-surfaceTint text-ieee-navy text-xs font-montserrat font-bold px-3.5 py-1.5 rounded-full border border-ieee-border">
             <ShieldCheck size={16} className="text-ieee-blue" />
             Official IEEE CS UCET-IUB Certificate Registry

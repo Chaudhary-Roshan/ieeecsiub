@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { CHAPTER_INFO } from "@/lib/constants";
 import { supabase } from "@/lib/supabase";
@@ -54,6 +55,18 @@ export default function ContactPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
           {/* Contact Details & Addresses (Left Column) */}
           <div className="space-y-6">
+            {/* Brand Logo Card */}
+            <div className="bg-white border border-ieee-border rounded-card p-6 shadow-sm flex items-center justify-center">
+              <Image
+                src="/ieee-cs-logo.png"
+                alt="IEEE Computer Society"
+                width={190}
+                height={58}
+                priority
+                className="h-11 w-auto object-contain"
+              />
+            </div>
+
             {/* Physical Location */}
             <div className="bg-white border border-ieee-border rounded-card p-6 shadow-sm space-y-3">
               <div className="w-10 h-10 rounded-xl bg-ieee-surfaceTint flex items-center justify-center text-ieee-blue">

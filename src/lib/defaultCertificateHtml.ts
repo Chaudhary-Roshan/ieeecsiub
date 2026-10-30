@@ -275,9 +275,12 @@ export const DEFAULT_CERTIFICATE_HTML = `<!DOCTYPE html>
       <div class="border-inner">
         <!-- Header -->
         <div class="header">
-          <div class="chapter-brand">
-            <h2>IEEE Computer Society</h2>
-            <p>Student Branch Chapter · UCET, The Islamia University of Bahawalpur</p>
+          <div class="chapter-brand" style="display: flex; align-items: center; gap: 14px;">
+            <img src="{{logo_url}}" alt="IEEE Computer Society" style="height: 44px; width: auto; object-fit: contain;" />
+            <div style="border-left: 1.5px solid #002855; padding-left: 12px;">
+              <h2 style="font-family: 'Cinzel', serif; font-size: 13px; font-weight: 800; color: #002855; letter-spacing: 1px; margin: 0; text-transform: uppercase;">UCET – IUB</h2>
+              <p style="font-size: 10px; font-weight: 600; color: #00629B; text-transform: uppercase; letter-spacing: 0.5px; margin: 2px 0 0 0;">Student Branch Chapter · Lahore Section</p>
+            </div>
           </div>
           <div class="badge-pill">
             {{recognition_level}}

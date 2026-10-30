@@ -60,12 +60,23 @@ export default function TeamPage() {
               className="bg-white border border-ieee-border rounded-card overflow-hidden shadow-sm hover:shadow-md transition-shadow group flex flex-col justify-between"
             >
               <div>
-                <div className="h-60 w-full overflow-hidden relative bg-gray-200">
-                  <img
-                    src={member.photoUrl}
-                    alt={member.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
+                <div className="h-56 w-full overflow-hidden relative bg-gradient-to-br from-ieee-navy via-[#003B73] to-ieee-blue flex items-center justify-center">
+                  {member.photoUrl ? (
+                    <img
+                      src={member.photoUrl}
+                      alt={member.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="text-center text-white space-y-2 p-4">
+                      <div className="w-20 h-20 rounded-full bg-white/10 border-2 border-ieee-orange mx-auto flex items-center justify-center font-montserrat font-extrabold text-2xl text-white shadow-inner">
+                        {member.name.split(" ").filter(Boolean).map(n => n[0]).slice(0, 2).join("")}
+                      </div>
+                      <div className="text-[10px] font-montserrat font-bold tracking-widest text-ieee-cyan uppercase">
+                        IEEE CS Officer
+                      </div>
+                    </div>
+                  )}
                   <div className="absolute top-3 right-3 bg-ieee-navy/80 backdrop-blur-sm text-white text-[10px] font-semibold px-2.5 py-1 rounded-full">
                     {member.committeeYear}
                   </div>

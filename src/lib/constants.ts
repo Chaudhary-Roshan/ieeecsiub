@@ -1,6 +1,8 @@
 export const CHAPTER_INFO = {
   fullName: "IEEE Computer Society Student Branch Chapter, UCET – The Islamia University of Bahawalpur",
   shortName: "IEEE CS UCET-IUB",
+  logoUrl: "/ieee-cs-logo.png",
+  logoWhiteUrl: "/ieee-cs-logo-white.png",
   affiliation: "University College of Engineering & Technology (UCET), The Islamia University of Bahawalpur (IUB)",
   parentBranch: "IEEE UCET-IUB Student Branch",
   parentBranchUrl: "https://edu.ieee.org/pk-ucetiub",

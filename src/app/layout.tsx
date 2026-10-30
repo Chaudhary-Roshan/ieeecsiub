@@ -7,7 +7,11 @@ export const metadata: Metadata = {
   description:
     "Official website of IEEE Computer Society Student Branch Chapter at University College of Engineering & Technology, The Islamia University of Bahawalpur. Verify certificates, explore events, and connect.",
   icons: {
-    icon: "/favicon.ico",
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/icon.png", type: "image/png" }
+    ],
+    apple: "/icon.png",
   },
 };
 
