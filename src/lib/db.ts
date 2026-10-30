@@ -6,10 +6,25 @@ import {
   Registration, 
   PaymentProof, 
   AuditLogItem, 
-  StaffUser 
+  StaffUser,
+  CertificateTemplate,
+  AttendanceRecord
 } from "@/types";
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
 import { supabase, isSupabaseConfigured } from "./supabase";
+import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
+
+// Seed Templates
+const SEED_TEMPLATES: CertificateTemplate[] = [
+  {
+    id: "tpl-default",
+    name: "Official IEEE CS Navy & Gold Border (Default)",
+    description: "Classic prestigious layout with double gold ornamental border, chapter badge, and QR verification",
+    htmlContent: DEFAULT_CERTIFICATE_HTML,
+    isDefault: true,
+    createdAt: "2026-10-30T00:00:00Z",
+  },
+];
 
 // Seed Events
 const SEED_EVENTS: EventItem[] = [
@@ -608,8 +623,171 @@ class ChapterDatabase {
 
   addEvent(event: EventItem): void {
     const list = this.getEvents();
-    list.unshift(event);
+    // Prevent duplicate ID/slug
+    const filtered = list.filter((e) => e.id !== event.id && e.slug !== event.slug);
+    filtered.unshift(event);
+    this.setItem("events", filtered);
+
+    if (supabase) {
+      supabase.from("events").upsert({
+        slug: event.slug,
+        title: event.title,
+        description: event.description,
+        learning_objectives: event.learningObjectives?.join("\n") || "",
+        target_audience: event.targetAudience || "",
+        start_date: event.startDate,
+        end_date: event.endDate,
+        venue: event.venue,
+        is_online: event.isOnline,
+        meeting_link: event.meetingLink,
+        status: event.status,
+        status_reason: event.statusReason,
+        seats_limit: event.seatsLimit,
+        fee_pkr: event.feePkr,
+        payment_instructions: event.paymentInstructions,
+        certificate_type: event.certificateType,
+        certificate_rule: event.certificateRule,
+        vtools_id: event.vtoolsId,
+        vtools_link: event.vtoolsLink,
+        featured_image: event.featuredImage,
+      }).then(({ error }) => {
+        if (error) console.warn("Supabase addEvent sync error:", error);
+      });
+    }
+  }
+
+  updateEvent(id: string, updates: Partial<EventItem>): boolean {
+    const list = this.getEvents();
+    const index = list.findIndex((e) => e.id === id);
+    if (index === -1) return false;
+
+    list[index] = { ...list[index], ...updates };
     this.setItem("events", list);
+
+    if (supabase) {
+      const payload: Record<string, any> = {};
+      if (updates.title) payload.title = updates.title;
+      if (updates.description) payload.description = updates.description;
+      if (updates.status) payload.status = updates.status;
+      if (updates.statusReason) payload.status_reason = updates.statusReason;
+      if (updates.startDate) payload.start_date = updates.startDate;
+      if (updates.endDate) payload.end_date = updates.endDate;
+      if (updates.venue) payload.venue = updates.venue;
+      if (updates.feePkr !== undefined) payload.fee_pkr = updates.feePkr;
+      if (updates.certificateType) payload.certificate_type = updates.certificateType;
+      if (updates.certificateRule) payload.certificate_rule = updates.certificateRule;
+      if (updates.featuredImage) payload.featured_image = updates.featuredImage;
+
+      if (Object.keys(payload).length > 0) {
+        supabase
+          .from("events")
+          .update(payload)
+          .eq("slug", list[index].slug)
+          .then(({ error }) => {
+            if (error) console.warn("Supabase updateEvent sync error:", error);
+          });
+      }
+    }
+
+    return true;
+  }
+
+  deleteEvent(id: string): boolean {
+    const list = this.getEvents();
+    const target = list.find((e) => e.id === id);
+    if (!target) return false;
+
+    const filtered = list.filter((e) => e.id !== id);
+    this.setItem("events", filtered);
+
+    if (supabase) {
+      supabase
+        .from("events")
+        .delete()
+        .eq("slug", target.slug)
+        .then(({ error }) => {
+          if (error) console.warn("Supabase deleteEvent sync error:", error);
+        });
+    }
+
+    return true;
+  }
+
+  // --- Certificate Templates ---
+  getTemplates(): CertificateTemplate[] {
+    return this.getItem("certificate_templates", SEED_TEMPLATES);
+  }
+
+  getTemplateById(id: string): CertificateTemplate | undefined {
+    return this.getTemplates().find((t) => t.id === id);
+  }
+
+  saveTemplate(tpl: CertificateTemplate): void {
+    const list = this.getTemplates();
+    const index = list.findIndex((t) => t.id === tpl.id);
+    if (index >= 0) {
+      list[index] = tpl;
+    } else {
+      list.unshift(tpl);
+    }
+    this.setItem("certificate_templates", list);
+
+    if (supabase) {
+      supabase.from("certificate_templates").upsert({
+        name: tpl.name,
+        html_content: tpl.htmlContent,
+        is_active: true,
+      }).then(({ error }) => {
+        if (error) console.warn("Supabase saveTemplate sync error:", error);
+      });
+    }
+  }
+
+  deleteTemplate(id: string): boolean {
+    const list = this.getTemplates();
+    if (list.length <= 1) return false; // keep at least default
+    const filtered = list.filter((t) => t.id !== id);
+    this.setItem("certificate_templates", filtered);
+    return true;
+  }
+
+  // --- Attendance Records ---
+  getAttendance(eventId: string): AttendanceRecord[] {
+    const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    if (stored[eventId] && stored[eventId].length > 0) {
+      return stored[eventId];
+    }
+    // Auto-generate initial attendance list from registrations if empty
+    const regs = this.getRegistrations().filter((r) => r.eventId === eventId);
+    return regs.map((r) => ({
+      id: r.id,
+      eventId: r.eventId,
+      name: r.fullName,
+      rollNumber: r.rollNumber,
+      email: r.email,
+      attended: r.status === "ATTENDED",
+      certificateCode: r.ticketCode ? `CSIUB-26-${r.ticketCode.slice(-4)}-AUTO` : undefined,
+      checkedInAt: r.checkedInAt,
+    }));
+  }
+
+  saveAttendance(eventId: string, records: AttendanceRecord[]): void {
+    const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    stored[eventId] = records;
+    this.setItem("attendance_records", stored);
+  }
+
+  toggleAttendance(eventId: string, recordId: string): AttendanceRecord[] {
+    const records = this.getAttendance(eventId);
+    const target = records.find((r) => r.id === recordId);
+    if (target) {
+      target.attended = !target.attended;
+      if (target.attended && !target.checkedInAt) {
+        target.checkedInAt = new Date().toISOString();
+      }
+      this.saveAttendance(eventId, records);
+    }
+    return records;
   }
 
   // --- Team ---

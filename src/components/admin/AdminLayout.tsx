@@ -8,16 +8,17 @@ import { INITIAL_STAFF_USERS } from "@/lib/constants";
 import { StaffUser, StaffRole } from "@/types";
 import {
   LayoutDashboard,
+  CalendarPlus,
   FileSpreadsheet,
   Award,
+  Palette,
+  Users,
   CreditCard,
   QrCode,
   CheckCircle2,
   FileText,
   History,
-  Users,
   ShieldCheck,
-  LogOut,
   ChevronRight,
   UserCheck,
 } from "lucide-react";
@@ -48,8 +49,11 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { label: "Certificate Registry & Generator", href: "/admin/registry", icon: FileSpreadsheet },
-    { label: "Manage Certificates (Revoke/Replace)", href: "/admin/certificates", icon: Award },
+    { label: "Manage All Events", href: "/admin/events", icon: CalendarPlus },
+    { label: "Certificate Registry & QR Pack", href: "/admin/registry", icon: FileSpreadsheet },
+    { label: "Manage Certificates", href: "/admin/certificates", icon: Award },
+    { label: "Custom HTML Templates", href: "/admin/templates", icon: Palette },
+    { label: "Attendance & Bulk PDF", href: "/admin/attendance", icon: Users },
     { label: "Payment Verification Queue", href: "/admin/payments", icon: CreditCard },
     { label: "Mobile Check-in Scanner", href: "/admin/checkin", icon: QrCode },
     { label: "Eligibility & In-Site Issuance", href: "/admin/issuance", icon: CheckCircle2 },

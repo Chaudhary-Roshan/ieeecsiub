@@ -151,3 +151,23 @@ export interface AuditLogItem {
   details: string;
   timestamp: string;
 }
+
+export interface CertificateTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  htmlContent: string;
+  isDefault: boolean;
+  createdAt: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  eventId: string;
+  name: string;
+  rollNumber?: string;
+  email?: string;
+  attended: boolean;
+  certificateCode?: string;
+  checkedInAt?: string;
+}
