@@ -13,6 +13,7 @@ TRUNCATE TABLE registrations CASCADE;
 TRUNCATE TABLE audit_logs CASCADE;
 TRUNCATE TABLE contact_messages CASCADE;
 TRUNCATE TABLE news CASCADE;
+TRUNCATE TABLE team_members CASCADE;
 
 -- 2. Clear events and insert the real event: IEEE DigitalFest 2026 – Projects Expo
 DELETE FROM events;
@@ -60,4 +61,15 @@ INSERT INTO events (
   '[]'::jsonb,
   'IEEE DigitalFest 2026 – Projects Expo concluded with grand success at the Department of Information & Communication Engineering, IUB. Over 60 student teams demonstrated working hardware & software prototypes across 7 tech domains. Organized in collaboration with IEEE Bahawalpur Subsection, IEEE CS, IEEE SPS, IEEE ComSoc, and Cyber Security Student Club under the leadership of Muhammad Roshan Ashraf. Cash prizes of Rs. 10,000 (1st Position), Rs. 5,000 (2nd Position), and Rs. 3,000 (3rd Position) awarded alongside official IEEE & IUB participation certificates.'
 );
+
+-- 3. Insert Official Chapter Officers & Faculty Leadership
+INSERT INTO team_members (id, name, position, committee_year, photo_url, approved_bio, order_index, is_current)
+VALUES
+  ('team-1', 'Dr. Asjad Amin', 'Branch Counselor / Senior Advisor', '2026-2027', '', 'Associate Professor and Branch Counselor for IEEE UCET-IUB Student Branch. Guiding chapter excellence and university-wide engineering leadership.', 0, true),
+  ('team-2', 'Dr. Aoun Muhammad', 'Faculty Advisor', '2026-2027', '', 'Assistant Professor, Department of Computer Science & Engineering, UCET. Dedicated to computing research, IEEE CS accreditation, and student research mentoring.', 1, true),
+  ('team-3', 'Muhammad Roshan Ashraf', 'Chapter Chair', '2026-2027', '', 'Leading chapter strategy, technical programs, and web infrastructure. Passionate about AI systems, software architecture, and developer education.', 2, true),
+  ('team-4', 'Fatima Noor', 'Vice Chair & Content Lead', '2026-2027', '', 'Overseeing chapter communications, technical reporting, and workshop moderation.', 3, true),
+  ('team-5', 'Hamza Tariq', 'Treasurer', '2026-2027', '', 'Managing transparent financial records, workshop budgeting, and official payment reconciliations.', 4, true),
+  ('team-6', 'Ayesha Siddiqa', 'General Secretary', '2026-2027', '', 'Responsible for IEEE vTools reporting, executive documentation, and meeting minutes.', 5, true),
+  ('team-arch-1', 'Usman Ghani', 'Former Chapter Chair (2025)', '2025-2026', '', 'Pioneered early chapter initiatives and student branch collaboration in 2025.', 6, false);
 

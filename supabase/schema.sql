@@ -265,6 +265,10 @@ CREATE INDEX idx_audit_created ON audit_logs(created_at);
 -- -------------------------------------------------------------
 -- Security: Row Level Security (RLS)
 -- -------------------------------------------------------------
+ALTER TABLE team_members ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public can view team members" ON team_members FOR SELECT USING (true);
+CREATE POLICY "Staff can manage team members" ON team_members FOR ALL USING (true);
+
 ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE registrations ENABLE ROW LEVEL SECURITY;

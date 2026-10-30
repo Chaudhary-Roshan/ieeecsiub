@@ -52,6 +52,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { label: "Manage All Events", href: "/admin/events", icon: CalendarPlus },
+    { label: "Officers & Faculty Advisors", href: "/admin/team", icon: UserCheck },
     { label: "Certificate Registry & QR Pack", href: "/admin/registry", icon: FileSpreadsheet },
     { label: "Manage Certificates", href: "/admin/certificates", icon: Award },
     { label: "Custom HTML Templates", href: "/admin/templates", icon: Palette },

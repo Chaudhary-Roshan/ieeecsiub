@@ -25,6 +25,7 @@ export interface TeamMember {
   isCurrent: boolean;
   email?: string;
   linkedinUrl?: string;
+  orderIndex?: number;
 }
 
 export interface EventItem {

@@ -648,9 +648,79 @@ class ChapterDatabase {
     return records;
   }
 
-  // --- Team ---
+  // --- Team (Officers & Faculty Advisors) ---
   getTeamMembers(): TeamMember[] {
     return this.getItem("team", SEED_TEAM);
+  }
+
+  async fetchTeamMembers(): Promise<TeamMember[]> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("team_members")
+          .select("*")
+          .order("order_index", { ascending: true });
+
+        if (data && !error && data.length > 0) {
+          const mapped: TeamMember[] = data.map((d: any) => ({
+            id: d.id,
+            name: d.name,
+            position: d.position,
+            committeeYear: d.committee_year,
+            photoUrl: d.photo_url || "",
+            approvedBio: d.approved_bio || "",
+            isCurrent: d.is_current ?? true,
+            orderIndex: d.order_index ?? 0,
+          }));
+          this.setItem("team", mapped);
+          return mapped;
+        }
+      } catch (err) {
+        console.warn("Supabase fetchTeamMembers fallback to local:", err);
+      }
+    }
+    return this.getTeamMembers();
+  }
+
+  async saveTeamMember(member: TeamMember): Promise<void> {
+    const list = this.getTeamMembers();
+    const index = list.findIndex((m) => m.id === member.id);
+    if (index >= 0) {
+      list[index] = member;
+    } else {
+      list.push(member);
+    }
+    this.setItem("team", list);
+
+    if (supabase) {
+      try {
+        await supabase.from("team_members").upsert({
+          id: member.id,
+          name: member.name,
+          position: member.position,
+          committee_year: member.committeeYear,
+          photo_url: member.photoUrl,
+          approved_bio: member.approvedBio,
+          is_current: member.isCurrent,
+          order_index: member.orderIndex ?? (index >= 0 ? index : list.length - 1),
+        });
+      } catch (err) {
+        console.warn("Supabase saveTeamMember sync error:", err);
+      }
+    }
+  }
+
+  async deleteTeamMember(id: string): Promise<void> {
+    const list = this.getTeamMembers().filter((m) => m.id !== id);
+    this.setItem("team", list);
+
+    if (supabase) {
+      try {
+        await supabase.from("team_members").delete().eq("id", id);
+      } catch (err) {
+        console.warn("Supabase deleteTeamMember error:", err);
+      }
+    }
   }
 
   // --- Upload Batches (Option 1) ---
