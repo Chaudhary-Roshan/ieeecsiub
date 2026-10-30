@@ -99,7 +99,11 @@ export default function AdminCertificateTemplatesPage() {
       const initial = allTemplates[0];
       setSelectedTemplateId(initial.id);
       setTemplateName(initial.name);
-      setHtmlCode(initial.htmlContent || DEFAULT_CERTIFICATE_HTML);
+      let initialHtml = initial.htmlContent || DEFAULT_CERTIFICATE_HTML;
+      initialHtml = initialHtml
+        .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
+        .replace(/<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE<\/div>/g, '{{ieee_logo}}');
+      setHtmlCode(initialHtml);
       if (initial.chairSignatureUrl) setChairSignature(initial.chairSignatureUrl);
       if (initial.advisorSignatureUrl) setAdvisorSignature(initial.advisorSignatureUrl);
       if (initial.chairName) setChairName(initial.chairName);
@@ -146,7 +150,11 @@ export default function AdminCertificateTemplatesPage() {
     const target = templates.find((t) => t.id === id);
     if (target) {
       setTemplateName(target.name);
-      setHtmlCode(target.htmlContent || DEFAULT_CERTIFICATE_HTML);
+      let cleanHtml = target.htmlContent || DEFAULT_CERTIFICATE_HTML;
+      cleanHtml = cleanHtml
+        .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
+        .replace(/<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE<\/div>/g, '{{ieee_logo}}');
+      setHtmlCode(cleanHtml);
       if (target.chairSignatureUrl) setChairSignature(target.chairSignatureUrl);
       if (target.advisorSignatureUrl) setAdvisorSignature(target.advisorSignatureUrl);
       if (target.chairName) setChairName(target.chairName);
@@ -214,6 +222,11 @@ export default function AdminCertificateTemplatesPage() {
         setUniversityLogo(dataUrl);
       } else if (type === "IEEE") {
         setIeeeLogo(dataUrl);
+        setHtmlCode((prev) =>
+          prev
+            .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
+            .replace(/<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE<\/div>/g, '{{ieee_logo}}')
+        );
       } else if (type === "EVENT") {
         setEventLogo(dataUrl);
       }
@@ -234,18 +247,19 @@ export default function AdminCertificateTemplatesPage() {
     const activeChapterLogo = chapterLogo || "/ieee-cs-logo.png";
     const activeUnivLogo = universityLogo || "/logo.png";
     const activeIeeeLogo = ieeeLogo
-      ? `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 130px; object-fit: contain; display: inline-block;" />`
+      ? `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 46px; max-width: 110px; object-fit: contain; display: block; margin: auto;" />`
       : `<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>`;
     const activeEventLogo = eventLogo
       ? `<img src="${eventLogo}" alt="Event / Sponsor Logo" style="max-height: 52px; max-width: 140px; object-fit: contain; display: inline-block;" />`
       : "";
 
-    return htmlCode
+    let rendered = htmlCode
       // Logos dynamic tags
       .replace(/{{chapter_logo}}/g, activeChapterLogo)
       .replace(/{{logo_url}}/g, activeChapterLogo)
-      .replace(/src="\/ieee-cs-logo\.png"/g, `src="${activeChapterLogo}"`)
-      .replace(/src="\/logo\.png"/g, `src="${activeUnivLogo}"`)
+      .replace(/src=["']\/ieee-cs-logo\.png["']/g, `src="${activeChapterLogo}"`)
+      .replace(/src=["']\/ieee-cs-logo-white\.png["']/g, `src="${activeChapterLogo}"`)
+      .replace(/src=["']\/logo\.png["']/g, `src="${activeUnivLogo}"`)
       .replace(/{{university_logo}}/g, `<img src="${activeUnivLogo}" alt="University Logo" style="max-height: 60px; max-width: 140px; object-fit: contain; display: inline-block;" />`)
       .replace(/{{ieee_logo}}/g, activeIeeeLogo)
       .replace(/{{event_logo}}/g, activeEventLogo)
@@ -275,6 +289,25 @@ export default function AdminCertificateTemplatesPage() {
       .replace(/{{chapter_website}}/g, "ieeecsiub.vercel.app")
       .replace(/{{issuer_statement}}/g, "This is an official chapter recognition issued by IEEE CS UCET-IUB Student Branch Chapter.")
       .replace(/{{issue_date}}/g, "June 03, 2026");
+
+    // Dynamic replacement for templates with hardcoded IEEE emblem box containers or text
+    if (ieeeLogo) {
+      // 1. Box container (e.g. Projects Expo 80x54 white box)
+      rendered = rendered.replace(
+        /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+        (fullMatch, attrs) => {
+          return `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`;
+        }
+      );
+
+      // 2. Standalone text block
+      rendered = rendered.replace(
+        /<div([^>]*)>\s*IEEE\s*<\/div>/gi,
+        `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
+      );
+    }
+
+    return rendered;
   };
 
   const handleCopyPlaceholder = (tag: string) => {

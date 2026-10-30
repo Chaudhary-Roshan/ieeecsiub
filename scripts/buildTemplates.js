@@ -39,14 +39,14 @@ const TPL_DESIGN1_SIMPLE = wrapTemplate("IEEE CS UCET IUB — Design 1 — Simpl
   <div style="position: absolute; left: 96px; top: 0; right: 0; bottom: 0; padding: 52px 72px 48px 64px; display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box">
     <div style="display: flex; justify-content: space-between; align-items: center">
       <div style="width: 260px; height: 70px; display: flex; align-items: center; justify-content: flex-start">
-        <img src="/ieee-cs-logo.png" alt="IEEE Computer Society" style="max-width:100%;max-height:100%;object-fit:contain">
+        <img src="{{chapter_logo}}" alt="IEEE Computer Society" style="max-width:100%;max-height:100%;object-fit:contain">
       </div>
       <div style="display: flex; align-items: center; gap: 28px">
         <div style="width: 65px; height: 65px; display: flex; align-items: center; justify-content: center">
-          <img src="/logo.png" alt="IUB UCET" style="max-width:100%;max-height:100%;object-fit:contain">
+          <img src="{{university_logo}}" alt="IUB UCET" style="max-width:100%;max-height:100%;object-fit:contain">
         </div>
         <div style="width: 1px; height: 50px; background: #C4C6C8"></div>
-        <div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>
+        {{ieee_logo}}
       </div>
     </div>
 
@@ -136,10 +136,10 @@ const TPL_DESIGN2_BLUE_PANEL = wrapTemplate("IEEE CS UCET IUB — Design 2 — B
   <div style="position: absolute; left: 524px; top: 0; right: 0; bottom: 0; box-sizing: border-box; padding: 52px 72px 64px 0; display: flex; flex-direction: column; justify-content: space-between">
     <div style="display: flex; justify-content: flex-end; align-items: center; gap: 24px">
       <div style="width: 65px; height: 65px; display: flex; align-items: center; justify-content: center">
-        <img src="/logo.png" alt="IUB UCET" style="max-width:100%;max-height:100%;object-fit:contain">
+        <img src="{{university_logo}}" alt="IUB UCET" style="max-width:100%;max-height:100%;object-fit:contain">
       </div>
       <div style="width: 1px; height: 50px; background: #C4C6C8"></div>
-      <div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>
+      {{ieee_logo}}
     </div>
 
     <div style="display: flex; flex-direction: column; gap: 16px">
@@ -194,14 +194,14 @@ const TPL_DESIGN3_CENTERED = wrapTemplate("IEEE CS UCET IUB — Design 3 — Cen
   <div style="position: absolute; left: 0; top: 0; width: 1123px; height: 640px; box-sizing: border-box; padding: 40px 72px 0 72px; display: flex; flex-direction: column; align-items: center">
     <div style="width: 100%; display: flex; justify-content: space-between; align-items: center">
       <div style="width: 260px; height: 70px; display: flex; align-items: center; justify-content: flex-start">
-        <img src="/ieee-cs-logo.png" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
+        <img src="{{chapter_logo}}" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
       </div>
       <div style="display: flex; align-items: center; gap: 20px">
         <div style="width: 65px; height: 65px; display: flex; align-items: center; justify-content: center">
-          <img src="/logo.png" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
+          <img src="{{university_logo}}" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
         </div>
         <div style="width: 1px; height: 50px; background: #C4C6C8"></div>
-        <div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>
+        {{ieee_logo}}
       </div>
     </div>
 
@@ -262,14 +262,14 @@ const TPL_SERIES1_VOLUNTEER = wrapTemplate("IEEE CS UCET IUB — Series 1 — Vo
   <div style="position: absolute; left: 0; top: 0; width: 1123px; height: 640px; box-sizing: border-box; padding: 40px 72px 0 72px; display: flex; flex-direction: column">
     <div style="width: 100%; display: flex; justify-content: space-between; align-items: center">
       <div style="width: 260px; height: 70px; display: flex; align-items: center; justify-content: flex-start">
-        <img src="/ieee-cs-logo.png" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
+        <img src="{{chapter_logo}}" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
       </div>
       <div style="display: flex; align-items: center; gap: 20px">
         <div style="width: 65px; height: 65px; display: flex; align-items: center; justify-content: center">
-          <img src="/logo.png" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
+          <img src="{{university_logo}}" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
         </div>
         <div style="width: 1px; height: 50px; background: #C4C6C8"></div>
-        <div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>
+        {{ieee_logo}}
       </div>
     </div>
 
@@ -337,12 +337,12 @@ const TPL_EXPO_WINNER_MEMBERS = wrapTemplate("IEEE CS UCET IUB — Projects Expo
       </div>
       <div style="display: flex; align-items: center; gap: 12px">
         <div style="width: 200px; height: 54px; background: #FFFFFF; border-radius: 6px; padding: 4px; display: flex; align-items: center; justify-content: center">
-          <img src="/ieee-cs-logo.png" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
+          <img src="{{chapter_logo}}" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
         </div>
         <div style="width: 54px; height: 54px; background: #FFFFFF; border-radius: 6px; padding: 4px; display: flex; align-items: center; justify-content: center">
-          <img src="/logo.png" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
+          <img src="{{university_logo}}" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
         </div>
-        <div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE</div>
+        <div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>
       </div>
     </div>
   </div>
@@ -433,12 +433,12 @@ const TPL_EXPO_PARTICIPATION_MEMBERS = wrapTemplate("IEEE CS UCET IUB — Projec
       </div>
       <div style="display: flex; align-items: center; gap: 12px">
         <div style="width: 200px; height: 54px; background: #FFFFFF; border-radius: 6px; padding: 4px; display: flex; align-items: center; justify-content: center">
-          <img src="/ieee-cs-logo.png" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
+          <img src="{{chapter_logo}}" alt="IEEE CS" style="max-width:100%;max-height:100%;object-fit:contain">
         </div>
         <div style="width: 54px; height: 54px; background: #FFFFFF; border-radius: 6px; padding: 4px; display: flex; align-items: center; justify-content: center">
-          <img src="/logo.png" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
+          <img src="{{university_logo}}" alt="IUB" style="max-width:100%;max-height:100%;object-fit:contain">
         </div>
-        <div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE</div>
+        <div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>
       </div>
     </div>
   </div>
