@@ -33,6 +33,11 @@ import {
 const PLACEHOLDERS = [
   { tag: "{{chair_signature}}", desc: "Digital Signature of Chapter Chair / Admin" },
   { tag: "{{advisor_signature}}", desc: "Digital Signature of Branch Counselor / Advisor" },
+  { tag: "{{chapter_logo}}", desc: "Official IEEE CS Chapter Logo URL (/ieee-cs-logo.png)" },
+  { tag: "{{university_logo}}", desc: "University Logo (IUB UCET) Image Element" },
+  { tag: "{{ieee_logo}}", desc: "IEEE Master / Emblem Logo Image Element" },
+  { tag: "{{event_logo}}", desc: "Event / Partner / Sponsor Logo Image Element" },
+  { tag: "{{logo_url}}", desc: "Primary Chapter Logo URL (/ieee-cs-logo.png)" },
   { tag: "{{recipient_name}}", desc: "Student Full Name" },
   { tag: "{{event_title}}", desc: "Workshop, Seminar, or Expo Title" },
   { tag: "{{activity_date}}", desc: "Date of Event" },
@@ -48,7 +53,6 @@ const PLACEHOLDERS = [
   { tag: "{{member_2}}", desc: "Team Member 2" },
   { tag: "{{society_code}}", desc: "IEEE Chapter Society Code" },
   { tag: "{{chapter_website}}", desc: "Chapter Verification Portal Host" },
-  { tag: "{{logo_url}}", desc: "Official IEEE Computer Society Logo URL (/ieee-cs-logo.png)" },
   { tag: "{{issuer_statement}}", desc: "Official Compliance Statement" },
   { tag: "{{issue_date}}", desc: "Issuance Date" },
 ];
@@ -65,7 +69,7 @@ export default function AdminCertificateTemplatesPage() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Signatures Studio State
-  const [showSignaturesPanel, setShowSignaturesPanel] = useState(true);
+  const [showSignaturesPanel, setShowSignaturesPanel] = useState(false);
   const [chairSignature, setChairSignature] = useState<string>("");
   const [advisorSignature, setAdvisorSignature] = useState<string>("");
   const [chairName, setChairName] = useState<string>("Muhammad Roshan Ashraf");
@@ -73,7 +77,14 @@ export default function AdminCertificateTemplatesPage() {
   const [advisorName, setAdvisorName] = useState<string>("Dr. Asjad Amin");
   const [advisorTitle, setAdvisorTitle] = useState<string>("Advisor, IEEE CS Student Branch Chapter");
 
-  // Load Templates & Cached Signatures
+  // Logos Studio State
+  const [showLogosPanel, setShowLogosPanel] = useState(true);
+  const [chapterLogo, setChapterLogo] = useState<string>("/ieee-cs-logo.png");
+  const [universityLogo, setUniversityLogo] = useState<string>("/logo.png");
+  const [ieeeLogo, setIeeeLogo] = useState<string>("");
+  const [eventLogo, setEventLogo] = useState<string>("");
+
+  // Load Templates & Cached Signatures/Logos
   useEffect(() => {
     // Generate sample QR code for preview
     QRCode.toDataURL("https://ieeecsiub.vercel.app/verify/CSIUB-26-9P4W-M8XB", {
@@ -93,6 +104,10 @@ export default function AdminCertificateTemplatesPage() {
       if (initial.advisorSignatureUrl) setAdvisorSignature(initial.advisorSignatureUrl);
       if (initial.chairName) setChairName(initial.chairName);
       if (initial.advisorName) setAdvisorName(initial.advisorName);
+      if (initial.chapterLogoUrl) setChapterLogo(initial.chapterLogoUrl);
+      if (initial.universityLogoUrl) setUniversityLogo(initial.universityLogoUrl);
+      if (initial.ieeeLogoUrl) setIeeeLogo(initial.ieeeLogoUrl);
+      if (initial.eventLogoUrl) setEventLogo(initial.eventLogoUrl);
     }
 
     // Load persisted global signatures if available
@@ -109,6 +124,19 @@ export default function AdminCertificateTemplatesPage() {
           console.warn("Failed to load cached signatures:", e);
         }
       }
+
+      const savedLogos = localStorage.getItem("ieee_logos");
+      if (savedLogos) {
+        try {
+          const parsed = JSON.parse(savedLogos);
+          if (parsed.chapterLogo) setChapterLogo((prev) => prev || parsed.chapterLogo);
+          if (parsed.universityLogo) setUniversityLogo((prev) => prev || parsed.universityLogo);
+          if (parsed.ieeeLogo) setIeeeLogo((prev) => prev || parsed.ieeeLogo);
+          if (parsed.eventLogo) setEventLogo((prev) => prev || parsed.eventLogo);
+        } catch (e) {
+          console.warn("Failed to load cached logos:", e);
+        }
+      }
     }
   }, []);
 
@@ -123,6 +151,10 @@ export default function AdminCertificateTemplatesPage() {
       if (target.advisorSignatureUrl) setAdvisorSignature(target.advisorSignatureUrl);
       if (target.chairName) setChairName(target.chairName);
       if (target.advisorName) setAdvisorName(target.advisorName);
+      if (target.chapterLogoUrl) setChapterLogo(target.chapterLogoUrl);
+      if (target.universityLogoUrl) setUniversityLogo(target.universityLogoUrl);
+      if (target.ieeeLogoUrl) setIeeeLogo(target.ieeeLogoUrl);
+      if (target.eventLogoUrl) setEventLogo(target.eventLogoUrl);
     }
   };
 
@@ -160,7 +192,36 @@ export default function AdminCertificateTemplatesPage() {
     reader.readAsDataURL(file);
   };
 
-  // Compute rendered HTML with sample values and live signatures
+  // Upload logo files
+  const handleLogoUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "CHAPTER" | "UNIVERSITY" | "IEEE" | "EVENT"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please upload a valid image file (PNG with transparency, SVG, or JPG).");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      const dataUrl = uploadEvent.target?.result as string;
+      if (type === "CHAPTER") {
+        setChapterLogo(dataUrl);
+      } else if (type === "UNIVERSITY") {
+        setUniversityLogo(dataUrl);
+      } else if (type === "IEEE") {
+        setIeeeLogo(dataUrl);
+      } else if (type === "EVENT") {
+        setEventLogo(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Compute rendered HTML with sample values, live signatures, and live logos
   const getRenderedHtml = () => {
     const chairSigImg = chairSignature
       ? `<img src="${chairSignature}" alt="Chair Signature" style="max-height: 48px; max-width: 140px; object-fit: contain; display: block; margin: 0 auto -6px;" />`
@@ -170,10 +231,28 @@ export default function AdminCertificateTemplatesPage() {
       ? `<img src="${advisorSignature}" alt="Advisor Signature" style="max-height: 48px; max-width: 140px; object-fit: contain; display: block; margin: 0 auto -6px;" />`
       : `<div style="height: 38px;"></div>`;
 
+    const activeChapterLogo = chapterLogo || "/ieee-cs-logo.png";
+    const activeUnivLogo = universityLogo || "/logo.png";
+    const activeIeeeLogo = ieeeLogo
+      ? `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 130px; object-fit: contain; display: inline-block;" />`
+      : `<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE</div>`;
+    const activeEventLogo = eventLogo
+      ? `<img src="${eventLogo}" alt="Event / Sponsor Logo" style="max-height: 52px; max-width: 140px; object-fit: contain; display: inline-block;" />`
+      : "";
+
     return htmlCode
-      .replace(/{{logo_url}}/g, "/ieee-cs-logo.png")
+      // Logos dynamic tags
+      .replace(/{{chapter_logo}}/g, activeChapterLogo)
+      .replace(/{{logo_url}}/g, activeChapterLogo)
+      .replace(/src="\/ieee-cs-logo\.png"/g, `src="${activeChapterLogo}"`)
+      .replace(/src="\/logo\.png"/g, `src="${activeUnivLogo}"`)
+      .replace(/{{university_logo}}/g, `<img src="${activeUnivLogo}" alt="University Logo" style="max-height: 60px; max-width: 140px; object-fit: contain; display: inline-block;" />`)
+      .replace(/{{ieee_logo}}/g, activeIeeeLogo)
+      .replace(/{{event_logo}}/g, activeEventLogo)
+      // Signatures
       .replace(/{{chair_signature}}/g, chairSigImg)
       .replace(/{{advisor_signature}}/g, advisorSigImg)
+      // Core metadata
       .replace(/{{recipient_name}}/g, "Muhammad Roshan Ashraf")
       .replace(/{{event_title}}/g, "IEEE DigitalFest 2026 – Projects Expo")
       .replace(/{{activity_date}}/g, "June 03, 2026")
@@ -220,12 +299,16 @@ export default function AdminCertificateTemplatesPage() {
       chairTitle: chairTitle.trim(),
       advisorName: advisorName.trim(),
       advisorTitle: advisorTitle.trim(),
+      chapterLogoUrl: chapterLogo || undefined,
+      universityLogoUrl: universityLogo || undefined,
+      ieeeLogoUrl: ieeeLogo || undefined,
+      eventLogoUrl: eventLogo || undefined,
       createdAt: new Date().toISOString(),
     };
 
     db.saveTemplate(updated);
 
-    // Also persist signatures globally in localStorage
+    // Also persist signatures & logos globally in localStorage
     if (typeof window !== "undefined") {
       localStorage.setItem(
         "ieee_signatures",
@@ -234,6 +317,15 @@ export default function AdminCertificateTemplatesPage() {
           advisorSignature,
           chairName,
           advisorName,
+        })
+      );
+      localStorage.setItem(
+        "ieee_logos",
+        JSON.stringify({
+          chapterLogo,
+          universityLogo,
+          ieeeLogo,
+          eventLogo,
         })
       );
     }
@@ -247,7 +339,7 @@ export default function AdminCertificateTemplatesPage() {
       "TEMPLATE_SAVED",
       "certificate_templates",
       updated.id,
-      `Saved custom HTML certificate template "${templateName}" with digital signatures.`
+      `Saved custom HTML certificate template "${templateName}" with digital signatures and official logos.`
     );
   };
 
@@ -549,6 +641,274 @@ export default function AdminCertificateTemplatesPage() {
                   <p className="text-[10px] text-gray-400">
                     Inserts into template tag <code className="text-ieee-navy font-bold">{"{{advisor_signature}}"}</code> above the right line.
                   </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Official Certificate Logos Studio Card */}
+        <div className="bg-white border border-gray-200 rounded-card shadow-sm overflow-hidden">
+          <div
+            onClick={() => setShowLogosPanel(!showLogosPanel)}
+            className="p-4 bg-gray-50 hover:bg-gray-100/70 border-b border-gray-200 flex items-center justify-between cursor-pointer transition-colors"
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center">
+                <ImageIcon size={15} />
+              </div>
+              <div>
+                <span className="font-montserrat font-bold text-sm text-ieee-navy block">
+                  Official Certificate Logos Studio
+                </span>
+                <span className="text-[11px] text-gray-500">
+                  Upload, customize and replace logos across all certificate templates and database
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 text-xs font-semibold text-gray-500">
+              <span className="hidden sm:inline">
+                {[chapterLogo, universityLogo, ieeeLogo, eventLogo].filter(Boolean).length} Logos Active
+              </span>
+              {showLogosPanel ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            </div>
+          </div>
+
+          {showLogosPanel && (
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* Logo 1: IEEE Computer Society Chapter Logo */}
+                <div className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <span className="font-montserrat font-bold text-xs text-ieee-navy truncate">
+                        1. IEEE CS Chapter Logo
+                      </span>
+                      <span className="text-[9px] bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded">
+                        {chapterLogo.startsWith("data:") ? "Custom" : "Default"}
+                      </span>
+                    </div>
+                    <div className="w-full h-20 rounded border border-gray-300 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:8px_8px] flex items-center justify-center overflow-hidden p-2 bg-white">
+                      <img
+                        src={chapterLogo || "/ieee-cs-logo.png"}
+                        alt="Chapter Logo"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1 border-t border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 cursor-pointer inline-flex items-center justify-center gap-1 px-2 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-semibold text-gray-700 shadow-sm transition-colors">
+                        <UploadCloud size={12} className="text-ieee-blue" />
+                        <span>Upload Logo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleLogoUpload(e, "CHAPTER")}
+                        />
+                      </label>
+                      {chapterLogo !== "/ieee-cs-logo.png" && (
+                        <button
+                          type="button"
+                          onClick={() => setChapterLogo("/ieee-cs-logo.png")}
+                          className="px-2 py-1.5 text-[11px] text-gray-500 hover:text-red-600 border border-gray-300 rounded bg-white hover:bg-red-50"
+                          title="Reset to official /ieee-cs-logo.png"
+                        >
+                          <RotateCcw size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-400">
+                      <span>Tag:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPlaceholder("{{chapter_logo}}")}
+                        className="text-ieee-blue hover:underline font-mono font-bold"
+                      >
+                        {"{{chapter_logo}}"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo 2: University / Department Logo (IUB UCET) */}
+                <div className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <span className="font-montserrat font-bold text-xs text-ieee-navy truncate">
+                        2. University Logo (IUB)
+                      </span>
+                      <span className="text-[9px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                        {universityLogo.startsWith("data:") ? "Custom" : "Default"}
+                      </span>
+                    </div>
+                    <div className="w-full h-20 rounded border border-gray-300 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:8px_8px] flex items-center justify-center overflow-hidden p-2 bg-white">
+                      <img
+                        src={universityLogo || "/logo.png"}
+                        alt="University Logo"
+                        className="max-h-full max-w-full object-contain"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1 border-t border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 cursor-pointer inline-flex items-center justify-center gap-1 px-2 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-semibold text-gray-700 shadow-sm transition-colors">
+                        <UploadCloud size={12} className="text-ieee-blue" />
+                        <span>Upload Logo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleLogoUpload(e, "UNIVERSITY")}
+                        />
+                      </label>
+                      {universityLogo !== "/logo.png" && (
+                        <button
+                          type="button"
+                          onClick={() => setUniversityLogo("/logo.png")}
+                          className="px-2 py-1.5 text-[11px] text-gray-500 hover:text-red-600 border border-gray-300 rounded bg-white hover:bg-red-50"
+                          title="Reset to official /logo.png"
+                        >
+                          <RotateCcw size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-400">
+                      <span>Tag:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPlaceholder("{{university_logo}}")}
+                        className="text-ieee-blue hover:underline font-mono font-bold"
+                      >
+                        {"{{university_logo}}"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo 3: IEEE Master Emblem / Wordmark */}
+                <div className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <span className="font-montserrat font-bold text-xs text-ieee-navy truncate">
+                        3. IEEE Emblem Logo
+                      </span>
+                      <span className="text-[9px] bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded">
+                        {ieeeLogo ? "Active" : "Text Default"}
+                      </span>
+                    </div>
+                    <div className="w-full h-20 rounded border border-gray-300 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:8px_8px] flex items-center justify-center overflow-hidden p-2 bg-white">
+                      {ieeeLogo ? (
+                        <img
+                          src={ieeeLogo}
+                          alt="IEEE Emblem"
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="font-montserrat font-extrabold text-xl text-ieee-blue tracking-wider">
+                          IEEE
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1 border-t border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 cursor-pointer inline-flex items-center justify-center gap-1 px-2 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-semibold text-gray-700 shadow-sm transition-colors">
+                        <UploadCloud size={12} className="text-purple-600" />
+                        <span>Upload Logo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleLogoUpload(e, "IEEE")}
+                        />
+                      </label>
+                      {ieeeLogo && (
+                        <button
+                          type="button"
+                          onClick={() => setIeeeLogo("")}
+                          className="px-2 py-1.5 text-[11px] text-red-500 hover:text-red-700 border border-gray-300 rounded bg-white hover:bg-red-50"
+                          title="Remove custom IEEE logo"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-400">
+                      <span>Tag:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPlaceholder("{{ieee_logo}}")}
+                        className="text-ieee-blue hover:underline font-mono font-bold"
+                      >
+                        {"{{ieee_logo}}"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Logo 4: Event / Partner / Sponsor Logo */}
+                <div className="p-3.5 rounded-xl border border-gray-200 bg-gray-50/50 flex flex-col justify-between space-y-3">
+                  <div>
+                    <div className="flex items-center justify-between gap-1 mb-1.5">
+                      <span className="font-montserrat font-bold text-xs text-ieee-navy truncate">
+                        4. Event / Partner Logo
+                      </span>
+                      <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded">
+                        {eventLogo ? "Active" : "Optional"}
+                      </span>
+                    </div>
+                    <div className="w-full h-20 rounded border border-gray-300 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:8px_8px] flex items-center justify-center overflow-hidden p-2 bg-white">
+                      {eventLogo ? (
+                        <img
+                          src={eventLogo}
+                          alt="Event / Partner Logo"
+                          className="max-h-full max-w-full object-contain"
+                        />
+                      ) : (
+                        <span className="text-[11px] text-gray-400 italic">No partner logo</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5 pt-1 border-t border-gray-200">
+                    <div className="flex items-center gap-2">
+                      <label className="flex-1 cursor-pointer inline-flex items-center justify-center gap-1 px-2 py-1.5 bg-white border border-gray-300 hover:bg-gray-50 rounded text-[11px] font-semibold text-gray-700 shadow-sm transition-colors">
+                        <UploadCloud size={12} className="text-ieee-orange" />
+                        <span>Upload Logo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleLogoUpload(e, "EVENT")}
+                        />
+                      </label>
+                      {eventLogo && (
+                        <button
+                          type="button"
+                          onClick={() => setEventLogo("")}
+                          className="px-2 py-1.5 text-[11px] text-red-500 hover:text-red-700 border border-gray-300 rounded bg-white hover:bg-red-50"
+                          title="Remove event logo"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-gray-400">
+                      <span>Tag:</span>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyPlaceholder("{{event_logo}}")}
+                        className="text-ieee-blue hover:underline font-mono font-bold"
+                      >
+                        {"{{event_logo}}"}
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

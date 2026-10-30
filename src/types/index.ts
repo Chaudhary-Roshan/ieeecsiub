@@ -182,6 +182,10 @@ export interface CertificateTemplate {
   chairTitle?: string;
   advisorName?: string;
   advisorTitle?: string;
+  chapterLogoUrl?: string;
+  universityLogoUrl?: string;
+  ieeeLogoUrl?: string;
+  eventLogoUrl?: string;
   createdAt: string;
 }
 

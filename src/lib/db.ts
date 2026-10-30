@@ -692,6 +692,10 @@ class ChapterDatabase {
             chairTitle: d.chair_title || "",
             advisorName: d.advisor_name || "",
             advisorTitle: d.advisor_title || "",
+            chapterLogoUrl: d.chapter_logo_url || "",
+            universityLogoUrl: d.university_logo_url || "",
+            ieeeLogoUrl: d.ieee_logo_url || "",
+            eventLogoUrl: d.event_logo_url || "",
             createdAt: d.created_at,
           }));
           const local = this.getTemplates();
@@ -733,6 +737,10 @@ class ChapterDatabase {
         chair_title: tpl.chairTitle || null,
         advisor_name: tpl.advisorName || null,
         advisor_title: tpl.advisorTitle || null,
+        chapter_logo_url: tpl.chapterLogoUrl || null,
+        university_logo_url: tpl.universityLogoUrl || null,
+        ieee_logo_url: tpl.ieeeLogoUrl || null,
+        event_logo_url: tpl.eventLogoUrl || null,
         is_active: tpl.isDefault ?? true,
       }).then(({ error }) => {
         if (error) console.warn("Supabase saveTemplate sync error:", error);

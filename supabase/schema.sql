@@ -258,6 +258,10 @@ CREATE TABLE certificate_templates (
     chair_title TEXT DEFAULT 'Chair, IEEE CS Student Branch Chapter',
     advisor_name TEXT DEFAULT 'Dr. Asjad Amin',
     advisor_title TEXT DEFAULT 'Advisor, IEEE CS Student Branch Chapter',
+    chapter_logo_url TEXT,
+    university_logo_url TEXT,
+    ieee_logo_url TEXT,
+    event_logo_url TEXT,
     is_active BOOLEAN DEFAULT TRUE,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
