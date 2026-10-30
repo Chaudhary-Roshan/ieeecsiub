@@ -67,17 +67,26 @@ export default function EventDetailPage() {
       ? cleanSlug.split("/").slice(1).join("/")
       : cleanSlug;
 
-    const found = db.getEvents().find(
-      (e) =>
-        e.slug === cleanSlug ||
-        e.slug === `2026/${cleanSlug}` ||
-        e.slug === `2025/${cleanSlug}` ||
-        e.slug.endsWith(`/${cleanSlug}`) ||
-        e.slug.endsWith(`/${baseSlug}`) ||
-        e.slug === baseSlug
-    );
-    setEvent(found || null);
-    setLoading(false);
+    async function loadEvent() {
+      const live = await db.fetchEventBySlug(cleanSlug);
+      if (live) {
+        setEvent(live);
+      } else {
+        const found = db.getEvents().find(
+          (e) =>
+            e.slug === cleanSlug ||
+            e.slug === `2026/${cleanSlug}` ||
+            e.slug === `2025/${cleanSlug}` ||
+            e.slug.endsWith(`/${cleanSlug}`) ||
+            e.slug.endsWith(`/${baseSlug}`) ||
+            e.slug === baseSlug
+        );
+        setEvent(found || null);
+      }
+      setLoading(false);
+    }
+
+    loadEvent();
   }, [rawSlug]);
 
   // Keyboard navigation for photo lightbox

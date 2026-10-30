@@ -31,9 +31,7 @@ export default function Option1RegistryPage() {
   // Generator State
   const [selectedEventId, setSelectedEventId] = useState("");
   const [certType, setCertType] = useState("Certificate of Participation");
-  const [rawNames, setRawNames] = useState(
-    "Muhammad Bilal\nFatima Tariq\nZubair Ahmed\nSara Khan"
-  );
+  const [rawNames, setRawNames] = useState("");
   const [generatedList, setGeneratedList] = useState<
     { name: string; code: string; qrDataUrl: string }[]
   >([]);
@@ -45,8 +43,12 @@ export default function Option1RegistryPage() {
   const csvFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setEvents(db.getEvents());
-    setBatches(db.getBatches());
+    async function load() {
+      const allEvents = await db.fetchEvents();
+      setEvents(allEvents);
+      setBatches(db.getBatches());
+    }
+    load();
     const saved = localStorage.getItem("ieee_cs_active_staff");
     if (saved) {
       try {

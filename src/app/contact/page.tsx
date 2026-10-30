@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { CHAPTER_INFO } from "@/lib/constants";
+import { supabase } from "@/lib/supabase";
 import {
   Mail,
   MapPin,
@@ -26,6 +27,9 @@ export default function ContactPage() {
     if (captchaAnswer.trim() !== "8") {
       alert("Please solve the security challenge (5 + 3 = ?)");
       return;
+    }
+    if (supabase) {
+      supabase.from("contact_messages").insert({ name, email, subject, message });
     }
     setSubmitted(true);
   };

@@ -24,7 +24,11 @@ export default function HomePage() {
   const [events, setEvents] = useState<EventItem[]>([]);
 
   useEffect(() => {
-    setEvents(db.getEvents());
+    async function load() {
+      const data = await db.fetchEvents();
+      setEvents(data);
+    }
+    load();
   }, []);
 
   const upcomingEvents = events.filter((e) => e.status === "UPCOMING").slice(0, 3);
@@ -229,61 +233,73 @@ export default function HomePage() {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {upcomingEvents.map((evt) => (
-              <div
-                key={evt.id}
-                className="bg-white border border-ieee-border rounded-card overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md transition-all group"
-              >
-                <div>
-                  <div className="relative h-44 w-full bg-gray-200 overflow-hidden">
-                    <img
-                      src={evt.featuredImage}
-                      alt={evt.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-3 right-3">
-                      <Badge status={evt.status} />
+          {upcomingEvents.length === 0 ? (
+            <div className="bg-white border border-gray-200 rounded-card p-10 text-center space-y-2">
+              <Calendar className="mx-auto text-gray-400" size={32} />
+              <h3 className="font-montserrat font-bold text-gray-800 text-sm">
+                No Upcoming Events Scheduled Right Now
+              </h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                New technical bootcamps and competitions are being organized. Check back soon or view our completed events and expos below!
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {upcomingEvents.map((evt) => (
+                <div
+                  key={evt.id}
+                  className="bg-white border border-ieee-border rounded-card overflow-hidden flex flex-col justify-between shadow-sm hover:shadow-md transition-all group"
+                >
+                  <div>
+                    <div className="relative h-44 w-full bg-gray-200 overflow-hidden">
+                      <img
+                        src={evt.featuredImage}
+                        alt={evt.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute top-3 right-3">
+                        <Badge status={evt.status} />
+                      </div>
+                    </div>
+
+                    <div className="p-6 space-y-3">
+                      <div className="flex items-center gap-1.5 text-xs text-ieee-blue font-semibold">
+                        <Calendar size={14} />
+                        <span>{formatPKTDateTime(evt.startDate)}</span>
+                      </div>
+
+                      <h3 className="font-montserrat font-bold text-lg text-ieee-navy group-hover:text-ieee-blue transition-colors line-clamp-2">
+                        <Link href={`/events/${evt.slug.split("/")[1] || evt.slug}`}>
+                          {evt.title}
+                        </Link>
+                      </h3>
+
+                      <p className="text-xs text-gray-600 line-clamp-2">
+                        {evt.description}
+                      </p>
+
+                      <div className="flex items-center gap-1.5 text-xs text-gray-500 pt-1">
+                        <MapPin size={13} className="text-ieee-muted" />
+                        <span className="truncate">{evt.venue}</span>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="p-6 space-y-3">
-                    <div className="flex items-center gap-1.5 text-xs text-ieee-blue font-semibold">
-                      <Calendar size={14} />
-                      <span>{formatPKTDateTime(evt.startDate)}</span>
-                    </div>
-
-                    <h3 className="font-montserrat font-bold text-lg text-ieee-navy group-hover:text-ieee-blue transition-colors line-clamp-2">
-                      <Link href={`/events/${evt.slug.split("/")[1]}`}>
-                        {evt.title}
-                      </Link>
-                    </h3>
-
-                    <p className="text-xs text-gray-600 line-clamp-2">
-                      {evt.description}
-                    </p>
-
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500 pt-1">
-                      <MapPin size={13} className="text-ieee-muted" />
-                      <span className="truncate">{evt.venue}</span>
-                    </div>
+                  <div className="p-6 pt-0 border-t border-gray-100 mt-4 flex items-center justify-between">
+                    <span className="text-xs font-bold text-gray-700">
+                      {evt.feePkr > 0 ? `PKR ${evt.feePkr}` : "Free Event"}
+                    </span>
+                    <Link
+                      href={`/events/${evt.slug.split("/")[1] || evt.slug}`}
+                      className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue hover:underline"
+                    >
+                      View & Register &rarr;
+                    </Link>
                   </div>
                 </div>
-
-                <div className="p-6 pt-0 border-t border-gray-100 mt-4 flex items-center justify-between">
-                  <span className="text-xs font-bold text-gray-700">
-                    {evt.feePkr > 0 ? `PKR ${evt.feePkr}` : "Free Event"}
-                  </span>
-                  <Link
-                    href={`/events/${evt.slug.split("/")[1]}`}
-                    className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue hover:underline"
-                  >
-                    Details & Register <ArrowRight size={13} className="ml-1" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

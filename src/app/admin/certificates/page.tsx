@@ -41,7 +41,11 @@ export default function AdminCertificatesPage() {
   const [legacyYear, setLegacyYear] = useState("2025");
 
   useEffect(() => {
-    setCerts(db.getCertificates());
+    async function load() {
+      const live = await db.fetchCertificates();
+      setCerts(live);
+    }
+    load();
     const saved = localStorage.getItem("ieee_cs_active_staff");
     if (saved) {
       try {
@@ -50,8 +54,9 @@ export default function AdminCertificatesPage() {
     }
   }, []);
 
-  const refreshList = () => {
-    setCerts(db.getCertificates());
+  const refreshList = async () => {
+    const live = await db.fetchCertificates();
+    setCerts(live);
   };
 
   const handleRevokeSubmit = () => {

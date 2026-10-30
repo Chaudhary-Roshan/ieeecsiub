@@ -35,13 +35,16 @@ export default function AdminAttendancePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const allEvents = db.getEvents();
-    setEvents(allEvents);
-    if (allEvents.length > 0) {
-      const defaultId = allEvents[0].id;
-      setSelectedEventId(defaultId);
-      loadAttendance(defaultId);
+    async function init() {
+      const allEvents = await db.fetchEvents();
+      setEvents(allEvents);
+      if (allEvents.length > 0) {
+        const defaultId = allEvents[0].id;
+        setSelectedEventId(defaultId);
+        loadAttendance(defaultId);
+      }
     }
+    init();
   }, []);
 
   const loadAttendance = (eventId: string) => {

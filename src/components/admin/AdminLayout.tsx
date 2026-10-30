@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChapterLogo } from "../layout/ChapterLogo";
 import { INITIAL_STAFF_USERS } from "@/lib/constants";
 import { StaffUser, StaffRole } from "@/types";
+import { db } from "@/lib/db";
 import {
   LayoutDashboard,
   CalendarPlus,
@@ -21,6 +22,7 @@ import {
   ShieldCheck,
   ChevronRight,
   UserCheck,
+  RefreshCw,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -149,7 +151,19 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </span>
           </div>
 
-          <div className="flex items-center gap-4 text-xs">
+          <div className="flex items-center gap-3 text-xs">
+            <button
+              onClick={() => {
+                if (confirm("Reset local cache and synchronize with real-time database?")) {
+                  db.purgeAllTestData();
+                  window.location.reload();
+                }
+              }}
+              className="px-2.5 py-1 text-[11px] rounded bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold border border-gray-300 transition-colors flex items-center gap-1.5"
+              title="Clears any cached mock data and pulls clean live records from database"
+            >
+              <RefreshCw size={12} /> Sync / Reset Cache
+            </button>
             <Link
               href="/verify"
               target="_blank"

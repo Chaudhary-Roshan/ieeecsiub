@@ -22,7 +22,11 @@ export default function EventsListPage() {
   const [activeTab, setActiveTab] = useState<"ALL" | EventStatus>("ALL");
 
   useEffect(() => {
-    setEvents(db.getEvents());
+    async function load() {
+      const data = await db.fetchEvents();
+      setEvents(data);
+    }
+    load();
   }, []);
 
   const tabs: { label: string; value: "ALL" | EventStatus }[] = [

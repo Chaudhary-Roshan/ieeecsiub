@@ -20,7 +20,11 @@ export default function AdminPaymentsQueuePage() {
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
 
   useEffect(() => {
-    setPayments(db.getPayments());
+    async function load() {
+      const live = await db.fetchPayments();
+      setPayments(live);
+    }
+    load();
     const saved = localStorage.getItem("ieee_cs_active_staff");
     if (saved) {
       try {
@@ -29,8 +33,9 @@ export default function AdminPaymentsQueuePage() {
     }
   }, []);
 
-  const refreshPayments = () => {
-    setPayments(db.getPayments());
+  const refreshPayments = async () => {
+    const live = await db.fetchPayments();
+    setPayments(live);
   };
 
   const handleDecision = (

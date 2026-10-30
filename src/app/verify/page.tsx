@@ -101,36 +101,6 @@ export default function VerifyPage() {
               </Button>
             </div>
           </form>
-
-          {/* Quick Demo Pre-filled Links for Evaluator Convenience */}
-          <div className="mt-8 pt-6 border-t border-gray-100">
-            <span className="text-[11px] font-montserrat font-bold uppercase tracking-wider text-ieee-muted block mb-2">
-              Try sample demonstration codes:
-            </span>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setInputCode("CSIUB-26-7K3M-Q9TC")}
-                className="text-xs bg-gray-100 hover:bg-gray-200 text-gray-800 px-3 py-1 rounded-full font-mono transition-colors"
-              >
-                Active: CSIUB-26-7K3M-Q9TC
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputCode("CSIUB-26-8J2N-K1RD")}
-                className="text-xs bg-[#FEF3D6] hover:bg-[#FAD79A] text-[#B45309] px-3 py-1 rounded-full font-mono transition-colors"
-              >
-                Replaced: CSIUB-26-8J2N-K1RD
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputCode("CSIUB-26-4L8X-Z2VC")}
-                className="text-xs bg-[#FCE8E6] hover:bg-[#F5C2BE] text-[#BA0C2F] px-3 py-1 rounded-full font-mono transition-colors"
-              >
-                Revoked: CSIUB-26-4L8X-Z2VC
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Informational Guidance Cards */}

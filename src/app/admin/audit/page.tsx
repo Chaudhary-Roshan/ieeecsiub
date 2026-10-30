@@ -12,7 +12,11 @@ export default function AdminAuditLogPage() {
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
 
   useEffect(() => {
-    setLogs(db.getAuditLogs());
+    async function load() {
+      const live = await db.fetchAuditLogs();
+      setLogs(live);
+    }
+    load();
     const saved = localStorage.getItem("ieee_cs_active_staff");
     if (saved) {
       try {

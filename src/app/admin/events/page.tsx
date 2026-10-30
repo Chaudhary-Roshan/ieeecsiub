@@ -53,8 +53,9 @@ export default function AdminEventsManagerPage() {
   const [eventReport, setEventReport] = useState("");
   const [galleryImages, setGalleryImages] = useState("");
 
-  const refreshEvents = () => {
-    setEvents(db.getEvents());
+  const refreshEvents = async () => {
+    const live = await db.fetchEvents();
+    setEvents(live);
   };
 
   useEffect(() => {

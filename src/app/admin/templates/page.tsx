@@ -65,17 +65,17 @@ export default function AdminCertificateTemplatesPage() {
   // Compute rendered HTML with sample values
   const getRenderedHtml = () => {
     return htmlCode
-      .replace(/{{recipient_name}}/g, "Ahmad Bilal")
-      .replace(/{{event_title}}/g, "Hands-on Modern AI Agent Development with Next.js & Python")
-      .replace(/{{activity_date}}/g, "November 16, 2026")
-      .replace(/{{certificate_type}}/g, "Certificate of Completion")
-      .replace(/{{recognition_level}}/g, "CHAPTER RECOGNITION")
-      .replace(/{{code}}/g, "CSIUB-26-9P4W-M8XB")
+      .replace(/{{recipient_name}}/g, "Muhammad Roshan Ashraf")
+      .replace(/{{event_title}}/g, "IEEE DigitalFest 2026 – Projects Expo")
+      .replace(/{{activity_date}}/g, "June 03, 2026")
+      .replace(/{{certificate_type}}/g, "Certificate of Participation & Project Merit")
+      .replace(/{{recognition_level}}/g, "OFFICIAL CHAPTER RECOGNITION")
+      .replace(/{{code}}/g, "CSIUB-26-DF01-LIVE")
       .replace(/{{qr_code}}/g, sampleQr || "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=CSIUB-26-DEMO")
       .replace(/{{approver_name}}/g, "Muhammad Roshan Ashraf")
-      .replace(/{{approver_role}}/g, "Lead Administrator & Chapter Chair")
+      .replace(/{{approver_role}}/g, "Chapter Administrator & President")
       .replace(/{{issuer_statement}}/g, "This is an official chapter recognition issued by IEEE CS UCET-IUB Student Branch Chapter.")
-      .replace(/{{issue_date}}/g, new Date().toISOString().split("T")[0]);
+      .replace(/{{issue_date}}/g, "June 03, 2026");
   };
 
   const handleCopyPlaceholder = (tag: string) => {
