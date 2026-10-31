@@ -63,3 +63,4 @@ BEGIN
         EXECUTE format('GRANT ALL ON public.%I TO anon, authenticated, service_role;', tbl);
     END LOOP;
 END $$;
+
