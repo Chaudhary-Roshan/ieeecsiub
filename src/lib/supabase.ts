@@ -4,7 +4,7 @@ export interface SupabaseConfigStatus {
   isConfigured: boolean;
   isConnected: boolean;
   url: string;
-  source: "ENV" | "LOCAL_STORAGE" | "SERVER_RUNTIME" | "PROD_DEFAULT" | "NONE";
+  source: "ENV" | "PROD_DEFAULT" | "NONE";
   error?: string;
   tableCounts?: {
     events?: number;
@@ -12,6 +12,7 @@ export interface SupabaseConfigStatus {
     certificates?: number;
     registrations?: number;
     templates?: number;
+    eventTeams?: number;
   };
 }
 
@@ -23,23 +24,16 @@ let cachedKey = "";
 const DEFAULT_SUPABASE_URL = "https://gbuafbcebcbwzvefqhcr.supabase.co";
 const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdidWFmYmNlYmNid3p2ZWZxaGNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNjUxNjgsImV4cCI6MjEwODk0MTE2OH0.j1tB4mcsDnyRUYo36EQk90fz-xR0VT55L5kqomLgeDU";
 
-// Helper to get active credentials safely (server-side & client-side)
-export function getActiveSupabaseCredentials(): { url: string; key: string; source: "ENV" | "LOCAL_STORAGE" | "PROD_DEFAULT" | "NONE" } {
+/**
+ * Returns active database credentials strictly from environment variables or production defaults.
+ * No browser localStorage override (Phase 0 security hardening).
+ */
+export function getActiveSupabaseCredentials(): { url: string; key: string; source: "ENV" | "PROD_DEFAULT" | "NONE" } {
   const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
   const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
 
   if (envUrl && envKey && !envUrl.includes("your-supabase-url")) {
     return { url: envUrl, key: envKey, source: "ENV" };
-  }
-
-  if (typeof window !== "undefined") {
-    try {
-      const storedUrl = localStorage.getItem("ieee_supabase_url")?.trim() || "";
-      const storedKey = localStorage.getItem("ieee_supabase_key")?.trim() || "";
-      if (storedUrl && storedKey && !storedUrl.includes("your-supabase-url")) {
-        return { url: storedUrl, key: storedKey, source: "LOCAL_STORAGE" };
-      }
-    } catch { }
   }
 
   // Built-in production database fallback
@@ -50,7 +44,9 @@ export function getActiveSupabaseCredentials(): { url: string; key: string; sour
   return { url: "", key: "", source: "NONE" };
 }
 
-// Dynamic getter that ensures we always have the active Supabase client instance
+/**
+ * Dynamic getter that ensures we always have the active Supabase client instance
+ */
 export function getSupabase(): SupabaseClient | null {
   const { url, key } = getActiveSupabaseCredentials();
   if (url && key && url.startsWith("http")) {
@@ -94,79 +90,15 @@ export const isSupabaseConfigured: boolean = Boolean(
   getActiveSupabaseCredentials().url && getActiveSupabaseCredentials().key
 );
 
-// Auto-sync with server configuration route on mount
 export async function ensureSupabaseConnection(): Promise<SupabaseClient | null> {
-  const current = getSupabase();
-  if (current) return current;
-
-  if (typeof window !== "undefined") {
-    try {
-      const res = await fetch("/api/database/config");
-      if (res.ok) {
-        const data = await res.json();
-        if (data.isConfigured && data.url && data.key) {
-          localStorage.setItem("ieee_supabase_url", data.url);
-          localStorage.setItem("ieee_supabase_key", data.key);
-          return refreshSupabaseClient();
-        }
-      }
-    } catch {}
-  }
-  return null;
+  return getSupabase();
 }
 
-// Save credentials from Admin Console (saves locally & syncs to server)
-export function saveDynamicSupabaseCredentials(url: string, key: string): { success: boolean; client: SupabaseClient | null } {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("ieee_supabase_url", url.trim());
-    localStorage.setItem("ieee_supabase_key", key.trim());
-
-    // Sync to server route in background so public visitors also connect
-    fetch("/api/database/config", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url: url.trim(), key: key.trim() }),
-    }).catch(() => {});
-  }
-  const newClient = refreshSupabaseClient();
-  return { success: Boolean(newClient), client: newClient };
-}
-
-// Clear credentials
-export function clearDynamicSupabaseCredentials(): void {
-  if (typeof window !== "undefined") {
-    localStorage.removeItem("ieee_supabase_url");
-    localStorage.removeItem("ieee_supabase_key");
-
-    fetch("/api/database/config", {
-      method: "DELETE",
-    }).catch(() => {});
-  }
-  refreshSupabaseClient();
-}
-
-// Test live database connectivity and fetch table stats
+/**
+ * Test live database connectivity and fetch table stats
+ */
 export async function testSupabaseConnection(): Promise<SupabaseConfigStatus> {
   const creds = getActiveSupabaseCredentials();
-  if (!creds.url || !creds.key) {
-    // Try server runtime config
-    if (typeof window !== "undefined") {
-      try {
-        const res = await fetch("/api/database/config");
-        if (res.ok) {
-          const cfg = await res.json();
-          if (cfg.isConfigured && cfg.url && cfg.key) {
-            localStorage.setItem("ieee_supabase_url", cfg.url);
-            localStorage.setItem("ieee_supabase_key", cfg.key);
-            creds.url = cfg.url;
-            creds.key = cfg.key;
-            creds.source = "SERVER_RUNTIME" as any;
-            refreshSupabaseClient();
-          }
-        }
-      } catch {}
-    }
-  }
 
   if (!creds.url || !creds.key) {
     return {
@@ -174,7 +106,7 @@ export async function testSupabaseConnection(): Promise<SupabaseConfigStatus> {
       isConnected: false,
       url: "",
       source: "NONE",
-      error: "Supabase URL and Anon Key are missing. Provide credentials in .env.local or enter them in the Admin Database settings.",
+      error: "Supabase URL and Anon Key are missing. Provide credentials in environment variables.",
     };
   }
 
@@ -201,15 +133,16 @@ export async function testSupabaseConnection(): Promise<SupabaseConfigStatus> {
         isConnected: false,
         url: creds.url,
         source: creds.source,
-        error: `Database connected, but table 'events' returned error: ${eventsError.message}. Make sure you have executed supabase/schema.sql in the Supabase SQL Editor.`,
+        error: `Database connected, but table 'events' returned error: ${eventsError.message}`,
       };
     }
 
-    const [teamRes, certsRes, regRes, tplRes] = await Promise.allSettled([
+    const [teamRes, certsRes, regRes, tplRes, teamEvRes] = await Promise.allSettled([
       client.from("team_members").select("*", { count: "exact", head: true }),
       client.from("certificates").select("*", { count: "exact", head: true }),
       client.from("registrations").select("*", { count: "exact", head: true }),
       client.from("certificate_templates").select("*", { count: "exact", head: true }),
+      client.from("event_teams").select("*", { count: "exact", head: true }),
     ]);
 
     const tableCounts = {
@@ -218,6 +151,7 @@ export async function testSupabaseConnection(): Promise<SupabaseConfigStatus> {
       certificates: certsRes.status === "fulfilled" ? certsRes.value.count ?? 0 : 0,
       registrations: regRes.status === "fulfilled" ? regRes.value.count ?? 0 : 0,
       templates: tplRes.status === "fulfilled" ? tplRes.value.count ?? 0 : 0,
+      eventTeams: teamEvRes.status === "fulfilled" ? teamEvRes.value.count ?? 0 : 0,
     };
 
     return {

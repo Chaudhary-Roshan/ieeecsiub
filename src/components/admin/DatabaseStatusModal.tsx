@@ -3,8 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   testSupabaseConnection,
-  saveDynamicSupabaseCredentials,
-  clearDynamicSupabaseCredentials,
   getActiveSupabaseCredentials,
   SupabaseConfigStatus,
 } from "@/lib/supabase";
@@ -19,7 +17,6 @@ import {
   ExternalLink,
   ShieldCheck,
   Server,
-  Key,
   Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -37,13 +34,12 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({
 }) => {
   const [status, setStatus] = useState<SupabaseConfigStatus | null>(null);
   const [testing, setTesting] = useState(false);
-  const [inputUrl, setInputUrl] = useState("");
-  const [inputKey, setInputKey] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
   const [copySqlSuccess, setCopySqlSuccess] = useState(false);
-  const [saveSuccess, setSaveSuccess] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedNotice, setSeedNotice] = useState<string | null>(null);
+
+  const creds = getActiveSupabaseCredentials();
 
   const checkConnection = async () => {
     setTesting(true);
@@ -75,46 +71,15 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
-      const creds = getActiveSupabaseCredentials();
-      setInputUrl(creds.url);
-      setInputKey(creds.key);
       checkConnection();
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const handleSaveCredentials = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputUrl.trim() || !inputKey.trim()) {
-      alert("Please provide both Supabase Project URL and Anon API Key.");
-      return;
-    }
-
-    if (!inputUrl.startsWith("http")) {
-      alert("Supabase URL must start with https:// (e.g. https://your-id.supabase.co)");
-      return;
-    }
-
-    saveDynamicSupabaseCredentials(inputUrl.trim(), inputKey.trim());
-    setSaveSuccess(true);
-    setTimeout(() => setSaveSuccess(false), 3000);
-
-    await checkConnection();
-  };
-
-  const handleDisconnect = async () => {
-    if (confirm("Disconnect database? The site will fallback to offline local browser mode.")) {
-      clearDynamicSupabaseCredentials();
-      setInputUrl("");
-      setInputKey("");
-      await checkConnection();
-    }
-  };
-
   const envFileContent = `# IEEE CS UCET-IUB Supabase Production Configuration
-NEXT_PUBLIC_SUPABASE_URL=${inputUrl.trim() || "https://your-project.supabase.co"}
-NEXT_PUBLIC_SUPABASE_ANON_KEY=${inputKey.trim() || "your-anon-api-key"}`;
+NEXT_PUBLIC_SUPABASE_URL=${creds.url || "https://gbuafbcebcbwzvefqhcr.supabase.co"}
+NEXT_PUBLIC_SUPABASE_ANON_KEY=${creds.key || ""}`;
 
   const copyEnvConfig = () => {
     navigator.clipboard.writeText(envFileContent);
@@ -148,7 +113,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=${inputKey.trim() || "your-anon-api-key"}`;
                   </span>
                 ) : (
                   <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 flex items-center gap-1">
-                    <AlertTriangle size={10} /> Disconnected / Local Mode
+                    <AlertTriangle size={10} /> Disconnected / Error
                   </span>
                 )}
               </div>
@@ -179,165 +144,76 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=${inputKey.trim() || "your-anon-api-key"}`;
               disabled={testing}
               className="px-2.5 py-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 text-[11px] font-semibold flex items-center gap-1 text-gray-700"
             >
-              <RefreshCw size={12} className={testing ? "animate-spin" : ""} />
-              {testing ? "Testing..." : "Test Connection"}
+              <RefreshCw size={12} className={testing ? "animate-spin text-ieee-blue" : ""} />
+              {testing ? "Checking..." : "Re-check"}
             </button>
           </div>
 
-          {status?.isConnected ? (
-            <div className="space-y-2">
-              <p className="text-emerald-800 leading-relaxed">
-                ✅ Connected successfully to Supabase cloud! All changes in the Admin Panel sync directly to the live database, accessible by all website visitors.
-              </p>
-              {status.tableCounts && (
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 pt-2 border-t border-emerald-200/60">
-                  <div className="bg-white p-2 rounded border border-emerald-100 text-center">
-                    <span className="text-[10px] text-gray-500 block">Events</span>
-                    <strong className="text-sm text-emerald-700">{status.tableCounts.events}</strong>
-                  </div>
-                  <div className="bg-white p-2 rounded border border-emerald-100 text-center">
-                    <span className="text-[10px] text-gray-500 block">Certificates</span>
-                    <strong className="text-sm text-emerald-700">{status.tableCounts.certificates}</strong>
-                  </div>
-                  <div className="bg-white p-2 rounded border border-emerald-100 text-center">
-                    <span className="text-[10px] text-gray-500 block">Officers</span>
-                    <strong className="text-sm text-emerald-700">{status.tableCounts.teamMembers}</strong>
-                  </div>
-                  <div className="bg-white p-2 rounded border border-emerald-100 text-center">
-                    <span className="text-[10px] text-gray-500 block">Registrations</span>
-                    <strong className="text-sm text-emerald-700">{status.tableCounts.registrations}</strong>
-                  </div>
-                  <div className="bg-white p-2 rounded border border-emerald-100 text-center">
-                    <span className="text-[10px] text-gray-500 block">Templates</span>
-                    <strong className="text-sm text-emerald-700">{status.tableCounts.templates}</strong>
-                  </div>
-                </div>
-              )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
+            <div>
+              <span className="text-gray-500">Connected Project:</span>{" "}
+              <span className="font-semibold text-gray-800">{creds.url ? new URL(creds.url).hostname : "None"}</span>
             </div>
-          ) : (
-            <div className="space-y-1.5">
-              <p className="font-semibold text-amber-900">
-                {status?.error || "Database is currently disconnected."}
-              </p>
-              <p className="text-[11px] text-amber-800 leading-relaxed">
-                The website is operating in <strong>offline browser storage mode</strong>. To enable real-time cloud data across all users and mobile devices, enter your Supabase URL & Anon Key below.
-              </p>
+            <div>
+              <span className="text-gray-500">Config Source:</span>{" "}
+              <span className="font-semibold text-gray-800">{status?.source || "PROD_DEFAULT"}</span>
+            </div>
+          </div>
+
+          {status?.error && (
+            <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-red-700 text-xs">
+              <strong>Error:</strong> {status.error}
+            </div>
+          )}
+
+          {status?.isConnected && status.tableCounts && (
+            <div className="pt-2 border-t border-emerald-200/70">
+              <div className="text-[11px] font-bold text-emerald-900 mb-1.5">Cloud Database Table Counts:</div>
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 text-center">
+                <div className="bg-white/80 p-1.5 rounded border border-emerald-200">
+                  <div className="text-sm font-bold text-ieee-navy">{status.tableCounts.events ?? 0}</div>
+                  <div className="text-[10px] text-gray-500">Events</div>
+                </div>
+                <div className="bg-white/80 p-1.5 rounded border border-emerald-200">
+                  <div className="text-sm font-bold text-ieee-navy">{status.tableCounts.teamMembers ?? 0}</div>
+                  <div className="text-[10px] text-gray-500">Officers</div>
+                </div>
+                <div className="bg-white/80 p-1.5 rounded border border-emerald-200">
+                  <div className="text-sm font-bold text-ieee-navy">{status.tableCounts.certificates ?? 0}</div>
+                  <div className="text-[10px] text-gray-500">Certificates</div>
+                </div>
+                <div className="bg-white/80 p-1.5 rounded border border-emerald-200">
+                  <div className="text-sm font-bold text-ieee-navy">{status.tableCounts.registrations ?? 0}</div>
+                  <div className="text-[10px] text-gray-500">Registrations</div>
+                </div>
+                <div className="bg-white/80 p-1.5 rounded border border-emerald-200">
+                  <div className="text-sm font-bold text-ieee-navy">{status.tableCounts.templates ?? 0}</div>
+                  <div className="text-[10px] text-gray-500">Templates</div>
+                </div>
+              </div>
             </div>
           )}
         </div>
 
-        {/* Credentials Form */}
-        <form onSubmit={handleSaveCredentials} className="space-y-4 text-xs">
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1 flex items-center justify-between">
-              <span>Supabase Project URL</span>
-              <a
-                href="https://supabase.com/dashboard"
-                target="_blank"
-                rel="noreferrer"
-                className="text-ieee-blue hover:underline flex items-center gap-1 font-normal text-[11px]"
-              >
-                Find on Supabase Dashboard &rarr;
-              </a>
-            </label>
-            <input
-              type="text"
-              required
-              value={inputUrl}
-              onChange={(e) => setInputUrl(e.target.value)}
-              placeholder="https://xyzabcdefghijklm.supabase.co"
-              className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="block font-semibold text-gray-700 mb-1 flex items-center gap-1">
-              <Key size={13} className="text-gray-500" />
-              <span>Supabase Anon / Public Key (eyJhbGci...)</span>
-            </label>
-            <input
-              type="password"
-              required
-              value={inputKey}
-              onChange={(e) => setInputKey(e.target.value)}
-              placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-              className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-xs"
-            />
-          </div>
-
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-2">
-              <Button type="submit" variant="primary" size="sm">
-                Save & Connect Database
-              </Button>
-              {saveSuccess && (
-                <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
-                  <CheckCircle size={13} /> Saved!
-                </span>
-              )}
-            </div>
-
-            {status?.source === "LOCAL_STORAGE" && (
-              <button
-                type="button"
-                onClick={handleDisconnect}
-                className="text-red-600 hover:text-red-800 text-[11px] font-semibold flex items-center gap-1 self-start sm:self-auto"
-              >
-                <Trash2 size={13} /> Clear Saved Credentials
-              </button>
-            )}
-          </div>
-        </form>
-
-        {/* SQL Permissions & RLS Setup Notice */}
-        <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-300 text-xs space-y-2.5">
+        {/* Cloud Seeding Action */}
+        <div className="p-4 bg-emerald-50/70 rounded-xl border border-emerald-200 text-xs space-y-2.5">
           <div className="flex items-center justify-between">
-            <span className="font-bold text-amber-900 flex items-center gap-1.5">
-              <ShieldCheck size={14} className="text-amber-700" /> Database Permissions & RLS Policy Fix
+            <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+              <Server size={14} className="text-emerald-700" /> Database Seeding
             </span>
-            <button
-              type="button"
-              onClick={() => {
-                const sql = `-- IEEE CS UCET-IUB Quick Fix: Enable RLS and grant public access
-DO $$
-DECLARE tbl text;
-BEGIN
-    FOR tbl IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
-        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', tbl);
-        EXECUTE format('DROP POLICY IF EXISTS "allow_all_anon" ON public.%I;', tbl);
-        EXECUTE format('CREATE POLICY "allow_all_anon" ON public.%I FOR ALL TO public USING (true) WITH CHECK (true);', tbl);
-        EXECUTE format('GRANT ALL ON public.%I TO anon, authenticated, service_role;', tbl);
-    END LOOP;
-END $$;`;
-                navigator.clipboard.writeText(sql);
-                setCopySqlSuccess(true);
-                setTimeout(() => setCopySqlSuccess(false), 3000);
-              }}
-              className="text-xs font-semibold text-amber-900 bg-amber-200/80 hover:bg-amber-300 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
-            >
-              <Copy size={12} /> {copySqlSuccess ? "SQL Copied!" : "Copy Fix SQL"}
-            </button>
           </div>
-          <p className="text-[11px] text-amber-800 leading-relaxed">
-            If Supabase shows <em>&quot;new row violates row-level security policy&quot;</em> when saving events, copy the SQL above and click <strong>Run</strong> in your{" "}
-            <a
-              href="https://supabase.com/dashboard/project/gbuafbcebcbwzvefqhcr/sql"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline font-bold text-amber-900 inline-flex items-center gap-0.5"
-            >
-              Supabase SQL Editor <ExternalLink size={10} />
-            </a>.
+          <p className="text-[11px] text-emerald-800 leading-relaxed">
+            Upload and seed chapter official production events (IEEE DigitalFest 2026), executive officers, and certificates directly to PostgreSQL.
           </p>
 
-          <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center justify-between gap-2">
+          <div className="pt-2 border-t border-emerald-200/60 flex flex-wrap items-center justify-between gap-2">
             <Button
               type="button"
               variant="outline"
               size="sm"
               disabled={isSeeding || !status?.isConnected}
               onClick={handleSeedDatabase}
-              className="text-xs flex items-center gap-1.5 bg-white hover:bg-amber-100/50"
+              className="text-xs flex items-center gap-1.5 bg-white hover:bg-emerald-100/50"
             >
               <Server size={13} className={isSeeding ? "animate-spin text-ieee-blue" : "text-gray-600"} />
               <span>{isSeeding ? "Uploading Official Records..." : "Seed Official Chapter Data to Cloud DB"}</span>
@@ -364,7 +240,7 @@ END $$;`;
             <strong>Vercel Project Settings &rarr; Environment Variables</strong>.
           </p>
           <div className="pt-1 border-t border-gray-200 flex items-center justify-between text-[11px] text-gray-600">
-            <span>Database Tables: <strong>supabase/schema.sql</strong> (13 tables prepared)</span>
+            <span>Database Migrations: <strong>npm run db:migrate</strong> or GitHub Actions CI/CD</span>
             <span className="font-mono text-[10px] text-gray-400">PostgreSQL / Supabase</span>
           </div>
         </div>
@@ -374,7 +250,7 @@ END $$;`;
           <button
             type="button"
             onClick={() => {
-              if (confirm("Reset local testing cache and revert to clean official production seed state? (This will clear unsaved local tests and pull clean records)")) {
+              if (confirm("Reset local testing cache and revert to clean official production state?")) {
                 db.purgeAllTestData();
                 window.location.reload();
               }
@@ -391,4 +267,3 @@ END $$;`;
     </div>
   );
 };
-
