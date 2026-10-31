@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { verifyPaymentAction } from "@/app/actions/operations";
 import { PaymentProof, StaffUser } from "@/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -38,15 +39,25 @@ export default function AdminPaymentsQueuePage() {
     setPayments(live);
   };
 
-  const handleDecision = (
+  const handleDecision = async (
     paymentId: string,
     decision: "VERIFIED" | "REJECTED",
     reason?: string
   ) => {
-    if (!currentUser) return;
+    try {
+      await verifyPaymentAction({
+        paymentId,
+        decision,
+        reason,
+      });
+    } catch (err: any) {
+      console.warn("verifyPaymentAction warning:", err);
+    }
 
-    db.verifyPayment(paymentId, currentUser.name, decision, reason);
-    refreshPayments();
+    if (currentUser) {
+      db.verifyPayment(paymentId, currentUser.name, decision, reason);
+    }
+    await refreshPayments();
   };
 
   const pendingPayments = payments.filter((p) => p.status === "PENDING");

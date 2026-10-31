@@ -18,7 +18,8 @@ export default function VtoolsReportingPage() {
       const evts = await db.fetchEvents();
       setEvents(evts);
       if (evts.length > 0) setSelectedEventId(evts[0].id);
-      setRegistrations(db.getRegistrations());
+      const regs = await db.fetchRegistrations();
+      setRegistrations(regs);
     }
     load();
   }, []);

@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { checkInTicketAction } from "@/app/actions/operations";
 import { Registration, EventItem, StaffUser } from "@/types";
 import { Button } from "@/components/ui/Button";
 import * as XLSX from "xlsx";
@@ -226,78 +227,68 @@ export default function MobileCheckinPage() {
     }
   };
 
-  // Process ticket code from QR or text entry
-  const handleProcessTicketCode = (rawCode: string) => {
+  // Process ticket code from QR or text entry via atomic database RPC
+  const handleProcessTicketCode = async (rawCode: string) => {
     const cleanCode = cleanScannedCode(rawCode);
     if (!cleanCode) return;
 
-    const allRegs = db.getRegistrations();
-    // Search by ticket code, ID, private token, or roll number suffix
-    const found = allRegs.find(
-      (r) =>
-        r.ticketCode?.toUpperCase() === cleanCode ||
-        r.id.toUpperCase() === cleanCode ||
-        r.privateToken?.toUpperCase() === cleanCode ||
-        r.rollNumber?.toUpperCase().includes(cleanCode) ||
-        r.ticketCode?.toUpperCase().endsWith(cleanCode)
-    );
+    try {
+      const res = await checkInTicketAction(cleanCode);
 
-    const staffName = currentUser?.name || "Muhammad Roshan Ashraf";
+      if (res.success) {
+        if (soundEnabled) playAudioFeedback("SUCCESS");
+        if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(100);
 
-    if (!found) {
+        setResultMsg({
+          type: "SUCCESS",
+          title: "Check-in Successful!",
+          description: `Verified ${res.fullName || "Attendee"} (${res.rollNumber || "Participant"}). Entry wristband issued.`,
+        });
+
+        setTicketInput("");
+        const live = await db.fetchRegistrations();
+        setRegistrations(live);
+        return;
+      }
+
+      // Handle specific database rejection reasons
+      if (res.error === "ALREADY_CHECKED_IN") {
+        if (soundEnabled) playAudioFeedback("WARNING");
+        if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([100, 60, 100]);
+        setResultMsg({
+          type: "WARNING",
+          title: "Duplicate Check-in Alert!",
+          description: `${res.fullName} was ALREADY checked in. Duplicate badge denied.`,
+        });
+        return;
+      }
+
+      if (res.error === "UNPAID") {
+        if (soundEnabled) playAudioFeedback("ERROR");
+        setResultMsg({
+          type: "ERROR",
+          title: "Registration Unpaid / Pending",
+          description: `${res.fullName}: Payment verification is pending with Chapter Treasurer.`,
+        });
+        return;
+      }
+
+      // Other error / not found
       if (soundEnabled) playAudioFeedback("ERROR");
       if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([180, 80, 180]);
       setResultMsg({
         type: "ERROR",
-        title: "Ticket Code Not Recognized",
-        description: `No attendee record matches code "${cleanCode}". Verify ticket spelling or check registration status.`,
+        title: "Ticket Check-in Denied",
+        description: res.error || `Ticket "${cleanCode}" could not be checked in.`,
       });
-      return;
-    }
-
-    // Check if already attended
-    if (found.status === "ATTENDED") {
-      if (soundEnabled) playAudioFeedback("WARNING");
-      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([100, 60, 100]);
+    } catch (err: any) {
+      if (soundEnabled) playAudioFeedback("ERROR");
       setResultMsg({
-        type: "WARNING",
-        title: "Duplicate Check-in Alert!",
-        description: `${found.fullName} (${found.rollNumber}) was ALREADY checked in at ${new Date(
-          found.checkedInAt || ""
-        ).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}. Do not issue duplicate badges.`,
-        reg: found,
+        type: "ERROR",
+        title: "Database Error",
+        description: err.message || "Could not connect to database for check-in verification.",
       });
-      return;
     }
-
-    // Record check-in
-    found.status = "ATTENDED";
-    found.checkedInAt = new Date().toISOString();
-    db.saveRegistrations(allRegs);
-
-    // Sync with attendance records
-    db.toggleAttendance(found.eventId, found.id);
-
-    db.addAuditLog(
-      staffName,
-      "TICKET_CHECKIN",
-      "registrations",
-      found.id,
-      `Attendee ${found.fullName} (${found.ticketCode}) checked in by ${staffName}.`
-    );
-
-    if (soundEnabled) playAudioFeedback("SUCCESS");
-    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(100);
-
-    setResultMsg({
-      type: "SUCCESS",
-      title: "Check-in Successful!",
-      description: `Verified ${found.fullName} • ${found.department || "UCET"}. Wristband / badge issued.`,
-      reg: found,
-    });
-
-    setTicketInput("");
-    setRegistrations([...db.getRegistrations()]);
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {

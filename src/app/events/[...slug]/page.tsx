@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
+import { registerForEventAction, submitPaymentAction } from "@/app/actions/operations";
 import { EventItem, Registration, EventTeam } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -108,7 +109,7 @@ export default function EventDetailPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [activePhotoIndex]);
 
-  const handleRegister = (e: React.FormEvent) => {
+  const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!event) return;
 
@@ -117,47 +118,54 @@ export default function EventDetailPage() {
       return;
     }
 
-    const newRegId = `reg-${Date.now()}`;
-    const token = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
-    const ticketCode = `TCK-${event.id.replace("evt-", "")}-${Math.floor(1000 + Math.random() * 9000)}`;
-
-    const newReg: Registration = {
-      id: newRegId,
-      eventId: event.id,
-      privateToken: token,
-      fullName,
-      namePreference: namePref,
-      email,
-      phone,
-      rollNumber,
-      isIeeeMember,
-      ieeeMembershipNumber: ieeeNumber || undefined,
-      department,
-      photoConsent,
-      status: event.feePkr > 0 ? "PAYMENT_PENDING" : "CONFIRMED",
-      ticketCode,
-      createdAt: new Date().toISOString(),
-    };
-
-    db.addRegistration(newReg);
-
-    // If paid, submit payment to queue
-    if (event.feePkr > 0 && txId) {
-      db.addPayment({
-        id: `pay-${Date.now()}`,
-        registrationId: newRegId,
-        recipientName: fullName,
-        eventTitle: event.title,
-        amountPkr: event.feePkr,
-        paymentMethod,
-        transactionId: txId.trim(),
-        proofImageUrl: "",
-        status: "PENDING",
-        createdAt: new Date().toISOString(),
+    try {
+      const res = await registerForEventAction({
+        eventId: event.id,
+        fullName: fullName.trim(),
+        email: email.trim(),
+        phone: phone.trim(),
+        rollNumber: rollNumber.trim() || undefined,
+        department: department.trim() || "Computer Science",
+        isIeeeMember,
+        ieeeNumber: ieeeNumber.trim() || undefined,
       });
-    }
 
-    setConfirmedReg(newReg);
+      const newReg: Registration = {
+        id: res.registrationId || `reg-${Date.now()}`,
+        eventId: event.id,
+        privateToken: res.privateToken,
+        fullName,
+        namePreference: namePref,
+        email,
+        phone,
+        rollNumber,
+        isIeeeMember,
+        ieeeMembershipNumber: ieeeNumber || undefined,
+        department,
+        photoConsent,
+        status: res.status || (event.feePkr > 0 ? "PAYMENT_PENDING" : "CONFIRMED"),
+        ticketCode: res.ticketCode,
+        createdAt: new Date().toISOString(),
+      };
+
+      // If paid event and transaction ID provided
+      if (event.feePkr > 0 && txId.trim() && res.privateToken) {
+        try {
+          await submitPaymentAction({
+            privateToken: res.privateToken,
+            method: paymentMethod,
+            transactionId: txId.trim(),
+            proofPath: "event-form",
+          });
+        } catch (payErr: any) {
+          console.warn("Payment auto-submit warning:", payErr);
+        }
+      }
+
+      setConfirmedReg(newReg);
+    } catch (err: any) {
+      alert("Registration failed: " + err.message);
+    }
   };
 
   if (loading) {
