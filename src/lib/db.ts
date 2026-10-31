@@ -1778,6 +1778,124 @@ class ChapterDatabase {
     }
   }
 
+  // Upload & seed all official chapter production records to cloud database
+  async seedCloudDatabase(): Promise<{ success: boolean; message: string; counts?: Record<string, number> }> {
+    const client = getSupabase();
+    if (!client) {
+      return { success: false, message: "Cloud database not configured. Please enter Supabase credentials first." };
+    }
+
+    const counts: Record<string, number> = { events: 0, team: 0, templates: 0, eventTeams: 0, certificates: 0 };
+
+    try {
+      // 1. Seed Events
+      for (const evt of SEED_EVENTS) {
+        const payload = {
+          slug: evt.slug,
+          title: evt.title,
+          description: evt.description,
+          learning_objectives: evt.learningObjectives?.join("\n") || "",
+          target_audience: evt.targetAudience || "",
+          start_date: evt.startDate,
+          end_date: evt.endDate,
+          venue: evt.venue,
+          is_online: Boolean(evt.isOnline),
+          status: evt.status,
+          seats_limit: evt.seatsLimit,
+          fee_pkr: evt.feePkr,
+          certificate_type: evt.certificateType,
+          certificate_rule: evt.certificateRule,
+          vtools_id: evt.vtoolsId,
+          vtools_link: evt.vtoolsLink,
+          featured_image: evt.featuredImage,
+          gallery_images: evt.galleryImages || [],
+          event_report: evt.eventReport,
+        };
+        const { error } = await client.from("events").upsert(payload, { onConflict: "slug" });
+        if (!error) counts.events++;
+        else console.warn("Seed event notice:", error.message);
+      }
+
+      // 2. Seed Team
+      for (let i = 0; i < SEED_TEAM.length; i++) {
+        const m = SEED_TEAM[i];
+        const payload = {
+          name: m.name,
+          position: m.position,
+          committee_year: m.committeeYear,
+          photo_url: m.photoUrl || "",
+          approved_bio: m.approvedBio || "",
+          is_current: m.isCurrent ?? true,
+          order_index: i,
+        };
+        const { error } = await client.from("team_members").insert(payload);
+        if (!error) counts.team++;
+      }
+
+      // 3. Seed Templates
+      for (const tpl of SEED_TEMPLATES) {
+        const payload = {
+          name: tpl.name,
+          description: tpl.description || "",
+          html_content: tpl.htmlContent,
+          is_active: tpl.isDefault ?? false,
+          is_default: tpl.isDefault ?? false,
+        };
+        const { error } = await client.from("certificate_templates").insert(payload);
+        if (!error) counts.templates++;
+      }
+
+      // 4. Seed Event Teams
+      for (const team of DIGITALFEST_EVENT_TEAMS) {
+        const { error } = await client.from("event_teams").upsert({
+          id: team.id,
+          event_id: team.eventId,
+          sr: team.sr,
+          team_name: team.teamName,
+          project_title: team.projectTitle,
+          team_leader: team.teamLeader,
+          semester: team.semester,
+          member_count: team.memberCount,
+          team_members: team.teamMembers,
+          project_domain: team.projectDomain || null,
+          position_award: team.positionAward || null,
+        });
+        if (!error) counts.eventTeams++;
+      }
+
+      // 5. Seed Certificates in batches of 25
+      for (let i = 0; i < SEED_CERTIFICATES.length; i += 25) {
+        const chunk = SEED_CERTIFICATES.slice(i, i + 25).map((c) => ({
+          code: c.code,
+          recipient_name: c.recipientName,
+          public_name_format: c.publicNameFormat,
+          event_title: c.eventTitle,
+          certificate_type: c.certificateType,
+          recognition_level: c.recognitionLevel,
+          issuer_statement: c.issuerStatement,
+          activity_date: c.activityDate,
+          issue_date: c.issueDate,
+          approver_name: c.approverName,
+          approver_role: c.approverRole,
+          status: c.status,
+          source: c.source,
+          team_name: c.teamName || null,
+          project_title: c.projectTitle || null,
+        }));
+        const { error } = await client.from("certificates").upsert(chunk, { onConflict: "code" });
+        if (!error) counts.certificates += chunk.length;
+      }
+
+      return {
+        success: true,
+        message: `Successfully seeded ${counts.events} events, ${counts.team} officers, ${counts.templates} templates, and ${counts.certificates} certificates into cloud database.`,
+        counts,
+      };
+    } catch (err: any) {
+      return { success: false, message: err?.message || "Failed to seed database.", counts };
+    }
+  }
+
   // Reset database back to default seed state
   resetAll(): void {
     if (!this.isBrowser()) return;

@@ -4,7 +4,7 @@ export interface SupabaseConfigStatus {
   isConfigured: boolean;
   isConnected: boolean;
   url: string;
-  source: "ENV" | "LOCAL_STORAGE" | "SERVER_RUNTIME" | "NONE";
+  source: "ENV" | "LOCAL_STORAGE" | "SERVER_RUNTIME" | "PROD_DEFAULT" | "NONE";
   error?: string;
   tableCounts?: {
     events?: number;
@@ -19,8 +19,12 @@ let cachedClient: SupabaseClient | null = null;
 let cachedUrl = "";
 let cachedKey = "";
 
+// IEEE CS UCET-IUB Official Production Database Credentials
+const DEFAULT_SUPABASE_URL = "https://gbuafbcebcbwzvefqhcr.supabase.co";
+const DEFAULT_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdidWFmYmNlYmNid3p2ZWZxaGNyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTMzNjUxNjgsImV4cCI6MjEwODk0MTE2OH0.j1tB4mcsDnyRUYo36EQk90fz-xR0VT55L5kqomLgeDU";
+
 // Helper to get active credentials safely (server-side & client-side)
-export function getActiveSupabaseCredentials(): { url: string; key: string; source: "ENV" | "LOCAL_STORAGE" | "NONE" } {
+export function getActiveSupabaseCredentials(): { url: string; key: string; source: "ENV" | "LOCAL_STORAGE" | "PROD_DEFAULT" | "NONE" } {
   const envUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() || "";
   const envKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim() || "";
 
@@ -36,6 +40,11 @@ export function getActiveSupabaseCredentials(): { url: string; key: string; sour
         return { url: storedUrl, key: storedKey, source: "LOCAL_STORAGE" };
       }
     } catch { }
+  }
+
+  // Built-in production database fallback
+  if (DEFAULT_SUPABASE_URL && DEFAULT_SUPABASE_ANON_KEY) {
+    return { url: DEFAULT_SUPABASE_URL, key: DEFAULT_SUPABASE_ANON_KEY, source: "PROD_DEFAULT" };
   }
 
   return { url: "", key: "", source: "NONE" };

@@ -95,3 +95,4 @@ export async function DELETE() {
   deleteTempConfig();
   return NextResponse.json({ success: true, message: "Database configuration cleared." });
 }
+

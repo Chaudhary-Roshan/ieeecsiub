@@ -40,7 +40,10 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({
   const [inputUrl, setInputUrl] = useState("");
   const [inputKey, setInputKey] = useState("");
   const [copySuccess, setCopySuccess] = useState(false);
+  const [copySqlSuccess, setCopySqlSuccess] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [seedNotice, setSeedNotice] = useState<string | null>(null);
 
   const checkConnection = async () => {
     setTesting(true);
@@ -50,6 +53,23 @@ export const DatabaseStatusModal: React.FC<DatabaseStatusModalProps> = ({
       if (onStatusChange) onStatusChange(res);
     } finally {
       setTesting(false);
+    }
+  };
+
+  const handleSeedDatabase = async () => {
+    if (!confirm("Upload and seed all official chapter production records (IEEE DigitalFest 2026, Chapter Officers, Templates, and Certificates) directly into your live Supabase database?")) {
+      return;
+    }
+    setIsSeeding(true);
+    setSeedNotice(null);
+    try {
+      const res = await db.seedCloudDatabase();
+      setSeedNotice(res.message);
+      await checkConnection();
+    } catch (err: any) {
+      setSeedNotice("Seeding failed: " + (err.message || String(err)));
+    } finally {
+      setIsSeeding(false);
     }
   };
 
@@ -268,6 +288,65 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=${inputKey.trim() || "your-anon-api-key"}`;
             )}
           </div>
         </form>
+
+        {/* SQL Permissions & RLS Setup Notice */}
+        <div className="p-4 bg-amber-50/70 rounded-xl border border-amber-300 text-xs space-y-2.5">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-amber-900 flex items-center gap-1.5">
+              <ShieldCheck size={14} className="text-amber-700" /> Database Permissions & RLS Policy Fix
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const sql = `-- IEEE CS UCET-IUB Quick Fix: Enable RLS and grant public access
+DO $$
+DECLARE tbl text;
+BEGIN
+    FOR tbl IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY;', tbl);
+        EXECUTE format('DROP POLICY IF EXISTS "allow_all_anon" ON public.%I;', tbl);
+        EXECUTE format('CREATE POLICY "allow_all_anon" ON public.%I FOR ALL TO public USING (true) WITH CHECK (true);', tbl);
+        EXECUTE format('GRANT ALL ON public.%I TO anon, authenticated, service_role;', tbl);
+    END LOOP;
+END $$;`;
+                navigator.clipboard.writeText(sql);
+                setCopySqlSuccess(true);
+                setTimeout(() => setCopySqlSuccess(false), 3000);
+              }}
+              className="text-xs font-semibold text-amber-900 bg-amber-200/80 hover:bg-amber-300 px-2 py-0.5 rounded flex items-center gap-1 transition-colors"
+            >
+              <Copy size={12} /> {copySqlSuccess ? "SQL Copied!" : "Copy Fix SQL"}
+            </button>
+          </div>
+          <p className="text-[11px] text-amber-800 leading-relaxed">
+            If Supabase shows <em>&quot;new row violates row-level security policy&quot;</em> when saving events, copy the SQL above and click <strong>Run</strong> in your{" "}
+            <a
+              href="https://supabase.com/dashboard/project/gbuafbcebcbwzvefqhcr/sql"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-bold text-amber-900 inline-flex items-center gap-0.5"
+            >
+              Supabase SQL Editor <ExternalLink size={10} />
+            </a>.
+          </p>
+
+          <div className="pt-2 border-t border-amber-200/60 flex flex-wrap items-center justify-between gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={isSeeding || !status?.isConnected}
+              onClick={handleSeedDatabase}
+              className="text-xs flex items-center gap-1.5 bg-white hover:bg-amber-100/50"
+            >
+              <Server size={13} className={isSeeding ? "animate-spin text-ieee-blue" : "text-gray-600"} />
+              <span>{isSeeding ? "Uploading Official Records..." : "Seed Official Chapter Data to Cloud DB"}</span>
+            </Button>
+            {seedNotice && (
+              <span className="text-[11px] font-semibold text-emerald-700">{seedNotice}</span>
+            )}
+          </div>
+        </div>
 
         {/* Quick Instructions & Schema Notice */}
         <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs space-y-2.5">
