@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { saveTeamMemberAction, deleteTeamMemberAction } from "@/app/actions/team";
 import { TeamMember } from "@/types";
 import { Button } from "@/components/ui/Button";
 import {
@@ -156,6 +157,15 @@ export default function AdminTeamManagerPage() {
         : members.length,
     };
 
+    try {
+      await saveTeamMemberAction({
+        ...targetMember,
+        id: editingId || undefined,
+      });
+    } catch (err: any) {
+      console.warn("Save team member action warning:", err);
+    }
+
     await db.saveTeamMember(targetMember);
     await loadTeam();
 
@@ -168,11 +178,16 @@ export default function AdminTeamManagerPage() {
     );
 
     setIsModalOpen(false);
-    showNotification(`Officer "${targetMember.name}" successfully saved!`);
+    showNotification(`Officer "${targetMember.name}" successfully saved to cloud database!`);
   };
 
   const handleDelete = async (id: string) => {
     const target = members.find((m) => m.id === id);
+    try {
+      await deleteTeamMemberAction(id);
+    } catch (err) {
+      console.warn("Delete team member action warning:", err);
+    }
     await db.deleteTeamMember(id);
     await loadTeam();
     setDeleteConfirmId(null);

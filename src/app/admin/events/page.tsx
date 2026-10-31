@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { saveEventAction, deleteEventAction } from "@/app/actions/events";
 import { EventItem, EventStatus, EventTeam } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -266,13 +267,17 @@ export default function AdminEventsManagerPage() {
         eventReport: eventReport.trim() || undefined,
       };
 
+      // Save directly to live PostgreSQL database via Server Action
+      await saveEventAction({
+        ...eventPayload,
+        id: editingEventId || undefined,
+      });
+
+      // Keep local in-memory view synced
       if (editingEventId) {
-        await db.updateEvent(editingEventId, eventPayload);
+        db.updateEvent(editingEventId, eventPayload);
       } else {
-        const res = await db.addEvent(eventPayload);
-        if (!res.success && res.error) {
-          console.warn("Event saved with sync notice:", res.error);
-        }
+        db.addEvent(eventPayload);
       }
 
       db.addAuditLog(
@@ -283,14 +288,12 @@ export default function AdminEventsManagerPage() {
         `${editingEventId ? "Updated" : "Created"} event "${title}" with status "${status}".`
       );
 
-      // Update state immediately
-      setEvents(db.getEvents());
       setIsModalOpen(false);
       await refreshEvents();
-      alert(`Event "${title}" ${editingEventId ? "updated" : "published"} successfully!`);
+      alert(`Event "${title}" ${editingEventId ? "updated" : "published"} successfully to live database!`);
     } catch (err: any) {
       console.error("Save event failed:", err);
-      setModalError(err?.message || "Failed to save event. Please verify required fields.");
+      setModalError(err?.message || "Failed to save event to database. Please check required fields.");
     } finally {
       setIsSaving(false);
     }
@@ -298,7 +301,12 @@ export default function AdminEventsManagerPage() {
 
   const handleDeleteEvent = async (event: EventItem) => {
     if (confirm(`Are you sure you want to delete event "${event.title}"?`)) {
-      await db.deleteEvent(event.id);
+      try {
+        await deleteEventAction(event.id);
+      } catch (err) {
+        console.warn("Server action delete error:", err);
+      }
+      db.deleteEvent(event.id);
       db.addAuditLog(
         "Muhammad Roshan Ashraf",
         "EVENT_DELETED",
@@ -306,14 +314,20 @@ export default function AdminEventsManagerPage() {
         event.id,
         `Deleted event "${event.title}".`
       );
-      setEvents(db.getEvents());
       await refreshEvents();
     }
   };
 
   const handleQuickStatusChange = async (eventId: string, newStatus: EventStatus) => {
-    await db.updateEvent(eventId, { status: newStatus });
-    setEvents(db.getEvents());
+    try {
+      const existing = events.find((e) => e.id === eventId);
+      if (existing) {
+        await saveEventAction({ ...existing, status: newStatus });
+      }
+    } catch (err) {
+      console.warn("Quick status change error:", err);
+    }
+    db.updateEvent(eventId, { status: newStatus });
     await refreshEvents();
   };
 

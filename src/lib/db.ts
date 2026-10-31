@@ -565,16 +565,9 @@ class ChapterDatabase {
             eventReport: d.event_report,
           }));
 
-          // Remote is primary authority; keep any offline drafts if not in remote
-          const finalEvents = [...mapped];
-          for (const loc of local) {
-            if (!finalEvents.some((rem) => rem.slug === loc.slug || rem.id === loc.id)) {
-              finalEvents.push(loc);
-            }
-          }
-
-          this.setItem("events", finalEvents);
-          return finalEvents;
+          // Remote is the single source of truth
+          this.setItem("events", mapped);
+          return mapped;
         }
       } catch (err) {
         console.warn("Supabase fetchEvents fallback to local:", err);
@@ -607,9 +600,8 @@ class ChapterDatabase {
   async fetchEventBySlug(slug: string): Promise<EventItem | undefined> {
     const clean = slug.trim().replace(/^\/+/, "").replace(/\/+$/, "");
     const baseClean = clean.split("/").pop() || clean;
-    const local = this.getEventBySlug(clean);
-    if (local) return local;
 
+    // Check remote cloud database first
     const client = getSupabase();
     if (client) {
       try {
@@ -618,7 +610,7 @@ class ChapterDatabase {
           .select("*")
           .or(`slug.eq.${clean},slug.eq.2026/${baseClean},slug.eq.${baseClean}`)
           .maybeSingle();
-        if (data && !error && data) {
+        if (data && !error) {
           const evt: EventItem = {
             id: data.id,
             slug: data.slug,
@@ -644,18 +636,14 @@ class ChapterDatabase {
             galleryImages: Array.isArray(data.gallery_images) ? data.gallery_images : [],
             eventReport: data.event_report,
           };
-          const list = this.getEvents();
-          if (!list.some((e) => e.id === evt.id || e.slug === evt.slug)) {
-            list.unshift(evt);
-            this.setItem("events", list);
-          }
           return evt;
         }
       } catch (err) {
         console.warn("Supabase fetchEventBySlug fallback:", err);
       }
     }
-    return undefined;
+
+    return this.getEventBySlug(clean);
   }
 
   getEventById(id: string): EventItem | undefined {

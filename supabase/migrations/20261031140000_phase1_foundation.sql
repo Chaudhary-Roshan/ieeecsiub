@@ -290,3 +290,4 @@ DROP TRIGGER IF EXISTS audit_registrations_trg ON public.registrations;
 CREATE TRIGGER audit_registrations_trg
 AFTER INSERT OR UPDATE OR DELETE ON public.registrations
 FOR EACH ROW EXECUTE FUNCTION public.process_audit_log();
+
