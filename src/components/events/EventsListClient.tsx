@@ -169,3 +169,4 @@ export const EventsListClient: React.FC<EventsListClientProps> = ({ initialEvent
     </div>
   );
 };
+

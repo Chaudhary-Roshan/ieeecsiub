@@ -92,3 +92,4 @@ export async function deleteEventAction(id: string) {
 
   return { success: true };
 }
+

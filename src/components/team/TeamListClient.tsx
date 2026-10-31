@@ -110,3 +110,4 @@ export const TeamListClient: React.FC<TeamListClientProps> = ({ initialMembers }
     </div>
   );
 };
+

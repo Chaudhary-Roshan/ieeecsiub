@@ -326,27 +326,27 @@ class ChapterDatabase {
             recipientName: data.recipient_name,
             publicNameFormat: (data.public_name_format as any) || "FULL_NAME",
             eventId: data.event_id || "",
-            eventTitle: data.event_title,
-            certificateType: data.certificate_type,
+            eventTitle: data.event_title || data.event_name || "IEEE Technical Session",
+            certificateType: data.certificate_type || "Certificate of Participation",
             recognitionLevel: (data.recognition_level as any) || "CHAPTER_RECOGNITION",
             issuerStatement: data.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
-            activityDate: data.activity_date,
-            issueDate: data.issue_date,
-            approverName: data.approver_name,
-            approverRole: data.approver_role,
+            activityDate: data.activity_date || data.event_date || "",
+            issueDate: data.issue_date || "",
+            approverName: data.approver_name || "Chapter Chair",
+            approverRole: data.approver_role || "Chapter Chair",
             status: data.status,
-            source: data.source,
+            source: data.source || "IN_SITE_GENERATED",
             batchId: data.batch_id,
             templateId: data.template_id || undefined,
             teamName: data.team_name || undefined,
             projectTitle: data.project_title || undefined,
             replacedByCode: data.replaced_by_code,
             replacementReason: data.replacement_reason,
-            revocationDate: data.revocation_date,
-            revocationReason: data.revocation_reason,
-            sha256Fingerprint: data.sha256_fingerprint,
+            revocationDate: data.revocation_date || data.revoked_at,
+            revocationReason: data.revocation_reason || data.revoke_reason,
+            sha256Fingerprint: data.sha256_fingerprint || data.sha256_hash,
             pdfUrl: data.pdf_url,
-            createdAt: data.created_at,
+            createdAt: data.created_at || new Date().toISOString(),
           };
           // Also cache locally
           this.updateCertificate(clean, mapped);
@@ -1507,14 +1507,20 @@ class ChapterDatabase {
     return this.getItem("registrations", SEED_REGISTRATIONS);
   }
 
-  async fetchRegistrations(): Promise<Registration[]> {
+  async fetchRegistrations(eventId?: string): Promise<Registration[]> {
     const client = getSupabase();
     if (client) {
       try {
-        const { data, error } = await client
+        let query = client
           .from("registrations")
           .select("*")
           .order("created_at", { ascending: false });
+
+        if (eventId) {
+          query = query.eq("event_id", eventId);
+        }
+
+        const { data, error } = await query;
         if (data && !error) {
           const list: Registration[] = data.map((d: any) => ({
             id: d.id,

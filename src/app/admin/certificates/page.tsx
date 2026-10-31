@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { revokeCertificateAction, replaceCertificateAction } from "@/app/actions/certificates";
 import { CertificateRecord, StaffUser, CertificateTemplate } from "@/types";
 import { generateCertificateCode } from "@/lib/codeGenerator";
 import { Badge } from "@/components/ui/Badge";
@@ -64,8 +65,14 @@ export default function AdminCertificatesPage() {
     setCerts(live);
   };
 
-  const handleRevokeSubmit = () => {
+  const handleRevokeSubmit = async () => {
     if (!revokingCert || !revokeReason.trim() || !currentUser) return;
+
+    try {
+      await revokeCertificateAction(revokingCert.code, revokeReason.trim());
+    } catch (err: any) {
+      console.warn("Revoke server action warning:", err);
+    }
 
     const today = new Date().toISOString().split("T")[0];
     db.updateCertificate(revokingCert.code, {
@@ -84,14 +91,26 @@ export default function AdminCertificatesPage() {
 
     setRevokingCert(null);
     setRevokeReason("");
-    refreshList();
+    await refreshList();
     alert(`Certificate ${revokingCert.code} has been marked as REVOKED.`);
   };
 
-  const handleReplaceSubmit = () => {
+  const handleReplaceSubmit = async () => {
     if (!replacingCert || !correctedName.trim() || !currentUser) return;
 
-    const newCode = generateCertificateCode("26");
+    let newCode = "";
+    try {
+      const res = await replaceCertificateAction(
+        replacingCert.code,
+        correctedName.trim(),
+        replaceReason.trim()
+      );
+      newCode = res.newCode;
+    } catch (err: any) {
+      console.warn("Replace server action warning:", err);
+      newCode = generateCertificateCode("26");
+    }
+
     const today = new Date().toISOString().split("T")[0];
 
     // 1. Mark old certificate as REPLACED
@@ -135,7 +154,7 @@ export default function AdminCertificatesPage() {
 
     setReplacingCert(null);
     setCorrectedName("");
-    refreshList();
+    await refreshList();
     alert(`Certificate replaced successfully! New code ${newCode} is now ACTIVE.`);
   };
 
@@ -200,9 +219,17 @@ export default function AdminCertificatesPage() {
             </p>
           </div>
 
-          <Button onClick={() => setShowLegacyModal(true)} variant="outline" size="sm">
-            <FilePlus size={15} className="mr-1.5" /> Import Past Legacy Certificate
-          </Button>
+          <div className="flex items-center gap-2.5">
+            <Link href="/admin/certificates/new">
+              <Button variant="primary" size="sm" className="bg-ieee-navy hover:bg-ieee-blue text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                <Award size={15} /> 5-Step Certificate Wizard
+              </Button>
+            </Link>
+
+            <Button onClick={() => setShowLegacyModal(true)} variant="outline" size="sm" className="text-xs">
+              <FilePlus size={14} className="mr-1.5" /> Import Legacy
+            </Button>
+          </div>
         </div>
 
         {/* Search & Stats Bar */}
