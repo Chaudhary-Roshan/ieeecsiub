@@ -68,6 +68,7 @@ export default function AdminCertificateTemplatesPage() {
   const [sampleQr, setSampleQr] = useState<string>("");
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
+  const [previewVersion, setPreviewVersion] = useState(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Signatures Studio State
@@ -95,26 +96,30 @@ export default function AdminCertificateTemplatesPage() {
       color: { dark: "#002855", light: "#ffffff" },
     }).then((url) => setSampleQr(url));
 
-    const allTemplates = db.getTemplates();
-    setTemplates(allTemplates);
-    if (allTemplates.length > 0) {
-      const initial = allTemplates[0];
-      setSelectedTemplateId(initial.id);
-      setTemplateName(initial.name);
-      let initialHtml = initial.htmlContent || DEFAULT_CERTIFICATE_HTML;
-      initialHtml = initialHtml
-        .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
-        .replace(/<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE<\/div>/g, '{{ieee_logo}}');
-      setHtmlCode(initialHtml);
-      if (initial.chairSignatureUrl) setChairSignature(initial.chairSignatureUrl);
-      if (initial.advisorSignatureUrl) setAdvisorSignature(initial.advisorSignatureUrl);
-      if (initial.chairName) setChairName(initial.chairName);
-      if (initial.advisorName) setAdvisorName(initial.advisorName);
-      if (initial.chapterLogoUrl) setChapterLogo(initial.chapterLogoUrl);
-      if (initial.universityLogoUrl) setUniversityLogo(initial.universityLogoUrl);
-      if (initial.ieeeLogoUrl) setIeeeLogo(initial.ieeeLogoUrl);
-      if (initial.eventLogoUrl) setEventLogo(initial.eventLogoUrl);
+    async function initTemplates() {
+      const allTemplates = await db.fetchTemplates();
+      setTemplates(allTemplates);
+      if (allTemplates.length > 0) {
+        const initial = allTemplates.find((t) => t.isDefault) || allTemplates[0];
+        setSelectedTemplateId(initial.id);
+        setTemplateName(initial.name);
+        let initialHtml = initial.htmlContent || DEFAULT_CERTIFICATE_HTML;
+        initialHtml = initialHtml
+          .replace(/<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi, '<div$1>{{ieee_logo}}</div>')
+          .replace(/<div([^>]*style=["'][^"']*(?:padding|border|background)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi, '<div$1>{{ieee_logo}}</div>')
+          .replace(/<div([^>]*)>\s*IEEE\s*<\/div>/gi, '{{ieee_logo}}');
+        setHtmlCode(initialHtml);
+        if (initial.chairSignatureUrl) setChairSignature(initial.chairSignatureUrl);
+        if (initial.advisorSignatureUrl) setAdvisorSignature(initial.advisorSignatureUrl);
+        if (initial.chairName) setChairName(initial.chairName);
+        if (initial.advisorName) setAdvisorName(initial.advisorName);
+        if (initial.chapterLogoUrl) setChapterLogo(initial.chapterLogoUrl);
+        if (initial.universityLogoUrl) setUniversityLogo(initial.universityLogoUrl);
+        if (initial.ieeeLogoUrl) setIeeeLogo(initial.ieeeLogoUrl);
+        if (initial.eventLogoUrl) setEventLogo(initial.eventLogoUrl);
+      }
     }
+    initTemplates();
 
     // Load persisted global signatures if available
     if (typeof window !== "undefined") {
@@ -154,8 +159,9 @@ export default function AdminCertificateTemplatesPage() {
       setTemplateName(target.name);
       let cleanHtml = target.htmlContent || DEFAULT_CERTIFICATE_HTML;
       cleanHtml = cleanHtml
-        .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
-        .replace(/<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE<\/div>/g, '{{ieee_logo}}');
+        .replace(/<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi, '<div$1>{{ieee_logo}}</div>')
+        .replace(/<div([^>]*style=["'][^"']*(?:padding|border|background)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi, '<div$1>{{ieee_logo}}</div>')
+        .replace(/<div([^>]*)>\s*IEEE\s*<\/div>/gi, '{{ieee_logo}}');
       setHtmlCode(cleanHtml);
 
       // Load signatures (template-specific or global cache fallback)
@@ -177,6 +183,7 @@ export default function AdminCertificateTemplatesPage() {
       setUniversityLogo(target.universityLogoUrl || cachedLogos.universityLogo || "/logo.png");
       setIeeeLogo(target.ieeeLogoUrl || cachedLogos.ieeeLogo || "/ieee-logo.svg");
       setEventLogo(target.eventLogoUrl || cachedLogos.eventLogo || "");
+      setPreviewVersion((v) => v + 1);
     }
   };
 
@@ -254,8 +261,9 @@ export default function AdminCertificateTemplatesPage() {
         cached.ieeeLogo = dataUrl;
         setHtmlCode((prev) =>
           prev
-            .replace(/<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-family: Montserrat, sans-serif; font-weight: 800; font-size: 16px; color: #00629B">IEEE<\/div>/g, '<div style="width: 80px; height: 54px; background: #FFFFFF; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px">{{ieee_logo}}</div>')
-            .replace(/<div style="font-family: Montserrat, sans-serif; font-weight: 800; font-size: 20px; color: #00629B; letter-spacing: 0.08em">IEEE<\/div>/g, '{{ieee_logo}}')
+            .replace(/<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi, '<div$1>{{ieee_logo}}</div>')
+            .replace(/<div([^>]*style=["'][^"']*(?:padding|border|background)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi, '<div$1>{{ieee_logo}}</div>')
+            .replace(/<div([^>]*)>\s*IEEE\s*<\/div>/gi, '{{ieee_logo}}')
         );
       } else if (type === "EVENT") {
         setEventLogo(dataUrl);
@@ -265,6 +273,7 @@ export default function AdminCertificateTemplatesPage() {
       if (typeof window !== "undefined") {
         localStorage.setItem("ieee_logos", JSON.stringify(cached));
       }
+      setPreviewVersion((v) => v + 1);
     };
     reader.readAsDataURL(file);
   };
@@ -354,6 +363,22 @@ export default function AdminCertificateTemplatesPage() {
     return rendered;
   };
 
+  // Direct reactive write to iframe document to ensure 100% immediate render in all browsers
+  useEffect(() => {
+    if (iframeRef.current) {
+      try {
+        const doc = iframeRef.current.contentDocument || iframeRef.current.contentWindow?.document;
+        if (doc) {
+          doc.open();
+          doc.write(getRenderedHtml());
+          doc.close();
+        }
+      } catch (e) {
+        console.warn("Iframe direct update error:", e);
+      }
+    }
+  }, [htmlCode, chairSignature, advisorSignature, chapterLogo, universityLogo, ieeeLogo, eventLogo, selectedTemplateId, previewVersion, chairName, advisorName, chairTitle, advisorTitle, sampleQr]);
+
   const handleCopyPlaceholder = (tag: string) => {
     navigator.clipboard.writeText(tag);
     setCopiedTag(tag);
@@ -408,6 +433,7 @@ export default function AdminCertificateTemplatesPage() {
     }
 
     setTemplates(db.getTemplates());
+    setPreviewVersion((v) => v + 1);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 2500);
 
@@ -860,7 +886,13 @@ export default function AdminCertificateTemplatesPage() {
                       {universityLogo !== "/logo.png" && (
                         <button
                           type="button"
-                          onClick={() => setUniversityLogo("/logo.png")}
+                          onClick={() => {
+                            setUniversityLogo("/logo.png");
+                            const c = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("ieee_logos") || "{}") : {};
+                            delete c.universityLogo;
+                            if (typeof window !== "undefined") localStorage.setItem("ieee_logos", JSON.stringify(c));
+                            setPreviewVersion((v) => v + 1);
+                          }}
                           className="px-2 py-1.5 text-[11px] text-gray-500 hover:text-red-600 border border-gray-300 rounded bg-white hover:bg-red-50"
                           title="Reset to official /logo.png"
                         >
@@ -916,7 +948,13 @@ export default function AdminCertificateTemplatesPage() {
                       {ieeeLogo !== "/ieee-logo.svg" && (
                         <button
                           type="button"
-                          onClick={() => setIeeeLogo("/ieee-logo.svg")}
+                          onClick={() => {
+                            setIeeeLogo("/ieee-logo.svg");
+                            const c = typeof window !== "undefined" ? JSON.parse(localStorage.getItem("ieee_logos") || "{}") : {};
+                            delete c.ieeeLogo;
+                            if (typeof window !== "undefined") localStorage.setItem("ieee_logos", JSON.stringify(c));
+                            setPreviewVersion((v) => v + 1);
+                          }}
                           className="px-2 py-1.5 text-[11px] text-gray-500 hover:text-purple-700 border border-gray-300 rounded bg-white hover:bg-purple-50"
                           title="Reset to official /ieee-logo.svg"
                         >
@@ -1115,7 +1153,7 @@ export default function AdminCertificateTemplatesPage() {
               <div className="flex-1 w-full bg-gray-100 rounded border border-gray-200 overflow-hidden flex items-center justify-center p-2">
                 <iframe
                   ref={iframeRef}
-                  key={`${selectedTemplateId}-${ieeeLogo ? 'ieee' : 'noieee'}-${chapterLogo ? 'chap' : ''}-${universityLogo ? 'univ' : ''}`}
+                  key={`${selectedTemplateId}-v${previewVersion}`}
                   srcDoc={getRenderedHtml()}
                   title="Certificate Visual Studio Preview"
                   className="w-full h-full min-h-[580px] border-0 rounded bg-white shadow"

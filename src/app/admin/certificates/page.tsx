@@ -47,7 +47,8 @@ export default function AdminCertificatesPage() {
     async function load() {
       const live = await db.fetchCertificates();
       setCerts(live);
-      setTemplates(db.getTemplates());
+      const liveTpls = await db.fetchTemplates();
+      setTemplates(liveTpls);
     }
     load();
     const saved = localStorage.getItem("ieee_cs_active_staff");

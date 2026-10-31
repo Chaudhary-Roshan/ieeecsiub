@@ -28,22 +28,25 @@ export default function Option2IssuancePage() {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   useEffect(() => {
-    const allEvts = db.getEvents();
-    setEvents(allEvts);
-    if (allEvts.length > 0) setSelectedEventId(allEvts[0].id);
-    setRegistrations(db.getRegistrations());
+    async function init() {
+      const allEvts = await db.fetchEvents();
+      setEvents(allEvts);
+      if (allEvts.length > 0) setSelectedEventId(allEvts[0].id);
+      setRegistrations(db.getRegistrations());
 
-    const allTpls = db.getTemplates();
-    setTemplates(allTpls);
-    const activeTpl = db.getActiveTemplate();
-    if (activeTpl) setSelectedTemplateId(activeTpl.id);
+      const allTpls = await db.fetchTemplates();
+      setTemplates(allTpls);
+      const activeTpl = await db.fetchActiveTemplate();
+      if (activeTpl) setSelectedTemplateId(activeTpl.id);
 
-    const saved = localStorage.getItem("ieee_cs_active_staff");
-    if (saved) {
-      try {
-        setCurrentUser(JSON.parse(saved));
-      } catch {}
+      const saved = localStorage.getItem("ieee_cs_active_staff");
+      if (saved) {
+        try {
+          setCurrentUser(JSON.parse(saved));
+        } catch {}
+      }
     }
+    init();
   }, []);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId);

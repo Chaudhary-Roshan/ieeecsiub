@@ -35,6 +35,8 @@ export default function AdminEventsManagerPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [modalError, setModalError] = useState<string | null>(null);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -154,6 +156,7 @@ export default function AdminEventsManagerPage() {
 
   const openCreateModal = () => {
     setEditingEventId(null);
+    setModalError(null);
     setTitle("");
     setSlug(`2026/event-${Date.now().toString().slice(-4)}`);
     setDescription("");
@@ -183,6 +186,7 @@ export default function AdminEventsManagerPage() {
 
   const openEditModal = (event: EventItem) => {
     setEditingEventId(event.id);
+    setModalError(null);
     setTitle(event.title);
     setSlug(event.slug);
     setDescription(event.description);
@@ -207,77 +211,89 @@ export default function AdminEventsManagerPage() {
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !slug.trim()) {
-      alert("Please enter title and slug.");
+      setModalError("Please enter title and slug.");
       return;
     }
 
-    const objectives = learningObjectives
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
+    setIsSaving(true);
+    setModalError(null);
 
-    const gallery = galleryImages
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    const cleanSlug = slug
-      .trim()
-      .replace(/^\/+/, "")
-      .replace(/\/+$/, "")
-      .replace(/\s+/g, "-")
-      .toLowerCase();
-
-    let safeStart = new Date().toISOString();
-    let safeEnd = new Date(Date.now() + 86400000).toISOString();
     try {
-      if (startDate) safeStart = new Date(startDate).toISOString();
-      if (endDate) safeEnd = new Date(endDate).toISOString();
-    } catch {}
+      const objectives = learningObjectives
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    const eventPayload: EventItem = {
-      id: editingEventId || `evt-${Date.now()}`,
-      slug: cleanSlug,
-      title: title.trim(),
-      description: description.trim(),
-      learningObjectives: objectives,
-      startDate: safeStart,
-      endDate: safeEnd,
-      venue: venue.trim(),
-      isOnline,
-      meetingLink: isOnline ? meetingLink.trim() : undefined,
-      status,
-      statusReason: statusReason.trim() || undefined,
-      seatsLimit: Number(seatsLimit),
-      feePkr: Number(feePkr),
-      paymentInstructions: feePkr > 0 ? "Transfer fee via Raast (ID: 0300-1234567) or Bank Alfalah and upload receipt." : undefined,
-      certificateType: certificateType.trim(),
-      certificateRule: certificateRule.trim(),
-      featuredImage: featuredImage.trim() || "/ieee-cs-logo.png",
-      galleryImages: gallery.length > 0 ? gallery : undefined,
-      eventReport: eventReport.trim() || undefined,
-    };
+      const gallery = galleryImages
+        .split("\n")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
-    if (editingEventId) {
-      await db.updateEvent(editingEventId, eventPayload);
-      alert(`Event "${title}" updated successfully!`);
-    } else {
-      await db.addEvent(eventPayload);
-      alert(`Event "${title}" created successfully!`);
+      const cleanSlug = slug
+        .trim()
+        .replace(/^\/+/, "")
+        .replace(/\/+$/, "")
+        .replace(/\s+/g, "-")
+        .toLowerCase();
+
+      let safeStart = new Date().toISOString();
+      let safeEnd = new Date(Date.now() + 86400000).toISOString();
+      try {
+        if (startDate) safeStart = new Date(startDate).toISOString();
+        if (endDate) safeEnd = new Date(endDate).toISOString();
+      } catch {}
+
+      const eventPayload: EventItem = {
+        id: editingEventId || `evt-${Date.now()}`,
+        slug: cleanSlug,
+        title: title.trim(),
+        description: description.trim(),
+        learningObjectives: objectives,
+        startDate: safeStart,
+        endDate: safeEnd,
+        venue: venue.trim(),
+        isOnline,
+        meetingLink: isOnline ? meetingLink.trim() : undefined,
+        status,
+        statusReason: statusReason.trim() || undefined,
+        seatsLimit: Number(seatsLimit),
+        feePkr: Number(feePkr),
+        paymentInstructions: feePkr > 0 ? "Transfer fee via Raast (ID: 0300-1234567) or Bank Alfalah and upload receipt." : undefined,
+        certificateType: certificateType.trim(),
+        certificateRule: certificateRule.trim(),
+        featuredImage: featuredImage.trim() || "/ieee-cs-logo.png",
+        galleryImages: gallery.length > 0 ? gallery : undefined,
+        eventReport: eventReport.trim() || undefined,
+      };
+
+      if (editingEventId) {
+        await db.updateEvent(editingEventId, eventPayload);
+      } else {
+        const res = await db.addEvent(eventPayload);
+        if (!res.success && res.error) {
+          console.warn("Event saved with sync notice:", res.error);
+        }
+      }
+
+      db.addAuditLog(
+        "Muhammad Roshan Ashraf",
+        editingEventId ? "EVENT_UPDATED" : "EVENT_CREATED",
+        "events",
+        eventPayload.id,
+        `${editingEventId ? "Updated" : "Created"} event "${title}" with status "${status}".`
+      );
+
+      // Update state immediately
+      setEvents(db.getEvents());
+      setIsModalOpen(false);
+      await refreshEvents();
+      alert(`Event "${title}" ${editingEventId ? "updated" : "published"} successfully!`);
+    } catch (err: any) {
+      console.error("Save event failed:", err);
+      setModalError(err?.message || "Failed to save event. Please verify required fields.");
+    } finally {
+      setIsSaving(false);
     }
-
-    db.addAuditLog(
-      "Muhammad Roshan Ashraf",
-      editingEventId ? "EVENT_UPDATED" : "EVENT_CREATED",
-      "events",
-      eventPayload.id,
-      `${editingEventId ? "Updated" : "Created"} event "${title}" with status "${status}".`
-    );
-
-    // Update state immediately
-    setEvents(db.getEvents());
-    setIsModalOpen(false);
-    await refreshEvents();
   };
 
   const handleDeleteEvent = async (event: EventItem) => {
@@ -509,6 +525,12 @@ export default function AdminEventsManagerPage() {
               </div>
 
               <form onSubmit={handleSaveEvent} className="space-y-4 text-xs">
+                {modalError && (
+                  <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200 flex items-center gap-2">
+                    <AlertTriangle size={16} className="text-red-500 shrink-0" />
+                    <span>{modalError}</span>
+                  </div>
+                )}
                 {/* Title & Slug */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
@@ -862,9 +884,22 @@ export default function AdminEventsManagerPage() {
                   >
                     Cancel
                   </button>
-                  <Button type="submit" variant="primary">
-                    {editingEventId ? "Save Changes" : "Publish Event"}
-                  </Button>
+                  <button
+                    type="submit"
+                    disabled={isSaving}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-montserrat font-semibold text-xs tracking-wide bg-ieee-blue text-white hover:bg-ieee-navy focus:ring-2 focus:ring-ieee-blue shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
+                  >
+                    {isSaving ? (
+                      <>
+                        <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>{editingEventId ? "Saving..." : "Publishing Event..."}</span>
+                      </>
+                    ) : editingEventId ? (
+                      "Save Changes"
+                    ) : (
+                      "Publish Event"
+                    )}
+                  </button>
                 </div>
               </form>
             </div>

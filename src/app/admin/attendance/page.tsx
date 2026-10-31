@@ -45,9 +45,9 @@ export default function AdminAttendancePage() {
         setSelectedEventId(defaultId);
         loadAttendance(defaultId);
       }
-      const allTpls = db.getTemplates();
+      const allTpls = await db.fetchTemplates();
       setTemplates(allTpls);
-      const activeTpl = db.getActiveTemplate();
+      const activeTpl = await db.fetchActiveTemplate();
       if (activeTpl) setSelectedTemplateId(activeTpl.id);
     }
     init();

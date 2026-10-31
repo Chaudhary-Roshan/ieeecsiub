@@ -644,7 +644,7 @@ class ChapterDatabase {
     return this.getEvents().find((e) => e.id === id);
   }
 
-  async addEvent(event: EventItem): Promise<void> {
+  async addEvent(event: EventItem): Promise<{ success: boolean; error?: string }> {
     const list = this.getEvents();
     // Prevent duplicate ID/slug
     const filtered = list.filter((e) => e.id !== event.id && e.slug !== event.slug);
@@ -686,15 +686,47 @@ class ChapterDatabase {
 
         if (existing?.id) {
           const { error } = await supabase.from("events").update(payload).eq("id", existing.id);
-          if (error) console.warn("Supabase event update error:", error);
+          if (error) {
+            console.warn("Supabase event update error, trying core payload:", error);
+            const corePayload = {
+              slug: event.slug,
+              title: event.title,
+              description: event.description,
+              start_date: event.startDate,
+              end_date: event.endDate,
+              venue: event.venue,
+              status: event.status,
+              fee_pkr: event.feePkr || 0,
+              certificate_type: event.certificateType,
+            };
+            const { error: coreErr } = await supabase.from("events").update(corePayload).eq("id", existing.id);
+            if (coreErr) return { success: false, error: coreErr.message };
+          }
         } else {
           const { error } = await supabase.from("events").insert(payload);
-          if (error) console.warn("Supabase event insert error:", error);
+          if (error) {
+            console.warn("Supabase event insert error, trying core payload:", error);
+            const corePayload = {
+              slug: event.slug,
+              title: event.title,
+              description: event.description,
+              start_date: event.startDate,
+              end_date: event.endDate,
+              venue: event.venue,
+              status: event.status,
+              fee_pkr: event.feePkr || 0,
+              certificate_type: event.certificateType,
+            };
+            const { error: coreErr } = await supabase.from("events").insert(corePayload);
+            if (coreErr) return { success: false, error: coreErr.message };
+          }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.warn("Supabase addEvent sync error:", err);
+        return { success: false, error: err?.message || String(err) };
       }
     }
+    return { success: true };
   }
 
   async updateEvent(id: string, updates: Partial<EventItem>): Promise<boolean> {
@@ -785,14 +817,94 @@ class ChapterDatabase {
     this.setItem("certificate_templates", list);
 
     if (supabase) {
-      supabase.from("certificate_templates").update({ is_active: false }).neq("id", id).then(() => {
-        supabase?.from("certificate_templates").update({ is_active: true }).eq("id", id);
-      });
+      (async () => {
+        try {
+          await supabase.from("certificate_templates").update({ is_active: false, is_default: false }).neq("id", id);
+          await supabase.from("certificate_templates").update({ is_active: true, is_default: true }).eq("id", id);
+        } catch (err) {
+          console.warn("Supabase setActiveTemplate error:", err);
+        }
+      })();
     }
   }
 
   getTemplateById(id: string): CertificateTemplate | undefined {
     return this.getTemplates().find((t) => t.id === id);
+  }
+
+  async fetchTemplateById(id: string): Promise<CertificateTemplate | undefined> {
+    const local = this.getTemplateById(id);
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("certificate_templates")
+          .select("*")
+          .or(`id.eq.${id},name.eq.${id}`)
+          .maybeSingle();
+        if (data && !error) {
+          const mapped: CertificateTemplate = {
+            id: data.id,
+            name: data.name,
+            description: data.description || "",
+            htmlContent: data.html_content || "",
+            isDefault: Boolean(data.is_default || data.is_active),
+            chairSignatureUrl: data.chair_signature_url || "",
+            advisorSignatureUrl: data.advisor_signature_url || "",
+            chairName: data.chair_name || "",
+            chairTitle: data.chair_title || "",
+            advisorName: data.advisor_name || "",
+            advisorTitle: data.advisor_title || "",
+            chapterLogoUrl: data.chapter_logo_url || "",
+            universityLogoUrl: data.university_logo_url || "",
+            ieeeLogoUrl: data.ieee_logo_url || "",
+            eventLogoUrl: data.event_logo_url || "",
+            createdAt: data.created_at,
+          };
+          return mapped;
+        }
+      } catch (err) {
+        console.warn("Supabase fetchTemplateById fallback:", err);
+      }
+    }
+    return local;
+  }
+
+  async fetchActiveTemplate(): Promise<CertificateTemplate> {
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from("certificate_templates")
+          .select("*")
+          .or("is_active.eq.true,is_default.eq.true")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (data && !error) {
+          const mapped: CertificateTemplate = {
+            id: data.id,
+            name: data.name,
+            description: data.description || "",
+            htmlContent: data.html_content || "",
+            isDefault: true,
+            chairSignatureUrl: data.chair_signature_url || "",
+            advisorSignatureUrl: data.advisor_signature_url || "",
+            chairName: data.chair_name || "",
+            chairTitle: data.chair_title || "",
+            advisorName: data.advisor_name || "",
+            advisorTitle: data.advisor_title || "",
+            chapterLogoUrl: data.chapter_logo_url || "",
+            universityLogoUrl: data.university_logo_url || "",
+            ieeeLogoUrl: data.ieee_logo_url || "",
+            eventLogoUrl: data.event_logo_url || "",
+            createdAt: data.created_at,
+          };
+          return mapped;
+        }
+      } catch (err) {
+        console.warn("Supabase fetchActiveTemplate fallback:", err);
+      }
+    }
+    return this.getActiveTemplate();
   }
 
   async fetchTemplates(): Promise<CertificateTemplate[]> {
@@ -840,38 +952,57 @@ class ChapterDatabase {
 
   saveTemplate(tpl: CertificateTemplate): void {
     const list = this.getTemplates();
+    const shouldBeDefault = tpl.isDefault ?? true;
+
+    // When saving as active default, clear default status from all others
+    if (shouldBeDefault) {
+      for (const item of list) {
+        item.isDefault = false;
+      }
+    }
+
     const index = list.findIndex((t) => t.id === tpl.id || t.name === tpl.name);
+    const updatedTpl: CertificateTemplate = {
+      ...tpl,
+      isDefault: shouldBeDefault,
+    };
+
     if (index >= 0) {
-      list[index] = { ...list[index], ...tpl };
+      list[index] = { ...list[index], ...updatedTpl };
     } else {
-      list.unshift(tpl);
+      list.unshift(updatedTpl);
     }
     this.setItem("certificate_templates", list);
 
     if (supabase) {
       const payload: Record<string, any> = {
-        name: tpl.name,
-        description: tpl.description || null,
-        html_content: tpl.htmlContent,
-        chair_signature_url: tpl.chairSignatureUrl || null,
-        advisor_signature_url: tpl.advisorSignatureUrl || null,
-        chair_name: tpl.chairName || null,
-        chair_title: tpl.chairTitle || null,
-        advisor_name: tpl.advisorName || null,
-        advisor_title: tpl.advisorTitle || null,
-        chapter_logo_url: tpl.chapterLogoUrl || null,
-        university_logo_url: tpl.universityLogoUrl || null,
-        ieee_logo_url: tpl.ieeeLogoUrl || null,
-        event_logo_url: tpl.eventLogoUrl || null,
-        is_active: tpl.isDefault ?? true,
+        name: updatedTpl.name,
+        description: updatedTpl.description || null,
+        html_content: updatedTpl.htmlContent,
+        chair_signature_url: updatedTpl.chairSignatureUrl || null,
+        advisor_signature_url: updatedTpl.advisorSignatureUrl || null,
+        chair_name: updatedTpl.chairName || null,
+        chair_title: updatedTpl.chairTitle || null,
+        advisor_name: updatedTpl.advisorName || null,
+        advisor_title: updatedTpl.advisorTitle || null,
+        chapter_logo_url: updatedTpl.chapterLogoUrl || null,
+        university_logo_url: updatedTpl.universityLogoUrl || null,
+        ieee_logo_url: updatedTpl.ieeeLogoUrl || null,
+        event_logo_url: updatedTpl.eventLogoUrl || null,
+        is_active: shouldBeDefault,
+        is_default: shouldBeDefault,
       };
 
       (async () => {
         try {
+          if (shouldBeDefault) {
+            await supabase.from("certificate_templates").update({ is_active: false, is_default: false }).neq("name", updatedTpl.name);
+          }
+
           const { data: existing } = await supabase
             .from("certificate_templates")
             .select("id")
-            .eq("name", tpl.name)
+            .eq("name", updatedTpl.name)
             .maybeSingle();
 
           if (existing?.id) {

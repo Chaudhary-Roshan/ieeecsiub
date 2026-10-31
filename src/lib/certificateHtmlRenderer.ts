@@ -11,10 +11,10 @@ export async function renderCertificateHtml(
   // 1. Resolve template: Custom passed -> Certificate's assigned template -> Active default -> First available
   let template: CertificateTemplate | undefined = customTemplate;
   if (!template && cert.templateId) {
-    template = db.getTemplateById(cert.templateId);
+    template = await db.fetchTemplateById(cert.templateId);
   }
   if (!template) {
-    template = db.getActiveTemplate();
+    template = await db.fetchActiveTemplate();
   }
 
   const rawHtml = template?.htmlContent || "";
