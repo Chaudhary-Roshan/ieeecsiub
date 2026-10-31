@@ -161,8 +161,12 @@ export default function AdminEventsManagerPage() {
     setStatusReason("");
     const now = new Date();
     const later = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-    setStartDate(now.toISOString().slice(0, 16));
-    setEndDate(later.toISOString().slice(0, 16));
+    const toLocalISO = (d: Date) => {
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    };
+    setStartDate(toLocalISO(now));
+    setEndDate(toLocalISO(later));
     setVenue("Syed Tabish Alwari Auditorium, UCET IUB");
     setIsOnline(false);
     setMeetingLink("");
@@ -170,7 +174,7 @@ export default function AdminEventsManagerPage() {
     setSeatsLimit(60);
     setCertificateType("Certificate of Participation");
     setCertificateRule("Minimum 80% physical attendance verified via digital check-in");
-    setFeaturedImage("");
+    setFeaturedImage("/ieee-cs-logo.png");
     setLearningObjectives("Core technical hands-on skills\nIndustry relevant workflows\nOfficial IEEE certification");
     setEventReport("");
     setGalleryImages("");
@@ -200,7 +204,7 @@ export default function AdminEventsManagerPage() {
     setIsModalOpen(true);
   };
 
-  const handleSaveEvent = (e: React.FormEvent) => {
+  const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !slug.trim()) {
       alert("Please enter title and slug.");
@@ -217,7 +221,13 @@ export default function AdminEventsManagerPage() {
       .map((s) => s.trim())
       .filter(Boolean);
 
-    const cleanSlug = slug.trim().replace(/^\/+/, "");
+    const cleanSlug = slug
+      .trim()
+      .replace(/^\/+/, "")
+      .replace(/\/+$/, "")
+      .replace(/\s+/g, "-")
+      .toLowerCase();
+
     let safeStart = new Date().toISOString();
     let safeEnd = new Date(Date.now() + 86400000).toISOString();
     try {
@@ -243,16 +253,16 @@ export default function AdminEventsManagerPage() {
       paymentInstructions: feePkr > 0 ? "Transfer fee via Raast (ID: 0300-1234567) or Bank Alfalah and upload receipt." : undefined,
       certificateType: certificateType.trim(),
       certificateRule: certificateRule.trim(),
-      featuredImage: featuredImage.trim(),
+      featuredImage: featuredImage.trim() || "/ieee-cs-logo.png",
       galleryImages: gallery.length > 0 ? gallery : undefined,
       eventReport: eventReport.trim() || undefined,
     };
 
     if (editingEventId) {
-      db.updateEvent(editingEventId, eventPayload);
+      await db.updateEvent(editingEventId, eventPayload);
       alert(`Event "${title}" updated successfully!`);
     } else {
-      db.addEvent(eventPayload);
+      await db.addEvent(eventPayload);
       alert(`Event "${title}" created successfully!`);
     }
 
@@ -264,13 +274,15 @@ export default function AdminEventsManagerPage() {
       `${editingEventId ? "Updated" : "Created"} event "${title}" with status "${status}".`
     );
 
+    // Update state immediately
+    setEvents(db.getEvents());
     setIsModalOpen(false);
-    refreshEvents();
+    await refreshEvents();
   };
 
-  const handleDeleteEvent = (event: EventItem) => {
+  const handleDeleteEvent = async (event: EventItem) => {
     if (confirm(`Are you sure you want to delete event "${event.title}"?`)) {
-      db.deleteEvent(event.id);
+      await db.deleteEvent(event.id);
       db.addAuditLog(
         "Muhammad Roshan Ashraf",
         "EVENT_DELETED",
@@ -278,22 +290,28 @@ export default function AdminEventsManagerPage() {
         event.id,
         `Deleted event "${event.title}".`
       );
-      refreshEvents();
+      setEvents(db.getEvents());
+      await refreshEvents();
     }
   };
 
-  const handleQuickStatusChange = (eventId: string, newStatus: EventStatus) => {
-    db.updateEvent(eventId, { status: newStatus });
-    refreshEvents();
+  const handleQuickStatusChange = async (eventId: string, newStatus: EventStatus) => {
+    await db.updateEvent(eventId, { status: newStatus });
+    setEvents(db.getEvents());
+    await refreshEvents();
   };
 
   // Filtered Events
   const filteredEvents = events.filter((e) => {
     const matchesTab = activeTab === "ALL" || e.status === activeTab;
+    const eventTitle = (e.title || "").toLowerCase();
+    const eventVenue = (e.venue || "").toLowerCase();
+    const eventSlug = (e.slug || "").toLowerCase();
+    const search = searchTerm.toLowerCase();
     const matchesSearch =
-      e.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.venue.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      e.slug.toLowerCase().includes(searchTerm.toLowerCase());
+      eventTitle.includes(search) ||
+      eventVenue.includes(search) ||
+      eventSlug.includes(search);
     return matchesTab && matchesSearch;
   });
 
@@ -667,18 +685,52 @@ export default function AdminEventsManagerPage() {
                   </div>
                 </div>
 
-                {/* Featured Image */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Featured Cover Image URL
-                  </label>
+                {/* Featured Cover Image */}
+                <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <label className="block font-semibold text-gray-700">
+                      Featured Cover Image (Banner / Poster)
+                    </label>
+                    <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
+                      <UploadCloud size={14} /> Upload Banner Image
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = (loadEvt) => {
+                            const res = loadEvt.target?.result as string;
+                            if (res) setFeaturedImage(res);
+                          };
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  </div>
                   <input
-                    type="url"
+                    type="text"
                     value={featuredImage}
                     onChange={(e) => setFeaturedImage(e.target.value)}
-                    placeholder="https://example.com/banner.jpg or /ieee-cs-logo.png"
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none text-xs font-mono"
+                    placeholder="Enter image URL, /ieee-cs-logo.png, or upload file"
+                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none text-xs font-mono bg-white"
                   />
+                  {featuredImage && (
+                    <div className="flex items-center gap-3 pt-1">
+                      <div className="relative h-16 w-28 rounded-lg overflow-hidden border border-gray-300 bg-gray-100 flex-shrink-0">
+                        <img src={featuredImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setFeaturedImage("/ieee-cs-logo.png")}
+                        className="text-[11px] text-gray-600 hover:underline font-semibold"
+                      >
+                        Reset to Default Logo
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {/* Learning Objectives */}

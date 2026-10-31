@@ -503,7 +503,7 @@ class ChapterDatabase {
           .order("start_date", { ascending: false });
         if (data && !error && data.length > 0) {
           const mapped: EventItem[] = data.map((d: any) => ({
-            id: d.id,
+            id: d.id || `evt-${Date.now()}`,
             slug: d.slug,
             title: d.title,
             description: d.description,
@@ -524,18 +524,18 @@ class ChapterDatabase {
             vtoolsId: d.vtools_id,
             vtoolsLink: d.vtools_link,
             featuredImage: d.featured_image,
-            galleryImages: d.gallery_images || [],
+            galleryImages: Array.isArray(d.gallery_images) ? d.gallery_images : [],
             eventReport: d.event_report,
           }));
 
-          // Bidirectional merge: preserve all local events (especially newly created admin ones)
-          const merged = [...local];
-          for (const rem of mapped) {
-            const idx = merged.findIndex((m) => m.id === rem.id || m.slug === rem.slug);
-            if (idx === -1) {
-              merged.push(rem);
-            }
-          }
+          // Two-way merge: combine both Supabase and local cache
+          const mergedMap = new Map<string, EventItem>();
+          // Add local events first
+          local.forEach((e) => mergedMap.set(e.slug, e));
+          // Overlay remote events
+          mapped.forEach((rem) => mergedMap.set(rem.slug, rem));
+
+          const merged = Array.from(mergedMap.values());
           this.setItem("events", merged);
           return merged;
         }
@@ -548,12 +548,28 @@ class ChapterDatabase {
 
   getEventBySlug(slug: string): EventItem | undefined {
     const list = this.getEvents();
-    const clean = slug.replace(/^\/+/, "");
-    return list.find((e) => e.slug === clean || e.slug === `2026/${clean}` || e.slug.endsWith(clean) || clean.endsWith(e.slug));
+    const clean = slug.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+    const baseClean = clean.split("/").pop() || clean;
+
+    return list.find((e) => {
+      const eClean = e.slug.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+      const eBase = eClean.split("/").pop() || eClean;
+      return (
+        eClean === clean ||
+        eBase === baseClean ||
+        eClean === `2026/${clean}` ||
+        eClean === `2025/${clean}` ||
+        clean === `2026/${eClean}` ||
+        clean === `2025/${eClean}` ||
+        eClean.endsWith(clean) ||
+        clean.endsWith(eClean)
+      );
+    });
   }
 
   async fetchEventBySlug(slug: string): Promise<EventItem | undefined> {
-    const clean = slug.replace(/^\/+/, "");
+    const clean = slug.trim().replace(/^\/+/, "").replace(/\/+$/, "");
+    const baseClean = clean.split("/").pop() || clean;
     const local = this.getEventBySlug(clean);
     if (local) return local;
 
@@ -562,7 +578,7 @@ class ChapterDatabase {
         const { data, error } = await supabase
           .from("events")
           .select("*")
-          .or(`slug.eq.${clean},slug.eq.2026/${clean}`)
+          .or(`slug.eq.${clean},slug.eq.2026/${baseClean},slug.eq.${baseClean}`)
           .maybeSingle();
         if (data && !error && data) {
           const evt: EventItem = {
@@ -587,7 +603,7 @@ class ChapterDatabase {
             vtoolsId: data.vtools_id,
             vtoolsLink: data.vtools_link,
             featuredImage: data.featured_image,
-            galleryImages: data.gallery_images || [],
+            galleryImages: Array.isArray(data.gallery_images) ? data.gallery_images : [],
             eventReport: data.event_report,
           };
           const list = this.getEvents();
@@ -608,7 +624,7 @@ class ChapterDatabase {
     return this.getEvents().find((e) => e.id === id);
   }
 
-  addEvent(event: EventItem): void {
+  async addEvent(event: EventItem): Promise<void> {
     const list = this.getEvents();
     // Prevent duplicate ID/slug
     const filtered = list.filter((e) => e.id !== event.id && e.slug !== event.slug);
@@ -616,70 +632,98 @@ class ChapterDatabase {
     this.setItem("events", filtered);
 
     if (supabase) {
-      supabase.from("events").upsert({
-        slug: event.slug,
-        title: event.title,
-        description: event.description,
-        learning_objectives: event.learningObjectives?.join("\n") || "",
-        target_audience: event.targetAudience || "",
-        start_date: event.startDate,
-        end_date: event.endDate,
-        venue: event.venue,
-        is_online: event.isOnline,
-        meeting_link: event.meetingLink,
-        status: event.status,
-        status_reason: event.statusReason,
-        seats_limit: event.seatsLimit,
-        fee_pkr: event.feePkr,
-        payment_instructions: event.paymentInstructions,
-        certificate_type: event.certificateType,
-        certificate_rule: event.certificateRule,
-        vtools_id: event.vtoolsId,
-        vtools_link: event.vtoolsLink,
-        featured_image: event.featuredImage,
-      }, { onConflict: "slug" }).then(({ error }) => {
-        if (error) console.warn("Supabase addEvent sync error:", error);
-      });
+      try {
+        const payload: Record<string, any> = {
+          slug: event.slug,
+          title: event.title,
+          description: event.description,
+          learning_objectives: event.learningObjectives?.join("\n") || "",
+          target_audience: event.targetAudience || "",
+          start_date: event.startDate,
+          end_date: event.endDate,
+          venue: event.venue,
+          is_online: Boolean(event.isOnline),
+          meeting_link: event.meetingLink || null,
+          status: event.status,
+          status_reason: event.statusReason || null,
+          seats_limit: event.seatsLimit || 60,
+          fee_pkr: event.feePkr || 0,
+          payment_instructions: event.paymentInstructions || null,
+          certificate_type: event.certificateType,
+          certificate_rule: event.certificateRule || null,
+          vtools_id: event.vtoolsId || null,
+          vtools_link: event.vtoolsLink || null,
+          featured_image: event.featuredImage || "/ieee-cs-logo.png",
+          gallery_images: event.galleryImages || [],
+          event_report: event.eventReport || null,
+        };
+
+        const { data: existing } = await supabase
+          .from("events")
+          .select("id")
+          .eq("slug", event.slug)
+          .maybeSingle();
+
+        if (existing?.id) {
+          const { error } = await supabase.from("events").update(payload).eq("id", existing.id);
+          if (error) console.warn("Supabase event update error:", error);
+        } else {
+          const { error } = await supabase.from("events").insert(payload);
+          if (error) console.warn("Supabase event insert error:", error);
+        }
+      } catch (err) {
+        console.warn("Supabase addEvent sync error:", err);
+      }
     }
   }
 
-  updateEvent(id: string, updates: Partial<EventItem>): boolean {
+  async updateEvent(id: string, updates: Partial<EventItem>): Promise<boolean> {
     const list = this.getEvents();
-    const index = list.findIndex((e) => e.id === id);
+    const index = list.findIndex((e) => e.id === id || e.slug === updates.slug);
     if (index === -1) return false;
 
+    const targetSlug = list[index].slug;
     list[index] = { ...list[index], ...updates };
     this.setItem("events", list);
 
     if (supabase) {
-      const payload: Record<string, any> = {};
-      if (updates.title) payload.title = updates.title;
-      if (updates.description) payload.description = updates.description;
-      if (updates.status) payload.status = updates.status;
-      if (updates.statusReason) payload.status_reason = updates.statusReason;
-      if (updates.startDate) payload.start_date = updates.startDate;
-      if (updates.endDate) payload.end_date = updates.endDate;
-      if (updates.venue) payload.venue = updates.venue;
-      if (updates.feePkr !== undefined) payload.fee_pkr = updates.feePkr;
-      if (updates.certificateType) payload.certificate_type = updates.certificateType;
-      if (updates.certificateRule) payload.certificate_rule = updates.certificateRule;
-      if (updates.featuredImage) payload.featured_image = updates.featuredImage;
+      try {
+        const payload: Record<string, any> = {};
+        if (updates.title) payload.title = updates.title;
+        if (updates.slug) payload.slug = updates.slug;
+        if (updates.description) payload.description = updates.description;
+        if (updates.status) payload.status = updates.status;
+        if (updates.statusReason !== undefined) payload.status_reason = updates.statusReason;
+        if (updates.startDate) payload.start_date = updates.startDate;
+        if (updates.endDate) payload.end_date = updates.endDate;
+        if (updates.venue) payload.venue = updates.venue;
+        if (updates.feePkr !== undefined) payload.fee_pkr = updates.feePkr;
+        if (updates.seatsLimit !== undefined) payload.seats_limit = updates.seatsLimit;
+        if (updates.isOnline !== undefined) payload.is_online = updates.isOnline;
+        if (updates.meetingLink !== undefined) payload.meeting_link = updates.meetingLink;
+        if (updates.learningObjectives) payload.learning_objectives = updates.learningObjectives.join("\n");
+        if (updates.certificateType) payload.certificate_type = updates.certificateType;
+        if (updates.certificateRule !== undefined) payload.certificate_rule = updates.certificateRule;
+        if (updates.featuredImage) payload.featured_image = updates.featuredImage;
+        if (updates.galleryImages) payload.gallery_images = updates.galleryImages;
+        if (updates.eventReport !== undefined) payload.event_report = updates.eventReport;
 
-      if (Object.keys(payload).length > 0) {
-        supabase
-          .from("events")
-          .update(payload)
-          .eq("slug", list[index].slug)
-          .then(({ error }) => {
-            if (error) console.warn("Supabase updateEvent sync error:", error);
-          });
+        if (Object.keys(payload).length > 0) {
+          const { error } = await supabase
+            .from("events")
+            .update(payload)
+            .eq("slug", targetSlug);
+          if (error) console.warn("Supabase updateEvent sync error:", error);
+        }
+      } catch (err) {
+        console.warn("Supabase updateEvent error:", err);
       }
     }
 
     return true;
   }
 
-  deleteEvent(id: string): boolean {
+  async deleteEvent(id: string): Promise<boolean> {
     const list = this.getEvents();
     const target = list.find((e) => e.id === id);
     if (!target) return false;
@@ -688,13 +732,15 @@ class ChapterDatabase {
     this.setItem("events", filtered);
 
     if (supabase) {
-      supabase
-        .from("events")
-        .delete()
-        .eq("slug", target.slug)
-        .then(({ error }) => {
-          if (error) console.warn("Supabase deleteEvent sync error:", error);
-        });
+      try {
+        const { error } = await supabase
+          .from("events")
+          .delete()
+          .eq("slug", target.slug);
+        if (error) console.warn("Supabase deleteEvent sync error:", error);
+      } catch (err) {
+        console.warn("Supabase deleteEvent error:", err);
+      }
     }
 
     return true;

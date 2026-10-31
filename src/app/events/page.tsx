@@ -94,7 +94,7 @@ export default function EventsListPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {filteredEvents.map((evt) => {
-              const permanentSlug = evt.slug.split("/")[1] || evt.slug;
+              const cleanSlug = evt.slug.trim().replace(/^\/+/, "");
               const isPostponed = evt.status === "POSTPONED";
               const isCancelled = evt.status === "CANCELLED";
 
@@ -141,7 +141,7 @@ export default function EventsListPage() {
                       </div>
 
                       <h3 className="font-montserrat font-bold text-lg text-ieee-navy group-hover:text-ieee-blue transition-colors line-clamp-2">
-                        <Link href={`/events/${permanentSlug}`}>
+                        <Link href={`/events/${cleanSlug}`}>
                           {evt.title}
                         </Link>
                       </h3>
@@ -177,7 +177,7 @@ export default function EventsListPage() {
                     </div>
 
                     <Link
-                      href={`/events/${permanentSlug}`}
+                      href={`/events/${cleanSlug}`}
                       className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue group-hover:text-ieee-navy hover:underline"
                     >
                       Permanent Page <ArrowRight size={13} className="ml-1" />

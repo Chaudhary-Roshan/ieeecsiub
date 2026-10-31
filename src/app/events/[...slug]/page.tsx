@@ -78,18 +78,12 @@ export default function EventDetailPage() {
       : cleanSlug;
 
     async function loadEvent() {
-      const live = await db.fetchEventBySlug(cleanSlug);
-      let currentEvt: EventItem | null = live || null;
+      let currentEvt: EventItem | null = (await db.fetchEventBySlug(cleanSlug)) || null;
+      if (!currentEvt && baseSlug !== cleanSlug) {
+        currentEvt = (await db.fetchEventBySlug(baseSlug)) || null;
+      }
       if (!currentEvt) {
-        currentEvt = db.getEvents().find(
-          (e) =>
-            e.slug === cleanSlug ||
-            e.slug === `2026/${cleanSlug}` ||
-            e.slug === `2025/${cleanSlug}` ||
-            e.slug.endsWith(`/${cleanSlug}`) ||
-            e.slug.endsWith(`/${baseSlug}`) ||
-            e.slug === baseSlug
-        ) || null;
+        currentEvt = db.getEventBySlug(cleanSlug) || db.getEventBySlug(baseSlug) || null;
       }
       setEvent(currentEvt);
       if (currentEvt) {
