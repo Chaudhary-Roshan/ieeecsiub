@@ -7,6 +7,8 @@ import { ChapterLogo } from "../layout/ChapterLogo";
 import { INITIAL_STAFF_USERS } from "@/lib/constants";
 import { StaffUser, StaffRole } from "@/types";
 import { db } from "@/lib/db";
+import { testSupabaseConnection, SupabaseConfigStatus } from "@/lib/supabase";
+import { DatabaseStatusModal } from "./DatabaseStatusModal";
 import {
   LayoutDashboard,
   CalendarPlus,
@@ -23,14 +25,19 @@ import {
   ChevronRight,
   UserCheck,
   RefreshCw,
+  Database,
 } from "lucide-react";
 import clsx from "clsx";
 
 export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const pathname = usePathname();
   const [currentUser, setCurrentUser] = useState<StaffUser>(INITIAL_STAFF_USERS[0]); // Dedicated Administrator
+  const [dbStatus, setDbStatus] = useState<SupabaseConfigStatus | null>(null);
+  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
 
   useEffect(() => {
+    testSupabaseConnection().then((st) => setDbStatus(st));
+
     const saved = localStorage.getItem("ieee_cs_active_staff");
     if (saved) {
       try {
@@ -142,7 +149,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
       {/* Main Admin Content Container */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Navbar */}
-        <header className="bg-white border-b border-gray-200 px-6 py-3.5 flex items-center justify-between">
+        <header className="bg-white border-b border-gray-200 px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <span className="text-xs font-montserrat font-bold text-gray-500 uppercase tracking-wider">
               IEEE CS UCET-IUB Staff Session:
@@ -152,7 +159,26 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </span>
           </div>
 
-          <div className="flex items-center gap-3 text-xs">
+          <div className="flex items-center gap-3 text-xs flex-wrap">
+            {/* Real-time Database Status Pill */}
+            <button
+              onClick={() => setIsDbModalOpen(true)}
+              className={clsx(
+                "flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold border transition-all shadow-sm",
+                dbStatus?.isConnected
+                  ? "bg-emerald-50 text-emerald-700 border-emerald-300 hover:bg-emerald-100"
+                  : "bg-amber-50 text-amber-800 border-amber-300 hover:bg-amber-100 animate-pulse"
+              )}
+              title="Click to check or configure database connection"
+            >
+              <Database size={13} className={dbStatus?.isConnected ? "text-emerald-600" : "text-amber-600"} />
+              <span>
+                {dbStatus?.isConnected
+                  ? "Database: Live Connected"
+                  : "Database: Disconnected (Configure)"}
+              </span>
+            </button>
+
             <button
               onClick={() => {
                 if (confirm("Reset local cache and synchronize with real-time database?")) {
@@ -163,17 +189,24 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
               className="px-2.5 py-1 text-[11px] rounded bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold border border-gray-300 transition-colors flex items-center gap-1.5"
               title="Clears any cached mock data and pulls clean live records from database"
             >
-              <RefreshCw size={12} /> Sync / Reset Cache
+              <RefreshCw size={12} /> Sync Cache
             </button>
             <Link
               href="/verify"
               target="_blank"
-              className="text-ieee-blue hover:underline font-semibold flex items-center gap-1"
+              className="text-ieee-blue hover:underline font-semibold flex items-center gap-1 text-[11px]"
             >
               Public Verify Page
             </Link>
           </div>
         </header>
+
+        {/* Database Configuration Modal */}
+        <DatabaseStatusModal
+          isOpen={isDbModalOpen}
+          onClose={() => setIsDbModalOpen(false)}
+          onStatusChange={(newStatus) => setDbStatus(newStatus)}
+        />
 
         {/* Content Children */}
         <main className="flex-1 p-6 md:p-8 max-w-7xl w-full mx-auto space-y-8">

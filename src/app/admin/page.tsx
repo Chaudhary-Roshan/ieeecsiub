@@ -4,6 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { testSupabaseConnection } from "@/lib/supabase";
+import { DatabaseStatusModal } from "@/components/admin/DatabaseStatusModal";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import {
@@ -16,6 +18,7 @@ import {
   History,
   ArrowRight,
   TrendingUp,
+  Database,
 } from "lucide-react";
 
 export default function AdminDashboardPage() {
@@ -23,9 +26,14 @@ export default function AdminDashboardPage() {
   const [stagedBatches, setStagedBatches] = useState<any[]>([]);
   const [pendingPayments, setPendingPayments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null);
+  const [isDbModalOpen, setIsDbModalOpen] = useState(false);
 
   useEffect(() => {
     async function loadStats() {
+      const conn = await testSupabaseConnection();
+      setIsDbConnected(conn.isConnected);
+
       const liveCerts = await db.fetchCertificates();
       setCertsCount(liveCerts.length);
       const livePayments = await db.fetchPayments();
@@ -40,6 +48,37 @@ export default function AdminDashboardPage() {
   return (
     <AdminLayout>
       <div className="space-y-8">
+        {/* Cloud Database Offline Notice */}
+        {isDbConnected === false && (
+          <div className="bg-amber-50 border border-amber-300 rounded-card p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 text-xs shadow-sm">
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Database size={18} />
+              </div>
+              <div className="space-y-1">
+                <h3 className="font-montserrat font-bold text-amber-950 text-sm">
+                  Cloud Database Offline (Browser LocalStorage Mode Active)
+                </h3>
+                <p className="text-amber-800 leading-relaxed max-w-2xl">
+                  The admin panel is currently saving records only inside this browser. To synchronize events, certificates, and team members with the live public website and mobile visitors across all devices, connect your Supabase database.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setIsDbModalOpen(true)}
+              className="px-4 py-2 bg-ieee-navy text-white font-montserrat font-bold rounded-lg hover:bg-ieee-blue transition-colors whitespace-nowrap self-start sm:self-center shadow-sm"
+            >
+              Connect Database &rarr;
+            </button>
+          </div>
+        )}
+
+        <DatabaseStatusModal
+          isOpen={isDbModalOpen}
+          onClose={() => setIsDbModalOpen(false)}
+          onStatusChange={(st) => setIsDbConnected(st.isConnected)}
+        />
+
         {/* Top Header */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-montserrat font-extrabold text-ieee-navy">

@@ -416,12 +416,14 @@ class ChapterDatabase {
 
   addCertificate(cert: CertificateRecord): void {
     const list = this.getCertificates();
-    list.unshift(cert);
-    this.setItem("certificates", list);
+    const cleanCode = cert.code.trim().toUpperCase();
+    const filtered = list.filter((c) => c.code.toUpperCase() !== cleanCode);
+    filtered.unshift(cert);
+    this.setItem("certificates", filtered);
 
     if (supabase) {
-      supabase.from("certificates").upsert({
-        code: cert.code,
+      const payload: Record<string, any> = {
+        code: cleanCode,
         recipient_name: cert.recipientName,
         public_name_format: cert.publicNameFormat,
         event_title: cert.eventTitle,
@@ -443,9 +445,27 @@ class ChapterDatabase {
         revocation_reason: cert.revocationReason,
         sha256_fingerprint: cert.sha256Fingerprint,
         pdf_url: cert.pdfUrl,
-      }).then(({ error }) => {
-        if (error) console.warn("Supabase addCertificate sync error:", error);
-      });
+      };
+
+      (async () => {
+        try {
+          const { data: existing } = await supabase
+            .from("certificates")
+            .select("id")
+            .eq("code", cleanCode)
+            .maybeSingle();
+
+          if (existing?.id) {
+            const { error } = await supabase.from("certificates").update(payload).eq("id", existing.id);
+            if (error) console.warn("Supabase addCertificate sync error:", error);
+          } else {
+            const { error } = await supabase.from("certificates").insert(payload);
+            if (error) console.warn("Supabase addCertificate sync error:", error);
+          }
+        } catch (err) {
+          console.warn("Supabase addCertificate error:", err);
+        }
+      })();
     }
   }
 
@@ -820,17 +840,16 @@ class ChapterDatabase {
 
   saveTemplate(tpl: CertificateTemplate): void {
     const list = this.getTemplates();
-    const index = list.findIndex((t) => t.id === tpl.id);
+    const index = list.findIndex((t) => t.id === tpl.id || t.name === tpl.name);
     if (index >= 0) {
-      list[index] = tpl;
+      list[index] = { ...list[index], ...tpl };
     } else {
       list.unshift(tpl);
     }
     this.setItem("certificate_templates", list);
 
     if (supabase) {
-      supabase.from("certificate_templates").upsert({
-        id: tpl.id.startsWith("tpl-") ? undefined : tpl.id,
+      const payload: Record<string, any> = {
         name: tpl.name,
         description: tpl.description || null,
         html_content: tpl.htmlContent,
@@ -845,9 +864,27 @@ class ChapterDatabase {
         ieee_logo_url: tpl.ieeeLogoUrl || null,
         event_logo_url: tpl.eventLogoUrl || null,
         is_active: tpl.isDefault ?? true,
-      }).then(({ error }) => {
-        if (error) console.warn("Supabase saveTemplate sync error:", error);
-      });
+      };
+
+      (async () => {
+        try {
+          const { data: existing } = await supabase
+            .from("certificate_templates")
+            .select("id")
+            .eq("name", tpl.name)
+            .maybeSingle();
+
+          if (existing?.id) {
+            const { error } = await supabase.from("certificate_templates").update(payload).eq("id", existing.id);
+            if (error) console.warn("Supabase saveTemplate sync error:", error);
+          } else {
+            const { error } = await supabase.from("certificate_templates").insert(payload);
+            if (error) console.warn("Supabase saveTemplate sync error:", error);
+          }
+        } catch (err) {
+          console.warn("Supabase saveTemplate error:", err);
+        }
+      })();
     }
   }
 
@@ -948,9 +985,9 @@ class ChapterDatabase {
 
   async saveTeamMember(member: TeamMember): Promise<void> {
     const list = this.getTeamMembers();
-    const index = list.findIndex((m) => m.id === member.id);
+    const index = list.findIndex((m) => m.id === member.id || (m.name === member.name && m.committeeYear === member.committeeYear));
     if (index >= 0) {
-      list[index] = member;
+      list[index] = { ...list[index], ...member };
     } else {
       list.push(member);
     }
@@ -958,16 +995,35 @@ class ChapterDatabase {
 
     if (supabase) {
       try {
-        await supabase.from("team_members").upsert({
-          id: member.id,
+        const payload: Record<string, any> = {
           name: member.name,
           position: member.position,
           committee_year: member.committeeYear,
-          photo_url: member.photoUrl,
-          approved_bio: member.approvedBio,
-          is_current: member.isCurrent,
+          photo_url: member.photoUrl || "",
+          approved_bio: member.approvedBio || "",
+          is_current: member.isCurrent ?? true,
           order_index: member.orderIndex ?? (index >= 0 ? index : list.length - 1),
-        });
+        };
+
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(member.id);
+        if (isUUID) {
+          payload.id = member.id;
+        }
+
+        const { data: existing } = await supabase
+          .from("team_members")
+          .select("id")
+          .eq("name", member.name)
+          .eq("committee_year", member.committeeYear)
+          .maybeSingle();
+
+        if (existing?.id) {
+          const { error } = await supabase.from("team_members").update(payload).eq("id", existing.id);
+          if (error) console.warn("Supabase update team_member error:", error);
+        } else {
+          const { error } = await supabase.from("team_members").insert(payload);
+          if (error) console.warn("Supabase insert team_member error:", error);
+        }
       } catch (err) {
         console.warn("Supabase saveTeamMember sync error:", err);
       }
@@ -975,12 +1031,19 @@ class ChapterDatabase {
   }
 
   async deleteTeamMember(id: string): Promise<void> {
-    const list = this.getTeamMembers().filter((m) => m.id !== id);
-    this.setItem("team", list);
+    const list = this.getTeamMembers();
+    const target = list.find((m) => m.id === id);
+    const filtered = list.filter((m) => m.id !== id);
+    this.setItem("team", filtered);
 
     if (supabase) {
       try {
-        await supabase.from("team_members").delete().eq("id", id);
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+        if (isUUID) {
+          await supabase.from("team_members").delete().eq("id", id);
+        } else if (target) {
+          await supabase.from("team_members").delete().eq("name", target.name).eq("committee_year", target.committeeYear);
+        }
       } catch (err) {
         console.warn("Supabase deleteTeamMember error:", err);
       }

@@ -43,7 +43,7 @@ CREATE TYPE staff_role_type AS ENUM ('ADMIN', 'SITE_ADMIN');
 
 -- 1. Staff Users and Role-Based Access Control
 CREATE TABLE staff_users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     email TEXT UNIQUE NOT NULL,
     full_name TEXT NOT NULL,
     role staff_role_type NOT NULL,
@@ -57,7 +57,7 @@ CREATE TABLE staff_users (
 
 -- 2. Team Members (Advisors, ExCom & Archive)
 CREATE TABLE team_members (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name TEXT NOT NULL,
     position TEXT NOT NULL,
     committee_year TEXT NOT NULL,
@@ -70,7 +70,7 @@ CREATE TABLE team_members (
 
 -- 3. Events Table
 CREATE TABLE events (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     slug TEXT UNIQUE NOT NULL,
     title TEXT NOT NULL,
     description TEXT NOT NULL,
@@ -122,13 +122,13 @@ CREATE POLICY "Staff can manage event teams" ON event_teams FOR ALL USING (true)
 
 -- 4. Upload Batches (Option 1 Staging & Two-Officer Approval)
 CREATE TABLE upload_batches (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    event_id TEXT REFERENCES events(id) ON DELETE SET NULL,
     filename TEXT NOT NULL,
     row_count INT NOT NULL DEFAULT 0,
-    uploaded_by UUID REFERENCES staff_users(id),
+    uploaded_by TEXT REFERENCES staff_users(id),
     status batch_status DEFAULT 'STAGED',
-    approved_by UUID REFERENCES staff_users(id),
+    approved_by TEXT REFERENCES staff_users(id),
     approved_at TIMESTAMPTZ,
     rejection_reason TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -136,11 +136,11 @@ CREATE TABLE upload_batches (
 
 -- 5. Certificates Table (Verified on the public /verify page)
 CREATE TABLE certificates (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     code TEXT UNIQUE NOT NULL,
     recipient_name TEXT NOT NULL,
     public_name_format TEXT NOT NULL DEFAULT 'FULL_NAME',
-    event_id UUID REFERENCES events(id) ON DELETE RESTRICT,
+    event_id TEXT REFERENCES events(id) ON DELETE RESTRICT,
     event_title TEXT NOT NULL,
     certificate_type TEXT NOT NULL,
     recognition_level TEXT DEFAULT 'CHAPTER_RECOGNITION',
@@ -151,7 +151,7 @@ CREATE TABLE certificates (
     approver_role TEXT NOT NULL,
     status certificate_status DEFAULT 'ACTIVE',
     source certificate_source NOT NULL DEFAULT 'UPLOAD_REGISTRY',
-    batch_id UUID REFERENCES upload_batches(id) ON DELETE SET NULL,
+    batch_id TEXT REFERENCES upload_batches(id) ON DELETE SET NULL,
     template_id TEXT,
     team_name TEXT,
     project_title TEXT,
@@ -167,21 +167,21 @@ CREATE TABLE certificates (
 
 -- 6. Certificate Versions & Snapshots
 CREATE TABLE certificate_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    certificate_id UUID NOT NULL REFERENCES certificates(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    certificate_id TEXT NOT NULL REFERENCES certificates(id) ON DELETE CASCADE,
     version_number INT NOT NULL,
     data_snapshot JSONB NOT NULL,
     sha256_hash TEXT,
     pdf_url TEXT,
     reason TEXT,
-    created_by UUID REFERENCES staff_users(id),
+    created_by TEXT REFERENCES staff_users(id),
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 7. Option 2: Event Registrations
 CREATE TABLE registrations (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    event_id UUID NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     private_token TEXT UNIQUE NOT NULL DEFAULT encode(gen_random_bytes(24), 'hex'),
     full_name TEXT NOT NULL,
     name_display_preference TEXT NOT NULL DEFAULT 'FULL_NAME',
@@ -199,14 +199,14 @@ CREATE TABLE registrations (
 
 -- 8. Option 2: Payments Queue
 CREATE TABLE payments (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    registration_id UUID NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    registration_id TEXT NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
     amount_pkr NUMERIC(10, 2) NOT NULL,
     payment_method TEXT NOT NULL,
     transaction_id TEXT UNIQUE NOT NULL,
     proof_image_url TEXT NOT NULL,
     status payment_status DEFAULT 'PENDING',
-    verified_by UUID REFERENCES staff_users(id),
+    verified_by TEXT REFERENCES staff_users(id),
     verified_at TIMESTAMPTZ,
     rejection_reason TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -214,19 +214,19 @@ CREATE TABLE payments (
 
 -- 9. Option 2: Tickets & Attendance Check-in
 CREATE TABLE tickets (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    registration_id UUID UNIQUE NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    registration_id TEXT UNIQUE NOT NULL REFERENCES registrations(id) ON DELETE CASCADE,
     ticket_code TEXT UNIQUE NOT NULL,
     is_used BOOLEAN DEFAULT FALSE,
     checked_in_at TIMESTAMPTZ,
-    checked_in_by UUID REFERENCES staff_users(id),
+    checked_in_by TEXT REFERENCES staff_users(id),
     manual_checkin_reason TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- 10. Option 2: Certificate Templates
 CREATE TABLE certificate_templates (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name TEXT NOT NULL,
     description TEXT,
     background_svg_url TEXT,
