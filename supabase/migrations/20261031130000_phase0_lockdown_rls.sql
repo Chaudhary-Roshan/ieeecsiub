@@ -83,3 +83,4 @@ BEGIN
         EXECUTE format('CREATE POLICY "Service role full access" ON public.%I FOR ALL TO service_role USING (true) WITH CHECK (true);', tbl);
     END LOOP;
 END $$;
+
