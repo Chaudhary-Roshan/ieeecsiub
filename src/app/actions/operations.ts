@@ -114,3 +114,4 @@ export async function checkInTicketAction(ticketCode: string, reason?: string) {
   revalidatePath("/admin/attendance");
   return data;
 }
+

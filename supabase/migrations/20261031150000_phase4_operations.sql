@@ -291,3 +291,4 @@ GRANT EXECUTE ON FUNCTION public.register_for_event TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.submit_payment TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.verify_payment TO authenticated;
 GRANT EXECUTE ON FUNCTION public.check_in TO authenticated;
+

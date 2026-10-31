@@ -313,6 +313,43 @@ class ChapterDatabase {
 
     if (client) {
       try {
+        // First try the secure verification RPC which works under anon RLS
+        const { data: rpcData, error: rpcError } = await client.rpc("verify_certificate", {
+          cert_code: clean,
+        });
+
+        if (rpcData && !rpcError && rpcData.found) {
+          const mapped: CertificateRecord = {
+            id: rpcData.code,
+            code: rpcData.code,
+            recipientName: rpcData.recipient_name,
+            publicNameFormat: "FULL_NAME",
+            eventId: "",
+            eventTitle: rpcData.event_name || "IEEE Technical Session",
+            certificateType: rpcData.certificate_type || "Certificate of Participation",
+            recognitionLevel: (rpcData.recognition_level as any) || "CHAPTER_RECOGNITION",
+            partnerName: rpcData.partner_name || undefined,
+            issuerStatement: rpcData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+            activityDate: rpcData.event_date || "",
+            issueDate: rpcData.issue_date || "",
+            approverName: rpcData.approver_name || "Chapter Chair",
+            approverRole: rpcData.approver_role || "Chapter Chair",
+            status: rpcData.status || "ACTIVE",
+            source: "IN_SITE_GENERATED",
+            templateId: rpcData.template_id || undefined,
+            teamName: rpcData.team_name || undefined,
+            projectTitle: rpcData.project_title || undefined,
+            replacedByCode: rpcData.replaced_by_code || undefined,
+            replacementReason: rpcData.replacement_reason || undefined,
+            revocationDate: rpcData.revocation_date || undefined,
+            revocationReason: rpcData.revocation_reason || undefined,
+            sha256Fingerprint: rpcData.sha256_hash || undefined,
+            createdAt: rpcData.issue_date || new Date().toISOString(),
+          };
+          return mapped;
+        }
+
+        // Fallback to direct select for authenticated staff or fallback schemas
         const { data, error } = await client
           .from("certificates")
           .select("*")
@@ -348,12 +385,10 @@ class ChapterDatabase {
             pdfUrl: data.pdf_url,
             createdAt: data.created_at || new Date().toISOString(),
           };
-          // Also cache locally
-          this.updateCertificate(clean, mapped);
           return mapped;
         }
       } catch (err) {
-        console.warn("Supabase fetchCertificateByCode fallback to local:", err);
+        console.warn("Supabase fetchCertificateByCode error:", err);
       }
     }
 
