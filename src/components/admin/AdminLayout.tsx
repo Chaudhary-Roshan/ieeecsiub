@@ -34,6 +34,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentUser, setCurrentUser] = useState<StaffUser>(INITIAL_STAFF_USERS[0]); // Dedicated Administrator
   const [dbStatus, setDbStatus] = useState<SupabaseConfigStatus | null>(null);
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     testSupabaseConnection().then((st) => setDbStatus(st));
@@ -180,16 +181,26 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             </button>
 
             <button
-              onClick={() => {
-                if (confirm("Reset local cache and synchronize with real-time database?")) {
-                  db.purgeAllTestData();
+              onClick={async () => {
+                setIsSyncing(true);
+                try {
+                  await Promise.allSettled([
+                    db.fetchEvents(),
+                    db.fetchTeamMembers(),
+                    db.fetchCertificates(),
+                    db.fetchTemplates(),
+                  ]);
                   window.location.reload();
+                } finally {
+                  setIsSyncing(false);
                 }
               }}
+              disabled={isSyncing}
               className="px-2.5 py-1 text-[11px] rounded bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold border border-gray-300 transition-colors flex items-center gap-1.5"
-              title="Clears any cached mock data and pulls clean live records from database"
+              title="Pulls latest data from the live database into this browser"
             >
-              <RefreshCw size={12} /> Sync Cache
+              <RefreshCw size={12} className={isSyncing ? "animate-spin text-ieee-blue" : ""} />
+              <span>{isSyncing ? "Syncing..." : "Sync Database"}</span>
             </button>
             <Link
               href="/verify"

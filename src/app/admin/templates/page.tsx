@@ -343,22 +343,22 @@ export default function AdminCertificateTemplatesPage() {
       .replace(/{{issue_date}}/g, "June 03, 2026");
 
     // Dynamic replacement for ANY hardcoded IEEE emblem box container or standalone text
-    rendered = rendered.replace(
-      /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
-      (fullMatch, attrs) => `<div${attrs}>${ieeeLogoImgHtml}</div>`
-    );
-    rendered = rendered.replace(
-      /<div([^>]*style=["'][^"']*(?:padding|border)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
-      (fullMatch, attrs) => `<div${attrs}>${ieeeLogoImgHtml}</div>`
-    );
-    rendered = rendered.replace(
-      /<div([^>]*style=["'][^"']*letter-spacing[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
-      ieeeLogoImgHtml
-    );
-    rendered = rendered.replace(
-      /<div([^>]*)>\s*IEEE\s*<\/div>/gi,
-      ieeeLogoImgHtml
-    );
+    rendered = rendered
+      .replace(
+        /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+        (fullMatch, attrs) => `<div${attrs}>${ieeeLogoImgHtml}</div>`
+      )
+      .replace(
+        /<div([^>]*style=["'][^"']*(?:padding|border)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+        (fullMatch, attrs) => `<div${attrs}>${ieeeLogoImgHtml}</div>`
+      )
+      .replace(
+        /<div([^>]*style=["'][^"']*letter-spacing[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+        ieeeLogoImgHtml
+      )
+      .replace(/<div([^>]*)>\s*IEEE\s*<\/div>/gi, ieeeLogoImgHtml)
+      .replace(/<span([^>]*)>\s*IEEE\s*<\/span>/gi, ieeeLogoImgHtml)
+      .replace(/<strong([^>]*)>\s*IEEE\s*<\/strong>/gi, ieeeLogoImgHtml);
 
     return rendered;
   };
@@ -389,7 +389,7 @@ export default function AdminCertificateTemplatesPage() {
     setHtmlCode((prev) => prev + "\n" + tag);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const updated: CertificateTemplate = {
       id: selectedTemplateId || `tpl-${Date.now()}`,
       name: templateName.trim(),
@@ -408,7 +408,7 @@ export default function AdminCertificateTemplatesPage() {
       createdAt: new Date().toISOString(),
     };
 
-    db.saveTemplate(updated);
+    await db.saveTemplate(updated);
 
     // Also persist signatures & logos globally in localStorage
     if (typeof window !== "undefined") {

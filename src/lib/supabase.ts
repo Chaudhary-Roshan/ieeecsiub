@@ -4,7 +4,7 @@ export interface SupabaseConfigStatus {
   isConfigured: boolean;
   isConnected: boolean;
   url: string;
-  source: "ENV" | "LOCAL_STORAGE" | "NONE";
+  source: "ENV" | "LOCAL_STORAGE" | "SERVER_RUNTIME" | "NONE";
   error?: string;
   tableCounts?: {
     events?: number;
@@ -14,6 +14,10 @@ export interface SupabaseConfigStatus {
     templates?: number;
   };
 }
+
+let cachedClient: SupabaseClient | null = null;
+let cachedUrl = "";
+let cachedKey = "";
 
 // Helper to get active credentials safely (server-side & client-side)
 export function getActiveSupabaseCredentials(): { url: string; key: string; source: "ENV" | "LOCAL_STORAGE" | "NONE" } {
@@ -37,17 +41,23 @@ export function getActiveSupabaseCredentials(): { url: string; key: string; sour
   return { url: "", key: "", source: "NONE" };
 }
 
-// Create or return Supabase Client instance
-export function createSupabaseInstance(): SupabaseClient | null {
+// Dynamic getter that ensures we always have the active Supabase client instance
+export function getSupabase(): SupabaseClient | null {
   const { url, key } = getActiveSupabaseCredentials();
   if (url && key && url.startsWith("http")) {
+    if (cachedClient && cachedUrl === url && cachedKey === key) {
+      return cachedClient;
+    }
     try {
-      return createClient(url, key, {
+      cachedClient = createClient(url, key, {
         auth: {
           persistSession: true,
           autoRefreshToken: true,
         },
       });
+      cachedUrl = url;
+      cachedKey = key;
+      return cachedClient;
     } catch (err) {
       console.warn("Failed to initialize Supabase client:", err);
       return null;
@@ -56,11 +66,18 @@ export function createSupabaseInstance(): SupabaseClient | null {
   return null;
 }
 
-export let supabase: SupabaseClient | null = createSupabaseInstance();
+// Backward-compatible createSupabaseInstance & singleton
+export function createSupabaseInstance(): SupabaseClient | null {
+  return getSupabase();
+}
 
-// Re-initialize supabase on demand (e.g. when credentials are saved in admin)
+export let supabase: SupabaseClient | null = getSupabase();
+
 export function refreshSupabaseClient(): SupabaseClient | null {
-  supabase = createSupabaseInstance();
+  cachedClient = null;
+  cachedUrl = "";
+  cachedKey = "";
+  supabase = getSupabase();
   return supabase;
 }
 
@@ -68,11 +85,39 @@ export const isSupabaseConfigured: boolean = Boolean(
   getActiveSupabaseCredentials().url && getActiveSupabaseCredentials().key
 );
 
-// Save credentials from Admin Console
+// Auto-sync with server configuration route on mount
+export async function ensureSupabaseConnection(): Promise<SupabaseClient | null> {
+  const current = getSupabase();
+  if (current) return current;
+
+  if (typeof window !== "undefined") {
+    try {
+      const res = await fetch("/api/database/config");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.isConfigured && data.url && data.key) {
+          localStorage.setItem("ieee_supabase_url", data.url);
+          localStorage.setItem("ieee_supabase_key", data.key);
+          return refreshSupabaseClient();
+        }
+      }
+    } catch {}
+  }
+  return null;
+}
+
+// Save credentials from Admin Console (saves locally & syncs to server)
 export function saveDynamicSupabaseCredentials(url: string, key: string): { success: boolean; client: SupabaseClient | null } {
   if (typeof window !== "undefined") {
     localStorage.setItem("ieee_supabase_url", url.trim());
     localStorage.setItem("ieee_supabase_key", key.trim());
+
+    // Sync to server route in background so public visitors also connect
+    fetch("/api/database/config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url.trim(), key: key.trim() }),
+    }).catch(() => {});
   }
   const newClient = refreshSupabaseClient();
   return { success: Boolean(newClient), client: newClient };
@@ -83,6 +128,10 @@ export function clearDynamicSupabaseCredentials(): void {
   if (typeof window !== "undefined") {
     localStorage.removeItem("ieee_supabase_url");
     localStorage.removeItem("ieee_supabase_key");
+
+    fetch("/api/database/config", {
+      method: "DELETE",
+    }).catch(() => {});
   }
   refreshSupabaseClient();
 }
@@ -90,6 +139,26 @@ export function clearDynamicSupabaseCredentials(): void {
 // Test live database connectivity and fetch table stats
 export async function testSupabaseConnection(): Promise<SupabaseConfigStatus> {
   const creds = getActiveSupabaseCredentials();
+  if (!creds.url || !creds.key) {
+    // Try server runtime config
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/api/database/config");
+        if (res.ok) {
+          const cfg = await res.json();
+          if (cfg.isConfigured && cfg.url && cfg.key) {
+            localStorage.setItem("ieee_supabase_url", cfg.url);
+            localStorage.setItem("ieee_supabase_key", cfg.key);
+            creds.url = cfg.url;
+            creds.key = cfg.key;
+            creds.source = "SERVER_RUNTIME" as any;
+            refreshSupabaseClient();
+          }
+        }
+      } catch {}
+    }
+  }
+
   if (!creds.url || !creds.key) {
     return {
       isConfigured: false,
@@ -100,7 +169,7 @@ export async function testSupabaseConnection(): Promise<SupabaseConfigStatus> {
     };
   }
 
-  const client = createSupabaseInstance();
+  const client = getSupabase();
   if (!client) {
     return {
       isConfigured: true,

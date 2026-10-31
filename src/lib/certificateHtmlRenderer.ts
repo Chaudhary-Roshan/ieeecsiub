@@ -121,18 +121,31 @@ export async function renderCertificateHtml(
 
   // 5. Intelligent fallback: if ieeeLogo exists, replace any hardcoded IEEE emblem box container or standalone text
   if (ieeeLogo) {
-    rendered = rendered.replace(
-      /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
-      (match, attrs) => `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`
-    );
-    rendered = rendered.replace(
-      /<div([^>]*style=["'][^"']*(?:padding|border)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
-      (match, attrs) => `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`
-    );
-    rendered = rendered.replace(
-      /<div([^>]*)>\s*IEEE\s*<\/div>/gi,
-      `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
-    );
+    rendered = rendered
+      .replace(
+        /<div([^>]*style=["'][^"']*(?:width|height)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+        (match, attrs) => `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`
+      )
+      .replace(
+        /<div([^>]*style=["'][^"']*(?:padding|border)[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+        (match, attrs) => `<div${attrs}><img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 90%; max-width: 90%; object-fit: contain; display: block; margin: auto;" /></div>`
+      )
+      .replace(
+        /<div([^>]*style=["'][^"']*letter-spacing[^"']*["'][^>]*)>\s*IEEE\s*<\/div>/gi,
+        `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
+      )
+      .replace(
+        /<div([^>]*)>\s*IEEE\s*<\/div>/gi,
+        `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
+      )
+      .replace(
+        /<span([^>]*)>\s*IEEE\s*<\/span>/gi,
+        `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
+      )
+      .replace(
+        /<strong([^>]*)>\s*IEEE\s*<\/strong>/gi,
+        `<img src="${ieeeLogo}" alt="IEEE Logo" style="max-height: 48px; max-width: 120px; object-fit: contain; display: inline-block; vertical-align: middle;" />`
+      );
   }
 
   return rendered;

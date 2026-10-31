@@ -8,6 +8,7 @@ import {
   getActiveSupabaseCredentials,
   SupabaseConfigStatus,
 } from "@/lib/supabase";
+import { db } from "@/lib/db";
 import {
   Database,
   CheckCircle,
@@ -290,7 +291,19 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=${inputKey.trim() || "your-anon-api-key"}`;
         </div>
 
         {/* Modal Footer */}
-        <div className="pt-2 flex items-center justify-end">
+        <div className="pt-2 flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => {
+              if (confirm("Reset local testing cache and revert to clean official production seed state? (This will clear unsaved local tests and pull clean records)")) {
+                db.purgeAllTestData();
+                window.location.reload();
+              }
+            }}
+            className="text-[11px] text-gray-500 hover:text-red-600 font-semibold flex items-center gap-1.5"
+          >
+            <Trash2 size={12} /> Reset Local Cache & Test Data
+          </button>
           <Button onClick={onClose} variant="outline" size="sm">
             Close
           </Button>

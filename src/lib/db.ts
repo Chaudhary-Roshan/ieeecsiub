@@ -12,7 +12,7 @@ import {
   EventTeam
 } from "@/types";
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
-import { supabase, isSupabaseConfigured } from "./supabase";
+import { getSupabase } from "./supabase";
 import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
 import {
   TEMPLATE_DESIGN1_SIMPLE,
@@ -269,7 +269,9 @@ class ChapterDatabase {
       localStorage.removeItem("ieee_cs_attendance");
       localStorage.removeItem("ieee_cs_attendance_records");
       localStorage.removeItem("ieee_cs_events");
-      localStorage.setItem("ieee_cs_cache_version", "v5_digitalfest_full");
+      localStorage.removeItem("ieee_cs_team");
+      localStorage.removeItem("ieee_cs_certificate_templates");
+      localStorage.setItem("ieee_cs_cache_version", "v6_clean_prod");
     } catch (e) {
       console.error("Purge error:", e);
     }
@@ -278,10 +280,6 @@ class ChapterDatabase {
   private getItem<T>(key: string, fallback: T): T {
     if (!this.isBrowser()) return fallback;
     try {
-      if (localStorage.getItem("ieee_cs_cache_version") !== "v5_digitalfest_full") {
-        this.purgeAllTestData();
-        return fallback;
-      }
       const data = localStorage.getItem(`ieee_cs_${key}`);
       return data ? JSON.parse(data) : fallback;
     } catch {
@@ -311,10 +309,11 @@ class ChapterDatabase {
 
   async fetchCertificateByCode(code: string): Promise<CertificateRecord | undefined> {
     const clean = code.trim().toUpperCase();
+    const client = getSupabase();
 
-    if (supabase) {
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("certificates")
           .select("*")
           .eq("code", clean)
@@ -363,9 +362,10 @@ class ChapterDatabase {
 
   async fetchCertificates(): Promise<CertificateRecord[]> {
     const local = this.getCertificates();
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("certificates")
           .select("*")
           .order("created_at", { ascending: false });
@@ -398,14 +398,8 @@ class ChapterDatabase {
             createdAt: d.created_at,
           }));
 
-          const merged = [...local];
-          for (const rem of list) {
-            if (!merged.some((m) => m.code === rem.code)) {
-              merged.push(rem);
-            }
-          }
-          this.setItem("certificates", merged);
-          return merged;
+          this.setItem("certificates", list);
+          return list;
         }
       } catch (err) {
         console.warn("Supabase fetchCertificates error:", err);
@@ -414,14 +408,15 @@ class ChapterDatabase {
     return local;
   }
 
-  addCertificate(cert: CertificateRecord): void {
+  async addCertificate(cert: CertificateRecord): Promise<boolean> {
     const list = this.getCertificates();
     const cleanCode = cert.code.trim().toUpperCase();
     const filtered = list.filter((c) => c.code.toUpperCase() !== cleanCode);
     filtered.unshift(cert);
     this.setItem("certificates", filtered);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       const payload: Record<string, any> = {
         code: cleanCode,
         recipient_name: cert.recipientName,
@@ -447,31 +442,31 @@ class ChapterDatabase {
         pdf_url: cert.pdfUrl,
       };
 
-      (async () => {
-        try {
-          const { data: existing } = await supabase
-            .from("certificates")
-            .select("id")
-            .eq("code", cleanCode)
-            .maybeSingle();
+      try {
+        const { data: existing } = await client
+          .from("certificates")
+          .select("id")
+          .eq("code", cleanCode)
+          .maybeSingle();
 
-          if (existing?.id) {
-            const { error } = await supabase.from("certificates").update(payload).eq("id", existing.id);
-            if (error) console.warn("Supabase addCertificate sync error:", error);
-          } else {
-            const { error } = await supabase.from("certificates").insert(payload);
-            if (error) console.warn("Supabase addCertificate sync error:", error);
-          }
-        } catch (err) {
-          console.warn("Supabase addCertificate error:", err);
+        if (existing?.id) {
+          const { error } = await client.from("certificates").update(payload).eq("id", existing.id);
+          if (error) console.warn("Supabase addCertificate sync error:", error);
+        } else {
+          const { error } = await client.from("certificates").insert(payload);
+          if (error) console.warn("Supabase addCertificate sync error:", error);
         }
-      })();
+      } catch (err) {
+        console.warn("Supabase addCertificate error:", err);
+      }
     }
+    return true;
   }
 
-  updateCertificate(code: string, updates: Partial<CertificateRecord>): boolean {
+  async updateCertificate(code: string, updates: Partial<CertificateRecord>): Promise<boolean> {
     const list = this.getCertificates();
-    const index = list.findIndex((c) => c.code.toUpperCase() === code.trim().toUpperCase());
+    const clean = code.trim().toUpperCase();
+    const index = list.findIndex((c) => c.code.toUpperCase() === clean);
     if (index === -1) {
       if (updates.code) {
         list.unshift(updates as CertificateRecord);
@@ -484,7 +479,8 @@ class ChapterDatabase {
       this.setItem("certificates", list);
     }
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       const payload: Record<string, any> = {};
       if (updates.status) payload.status = updates.status;
       if (updates.recipientName) payload.recipient_name = updates.recipientName;
@@ -495,16 +491,36 @@ class ChapterDatabase {
       if (updates.sha256Fingerprint) payload.sha256_fingerprint = updates.sha256Fingerprint;
 
       if (Object.keys(payload).length > 0) {
-        supabase
-          .from("certificates")
-          .update(payload)
-          .eq("code", code.trim().toUpperCase())
-          .then(({ error }) => {
-            if (error) console.warn("Supabase updateCertificate sync error:", error);
-          });
+        try {
+          const { error } = await client
+            .from("certificates")
+            .update(payload)
+            .eq("code", clean);
+          if (error) console.warn("Supabase updateCertificate sync error:", error);
+        } catch (err) {
+          console.warn("Supabase updateCertificate error:", err);
+        }
       }
     }
 
+    return true;
+  }
+
+  async deleteCertificate(code: string): Promise<boolean> {
+    const clean = code.trim().toUpperCase();
+    const list = this.getCertificates();
+    const filtered = list.filter((c) => c.code.toUpperCase() !== clean);
+    this.setItem("certificates", filtered);
+
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { error } = await client.from("certificates").delete().eq("code", clean);
+        if (error) console.warn("Supabase deleteCertificate sync error:", error);
+      } catch (err) {
+        console.warn("Supabase deleteCertificate error:", err);
+      }
+    }
     return true;
   }
 
@@ -515,9 +531,10 @@ class ChapterDatabase {
 
   async fetchEvents(): Promise<EventItem[]> {
     const local = this.getEvents();
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("events")
           .select("*")
           .order("start_date", { ascending: false });
@@ -527,7 +544,7 @@ class ChapterDatabase {
             slug: d.slug,
             title: d.title,
             description: d.description,
-            learningObjectives: typeof d.learning_objectives === "string" ? d.learning_objectives.split("\n") : (d.learning_objectives || []),
+            learningObjectives: typeof d.learning_objectives === "string" ? d.learning_objectives.split("\n").filter(Boolean) : (d.learning_objectives || []),
             targetAudience: d.target_audience,
             startDate: d.start_date,
             endDate: d.end_date,
@@ -543,21 +560,21 @@ class ChapterDatabase {
             certificateRule: d.certificate_rule,
             vtoolsId: d.vtools_id,
             vtoolsLink: d.vtools_link,
-            featuredImage: d.featured_image,
+            featuredImage: d.featured_image || "/ieee-cs-logo.png",
             galleryImages: Array.isArray(d.gallery_images) ? d.gallery_images : [],
             eventReport: d.event_report,
           }));
 
-          // Two-way merge: combine both Supabase and local cache
-          const mergedMap = new Map<string, EventItem>();
-          // Add local events first
-          local.forEach((e) => mergedMap.set(e.slug, e));
-          // Overlay remote events
-          mapped.forEach((rem) => mergedMap.set(rem.slug, rem));
+          // Remote is primary authority; keep any offline drafts if not in remote
+          const finalEvents = [...mapped];
+          for (const loc of local) {
+            if (!finalEvents.some((rem) => rem.slug === loc.slug || rem.id === loc.id)) {
+              finalEvents.push(loc);
+            }
+          }
 
-          const merged = Array.from(mergedMap.values());
-          this.setItem("events", merged);
-          return merged;
+          this.setItem("events", finalEvents);
+          return finalEvents;
         }
       } catch (err) {
         console.warn("Supabase fetchEvents fallback to local:", err);
@@ -593,9 +610,10 @@ class ChapterDatabase {
     const local = this.getEventBySlug(clean);
     if (local) return local;
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("events")
           .select("*")
           .or(`slug.eq.${clean},slug.eq.2026/${baseClean},slug.eq.${baseClean}`)
@@ -606,7 +624,7 @@ class ChapterDatabase {
             slug: data.slug,
             title: data.title,
             description: data.description,
-            learningObjectives: typeof data.learning_objectives === "string" ? data.learning_objectives.split("\n") : (data.learning_objectives || []),
+            learningObjectives: typeof data.learning_objectives === "string" ? data.learning_objectives.split("\n").filter(Boolean) : (data.learning_objectives || []),
             targetAudience: data.target_audience,
             startDate: data.start_date,
             endDate: data.end_date,
@@ -622,7 +640,7 @@ class ChapterDatabase {
             certificateRule: data.certificate_rule,
             vtoolsId: data.vtools_id,
             vtoolsLink: data.vtools_link,
-            featuredImage: data.featured_image,
+            featuredImage: data.featured_image || "/ieee-cs-logo.png",
             galleryImages: Array.isArray(data.gallery_images) ? data.gallery_images : [],
             eventReport: data.event_report,
           };
@@ -651,7 +669,8 @@ class ChapterDatabase {
     filtered.unshift(event);
     this.setItem("events", filtered);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
         const payload: Record<string, any> = {
           slug: event.slug,
@@ -678,46 +697,39 @@ class ChapterDatabase {
           event_report: event.eventReport || null,
         };
 
-        const { data: existing } = await supabase
+        const { data: existing } = await client
           .from("events")
           .select("id")
           .eq("slug", event.slug)
           .maybeSingle();
 
+        let opError: any = null;
         if (existing?.id) {
-          const { error } = await supabase.from("events").update(payload).eq("id", existing.id);
-          if (error) {
-            console.warn("Supabase event update error, trying core payload:", error);
-            const corePayload = {
-              slug: event.slug,
-              title: event.title,
-              description: event.description,
-              start_date: event.startDate,
-              end_date: event.endDate,
-              venue: event.venue,
-              status: event.status,
-              fee_pkr: event.feePkr || 0,
-              certificate_type: event.certificateType,
-            };
-            const { error: coreErr } = await supabase.from("events").update(corePayload).eq("id", existing.id);
-            if (coreErr) return { success: false, error: coreErr.message };
-          }
+          const { error } = await client.from("events").update(payload).eq("id", existing.id);
+          opError = error;
         } else {
-          const { error } = await supabase.from("events").insert(payload);
-          if (error) {
-            console.warn("Supabase event insert error, trying core payload:", error);
-            const corePayload = {
-              slug: event.slug,
-              title: event.title,
-              description: event.description,
-              start_date: event.startDate,
-              end_date: event.endDate,
-              venue: event.venue,
-              status: event.status,
-              fee_pkr: event.feePkr || 0,
-              certificate_type: event.certificateType,
-            };
-            const { error: coreErr } = await supabase.from("events").insert(corePayload);
+          const { error } = await client.from("events").insert(payload);
+          opError = error;
+        }
+
+        if (opError) {
+          console.warn("Supabase full payload error, trying core payload:", opError);
+          const corePayload = {
+            slug: event.slug,
+            title: event.title,
+            description: event.description,
+            start_date: event.startDate,
+            end_date: event.endDate,
+            venue: event.venue,
+            status: event.status,
+            fee_pkr: event.feePkr || 0,
+            certificate_type: event.certificateType,
+          };
+          if (existing?.id) {
+            const { error: coreErr } = await client.from("events").update(corePayload).eq("id", existing.id);
+            if (coreErr) return { success: false, error: coreErr.message };
+          } else {
+            const { error: coreErr } = await client.from("events").insert(corePayload);
             if (coreErr) return { success: false, error: coreErr.message };
           }
         }
@@ -738,7 +750,8 @@ class ChapterDatabase {
     list[index] = { ...list[index], ...updates };
     this.setItem("events", list);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
         const payload: Record<string, any> = {};
         if (updates.title) payload.title = updates.title;
@@ -761,11 +774,22 @@ class ChapterDatabase {
         if (updates.eventReport !== undefined) payload.event_report = updates.eventReport;
 
         if (Object.keys(payload).length > 0) {
-          const { error } = await supabase
+          const { error } = await client
             .from("events")
             .update(payload)
             .eq("slug", targetSlug);
-          if (error) console.warn("Supabase updateEvent sync error:", error);
+          if (error) {
+            console.warn("Supabase updateEvent sync error, trying core:", error);
+            const core: any = {};
+            if (updates.title) core.title = updates.title;
+            if (updates.description) core.description = updates.description;
+            if (updates.venue) core.venue = updates.venue;
+            if (updates.status) core.status = updates.status;
+            if (updates.feePkr !== undefined) core.fee_pkr = updates.feePkr;
+            if (Object.keys(core).length > 0) {
+              await client.from("events").update(core).eq("slug", targetSlug);
+            }
+          }
         }
       } catch (err) {
         console.warn("Supabase updateEvent error:", err);
@@ -780,15 +804,16 @@ class ChapterDatabase {
     const target = list.find((e) => e.id === id);
     if (!target) return false;
 
-    const filtered = list.filter((e) => e.id !== id);
+    const filtered = list.filter((e) => e.id !== id && e.slug !== target.slug);
     this.setItem("events", filtered);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { error } = await supabase
+        const { error } = await client
           .from("events")
           .delete()
-          .eq("slug", target.slug);
+          .or(`id.eq.${id},slug.eq.${target.slug}`);
         if (error) console.warn("Supabase deleteEvent sync error:", error);
       } catch (err) {
         console.warn("Supabase deleteEvent error:", err);
@@ -816,11 +841,12 @@ class ChapterDatabase {
     }));
     this.setItem("certificate_templates", list);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       (async () => {
         try {
-          await supabase.from("certificate_templates").update({ is_active: false, is_default: false }).neq("id", id);
-          await supabase.from("certificate_templates").update({ is_active: true, is_default: true }).eq("id", id);
+          await client.from("certificate_templates").update({ is_active: false, is_default: false }).neq("id", id);
+          await client.from("certificate_templates").update({ is_active: true, is_default: true }).eq("id", id);
         } catch (err) {
           console.warn("Supabase setActiveTemplate error:", err);
         }
@@ -834,9 +860,10 @@ class ChapterDatabase {
 
   async fetchTemplateById(id: string): Promise<CertificateTemplate | undefined> {
     const local = this.getTemplateById(id);
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("certificate_templates")
           .select("*")
           .or(`id.eq.${id},name.eq.${id}`)
@@ -870,9 +897,10 @@ class ChapterDatabase {
   }
 
   async fetchActiveTemplate(): Promise<CertificateTemplate> {
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("certificate_templates")
           .select("*")
           .or("is_active.eq.true,is_default.eq.true")
@@ -908,9 +936,10 @@ class ChapterDatabase {
   }
 
   async fetchTemplates(): Promise<CertificateTemplate[]> {
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("certificate_templates")
           .select("*")
           .order("created_at", { ascending: true });
@@ -933,15 +962,8 @@ class ChapterDatabase {
             eventLogoUrl: d.event_logo_url || "",
             createdAt: d.created_at,
           }));
-          const local = this.getTemplates();
-          const merged = [...mapped];
-          for (const s of local) {
-            if (!merged.some((m) => m.id === s.id || m.name === s.name)) {
-              merged.push(s);
-            }
-          }
-          this.setItem("certificate_templates", merged);
-          return merged;
+          this.setItem("certificate_templates", mapped);
+          return mapped;
         }
       } catch (err) {
         console.warn("Supabase fetchTemplates fallback:", err);
@@ -950,7 +972,7 @@ class ChapterDatabase {
     return this.getTemplates();
   }
 
-  saveTemplate(tpl: CertificateTemplate): void {
+  async saveTemplate(tpl: CertificateTemplate): Promise<void> {
     const list = this.getTemplates();
     const shouldBeDefault = tpl.isDefault ?? true;
 
@@ -974,7 +996,8 @@ class ChapterDatabase {
     }
     this.setItem("certificate_templates", list);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       const payload: Record<string, any> = {
         name: updatedTpl.name,
         description: updatedTpl.description || null,
@@ -993,37 +1016,44 @@ class ChapterDatabase {
         is_default: shouldBeDefault,
       };
 
-      (async () => {
-        try {
-          if (shouldBeDefault) {
-            await supabase.from("certificate_templates").update({ is_active: false, is_default: false }).neq("name", updatedTpl.name);
-          }
-
-          const { data: existing } = await supabase
-            .from("certificate_templates")
-            .select("id")
-            .eq("name", updatedTpl.name)
-            .maybeSingle();
-
-          if (existing?.id) {
-            const { error } = await supabase.from("certificate_templates").update(payload).eq("id", existing.id);
-            if (error) console.warn("Supabase saveTemplate sync error:", error);
-          } else {
-            const { error } = await supabase.from("certificate_templates").insert(payload);
-            if (error) console.warn("Supabase saveTemplate sync error:", error);
-          }
-        } catch (err) {
-          console.warn("Supabase saveTemplate error:", err);
+      try {
+        if (shouldBeDefault) {
+          await client.from("certificate_templates").update({ is_active: false, is_default: false }).neq("name", updatedTpl.name);
         }
-      })();
+
+        const { data: existing } = await client
+          .from("certificate_templates")
+          .select("id")
+          .eq("name", updatedTpl.name)
+          .maybeSingle();
+
+        if (existing?.id) {
+          const { error } = await client.from("certificate_templates").update(payload).eq("id", existing.id);
+          if (error) console.warn("Supabase saveTemplate sync error:", error);
+        } else {
+          const { error } = await client.from("certificate_templates").insert(payload);
+          if (error) console.warn("Supabase saveTemplate sync error:", error);
+        }
+      } catch (err) {
+        console.warn("Supabase saveTemplate error:", err);
+      }
     }
   }
 
-  deleteTemplate(id: string): boolean {
+  async deleteTemplate(id: string): Promise<boolean> {
     const list = this.getTemplates();
     if (list.length <= 1) return false; // keep at least default
     const filtered = list.filter((t) => t.id !== id);
     this.setItem("certificate_templates", filtered);
+
+    const client = getSupabase();
+    if (client) {
+      try {
+        await client.from("certificate_templates").delete().eq("id", id);
+      } catch (err) {
+        console.warn("Supabase deleteTemplate error:", err);
+      }
+    }
     return true;
   }
 
@@ -1077,9 +1107,10 @@ class ChapterDatabase {
 
   async fetchTeamMembers(): Promise<TeamMember[]> {
     const local = this.getTeamMembers();
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("team_members")
           .select("*")
           .order("order_index", { ascending: true });
@@ -1096,16 +1127,8 @@ class ChapterDatabase {
             orderIndex: d.order_index ?? 0,
           }));
 
-          // Merge: preserve local members (e.g. freshly created or updated by admin)
-          const merged = [...local];
-          for (const rem of mapped) {
-            const idx = merged.findIndex((m) => m.id === rem.id || (m.name === rem.name && m.committeeYear === rem.committeeYear));
-            if (idx === -1) {
-              merged.push(rem);
-            }
-          }
-          this.setItem("team", merged);
-          return merged;
+          this.setItem("team", mapped);
+          return mapped;
         }
       } catch (err) {
         console.warn("Supabase fetchTeamMembers fallback to local:", err);
@@ -1124,7 +1147,8 @@ class ChapterDatabase {
     }
     this.setItem("team", list);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
         const payload: Record<string, any> = {
           name: member.name,
@@ -1141,7 +1165,7 @@ class ChapterDatabase {
           payload.id = member.id;
         }
 
-        const { data: existing } = await supabase
+        const { data: existing } = await client
           .from("team_members")
           .select("id")
           .eq("name", member.name)
@@ -1149,10 +1173,10 @@ class ChapterDatabase {
           .maybeSingle();
 
         if (existing?.id) {
-          const { error } = await supabase.from("team_members").update(payload).eq("id", existing.id);
+          const { error } = await client.from("team_members").update(payload).eq("id", existing.id);
           if (error) console.warn("Supabase update team_member error:", error);
         } else {
-          const { error } = await supabase.from("team_members").insert(payload);
+          const { error } = await client.from("team_members").insert(payload);
           if (error) console.warn("Supabase insert team_member error:", error);
         }
       } catch (err) {
@@ -1167,13 +1191,14 @@ class ChapterDatabase {
     const filtered = list.filter((m) => m.id !== id);
     this.setItem("team", filtered);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
         const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
         if (isUUID) {
-          await supabase.from("team_members").delete().eq("id", id);
+          await client.from("team_members").delete().eq("id", id);
         } else if (target) {
-          await supabase.from("team_members").delete().eq("name", target.name).eq("committee_year", target.committeeYear);
+          await client.from("team_members").delete().eq("name", target.name).eq("committee_year", target.committeeYear);
         }
       } catch (err) {
         console.warn("Supabase deleteTeamMember error:", err);
@@ -1194,9 +1219,10 @@ class ChapterDatabase {
   }
 
   async fetchEventTeams(eventId: string): Promise<EventTeam[]> {
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("event_teams")
           .select("*")
           .eq("event_id", eventId)
@@ -1242,9 +1268,10 @@ class ChapterDatabase {
     stored[team.eventId] = list;
     this.setItem("event_teams", stored);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        await supabase.from("event_teams").upsert({
+        await client.from("event_teams").upsert({
           id: team.id,
           event_id: team.eventId,
           sr: team.sr,
@@ -1270,9 +1297,10 @@ class ChapterDatabase {
     stored[eventId] = list;
     this.setItem("event_teams", stored);
 
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        await supabase.from("event_teams").delete().eq("id", teamId);
+        await client.from("event_teams").delete().eq("id", teamId);
       } catch (err) {
         console.warn("Supabase deleteEventTeam error:", err);
       }
@@ -1492,9 +1520,10 @@ class ChapterDatabase {
   }
 
   async fetchRegistrations(): Promise<Registration[]> {
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("registrations")
           .select("*")
           .order("created_at", { ascending: false });
@@ -1530,26 +1559,30 @@ class ChapterDatabase {
     this.setItem("registrations", regs);
   }
 
-  addRegistration(reg: Registration): void {
+  async addRegistration(reg: Registration): Promise<void> {
     const list = this.getRegistrations();
     list.unshift(reg);
     this.setItem("registrations", list);
 
-    if (supabase) {
-      supabase.from("registrations").insert({
-        full_name: reg.fullName,
-        name_display_preference: reg.namePreference || "FULL_NAME",
-        email: reg.email,
-        phone: reg.phone,
-        roll_number: reg.rollNumber,
-        is_ieee_member: reg.isIeeeMember,
-        ieee_membership_number: reg.ieeeMembershipNumber,
-        department: reg.department,
-        photo_consent: reg.photoConsent,
-        status: reg.status,
-      }).then(({ error }) => {
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { error } = await client.from("registrations").insert({
+          full_name: reg.fullName,
+          name_display_preference: reg.namePreference || "FULL_NAME",
+          email: reg.email,
+          phone: reg.phone,
+          roll_number: reg.rollNumber,
+          is_ieee_member: reg.isIeeeMember,
+          ieee_membership_number: reg.ieeeMembershipNumber,
+          department: reg.department,
+          photo_consent: reg.photoConsent,
+          status: reg.status,
+        });
         if (error) console.warn("Supabase addRegistration sync error:", error);
-      });
+      } catch (err) {
+        console.warn("Supabase addRegistration error:", err);
+      }
     }
   }
 
@@ -1558,9 +1591,10 @@ class ChapterDatabase {
   }
 
   async fetchPayments(): Promise<PaymentProof[]> {
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("payments")
           .select("*")
           .order("created_at", { ascending: false });
@@ -1615,8 +1649,9 @@ class ChapterDatabase {
       }
     }
 
-    if (supabase) {
-      supabase.from("payments").update({
+    const client = getSupabase();
+    if (client) {
+      client.from("payments").update({
         status,
         verified_by: verifiedBy,
         verified_at: pay.verifiedAt,
@@ -1626,7 +1661,7 @@ class ChapterDatabase {
       });
 
       if (status === "VERIFIED") {
-        supabase.from("registrations").update({
+        client.from("registrations").update({
           status: "CONFIRMED"
         }).eq("id", pay.registrationId).then(({ error }) => {
           if (error) console.warn("Supabase registration confirm error:", error);
@@ -1662,8 +1697,9 @@ class ChapterDatabase {
     reg.checkedInAt = new Date().toISOString();
     this.setItem("registrations", regs);
 
-    if (supabase) {
-      supabase.from("registrations").update({
+    const client = getSupabase();
+    if (client) {
+      client.from("registrations").update({
         status: "ATTENDED",
         checked_in_at: reg.checkedInAt,
       }).eq("id", reg.id).then(({ error }) => {
@@ -1688,9 +1724,10 @@ class ChapterDatabase {
   }
 
   async fetchAuditLogs(): Promise<AuditLogItem[]> {
-    if (supabase) {
+    const client = getSupabase();
+    if (client) {
       try {
-        const { data, error } = await supabase
+        const { data, error } = await client
           .from("audit_logs")
           .select("*")
           .order("created_at", { ascending: false });
@@ -1727,8 +1764,9 @@ class ChapterDatabase {
     });
     this.setItem("audit_logs", logs);
 
-    if (supabase) {
-      supabase.from("audit_logs").insert({
+    const client = getSupabase();
+    if (client) {
+      client.from("audit_logs").insert({
         staff_email: staffUser,
         action,
         entity_type: entityType,
