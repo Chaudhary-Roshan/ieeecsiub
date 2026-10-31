@@ -209,6 +209,18 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
             >
               Public Verify Page
             </Link>
+            <button
+              onClick={() => {
+                document.cookie = "ieee_staff_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                document.cookie = "ieee_staff_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                document.cookie = "ieee_staff_name=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+                localStorage.removeItem("ieee_cs_active_staff");
+                window.location.href = "/admin/login";
+              }}
+              className="px-2.5 py-1 text-[11px] rounded bg-red-50 hover:bg-red-100 text-red-600 font-semibold border border-red-200 transition-colors"
+            >
+              Sign Out
+            </button>
           </div>
         </header>
 

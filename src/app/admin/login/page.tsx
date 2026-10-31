@@ -22,10 +22,18 @@ export default function AdminLoginPage() {
     const user = INITIAL_STAFF_USERS.find((u) => u.id === selectedStaffId) || INITIAL_STAFF_USERS[0];
     localStorage.setItem("ieee_cs_active_staff", JSON.stringify(user));
 
+    // Set authentication cookies for server middleware verification
+    document.cookie = "ieee_staff_session=true; path=/; max-age=604800; SameSite=Lax";
+    document.cookie = `ieee_staff_role=${encodeURIComponent(user.role)}; path=/; max-age=604800; SameSite=Lax`;
+    document.cookie = `ieee_staff_name=${encodeURIComponent(user.name)}; path=/; max-age=604800; SameSite=Lax`;
+
     setTimeout(() => {
       setLoading(false);
-      router.push("/admin");
-    }, 600);
+      const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const target = params?.get("redirect") || "/admin";
+      // Full navigation ensures middleware receives the fresh cookie
+      window.location.href = target;
+    }, 400);
   };
 
   return (
