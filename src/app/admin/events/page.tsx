@@ -268,10 +268,15 @@ export default function AdminEventsManagerPage() {
       };
 
       // Save directly to live PostgreSQL database via Server Action
-      await saveEventAction({
+      const result = await saveEventAction({
         ...eventPayload,
         id: editingEventId || undefined,
       });
+
+      if (!result.success) {
+        setModalError(result.error || "Failed to save event to database.");
+        return;
+      }
 
       // Keep local in-memory view synced
       if (editingEventId) {
