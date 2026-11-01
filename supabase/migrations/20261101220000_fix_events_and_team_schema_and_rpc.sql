@@ -185,3 +185,4 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.delete_team_member(TEXT) TO anon, authenticated, service_role;
+

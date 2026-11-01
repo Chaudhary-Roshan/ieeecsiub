@@ -306,7 +306,7 @@ export default function EventDetailPage() {
               </div>
 
               {/* Learning Objectives */}
-              {event.learningObjectives && event.learningObjectives.length > 0 && (
+              {Array.isArray(event.learningObjectives) && event.learningObjectives.length > 0 && (
                 <div className="space-y-3">
                   <h3 className="text-base font-montserrat font-bold text-ieee-navy">
                     Key Learning Objectives
@@ -347,7 +347,7 @@ export default function EventDetailPage() {
               </div>
 
               {/* Speakers Section */}
-              {event.speakers && event.speakers.length > 0 && (
+              {Array.isArray(event.speakers) && event.speakers.length > 0 && (
                 <div className="space-y-4 pt-4 border-t border-gray-200">
                   <h3 className="text-lg font-montserrat font-bold text-ieee-navy">
                     Distinguished Speaker & Mentor
@@ -407,7 +407,7 @@ export default function EventDetailPage() {
                           Visual moments, hands-on lab training, and recognition ceremonies.
                         </p>
                       </div>
-                      {event.galleryImages && event.galleryImages.length > 0 && (
+                      {Array.isArray(event.galleryImages) && event.galleryImages.length > 0 && (
                         <div className="flex items-center gap-2">
                           <span className="text-[11px] font-mono bg-blue-50 text-ieee-blue font-semibold px-2.5 py-1 rounded-full border border-blue-200 shadow-xs">
                             {event.galleryImages.length} Official Photos
@@ -422,7 +422,7 @@ export default function EventDetailPage() {
                       )}
                     </div>
 
-                    {event.galleryImages && event.galleryImages.length > 0 ? (
+                    {Array.isArray(event.galleryImages) && event.galleryImages.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {event.galleryImages.map((img, i) => (
                           <div

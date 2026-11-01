@@ -24,12 +24,14 @@ export async function getEvents(options?: { publishedOnly?: boolean }): Promise<
     id: row.id,
     slug: row.slug,
     title: row.title,
-    description: row.description,
-    learningObjectives: row.learning_objectives || [],
+    description: row.description || "",
+    learningObjectives: typeof row.learning_objectives === "string"
+      ? row.learning_objectives.split("\n").map((s: string) => s.trim()).filter(Boolean)
+      : (Array.isArray(row.learning_objectives) ? row.learning_objectives : []),
     targetAudience: row.target_audience || "",
     startDate: row.start_date,
     endDate: row.end_date,
-    venue: row.venue,
+    venue: row.venue || "TBD",
     isOnline: Boolean(row.is_online),
     meetingLink: row.meeting_link || "",
     status: row.status,
@@ -44,9 +46,9 @@ export async function getEvents(options?: { publishedOnly?: boolean }): Promise<
     vtoolsId: row.vtools_id || "",
     vtoolsLink: row.vtools_link || "",
     featuredImage: row.featured_image || "/events/digitalfest-banner.png",
-    galleryImages: row.gallery_images || [],
+    galleryImages: Array.isArray(row.gallery_images) ? row.gallery_images : [],
     eventReport: row.event_report || "",
-    speakers: row.speakers || [],
+    speakers: Array.isArray(row.speakers) ? row.speakers : [],
   }));
 }
 
@@ -68,12 +70,14 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
     id: data.id,
     slug: data.slug,
     title: data.title,
-    description: data.description,
-    learningObjectives: data.learning_objectives || [],
+    description: data.description || "",
+    learningObjectives: typeof data.learning_objectives === "string"
+      ? data.learning_objectives.split("\n").map((s: string) => s.trim()).filter(Boolean)
+      : (Array.isArray(data.learning_objectives) ? data.learning_objectives : []),
     targetAudience: data.target_audience || "",
     startDate: data.start_date,
     endDate: data.end_date,
-    venue: data.venue,
+    venue: data.venue || "TBD",
     isOnline: Boolean(data.is_online),
     meetingLink: data.meeting_link || "",
     status: data.status,
@@ -88,9 +92,9 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
     vtoolsId: data.vtools_id || "",
     vtoolsLink: data.vtools_link || "",
     featuredImage: data.featured_image || "/events/digitalfest-banner.png",
-    galleryImages: data.gallery_images || [],
+    galleryImages: Array.isArray(data.gallery_images) ? data.gallery_images : [],
     eventReport: data.event_report || "",
-    speakers: data.speakers || [],
+    speakers: Array.isArray(data.speakers) ? data.speakers : [],
   };
 }
 
