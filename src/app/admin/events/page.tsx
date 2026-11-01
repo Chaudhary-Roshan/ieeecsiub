@@ -6,6 +6,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
 import { getSupabase } from "@/lib/supabase";
 import { saveEventAction, deleteEventAction } from "@/app/actions/events";
+import { isoToPktInput, pktInputToIso } from "@/lib/sha256";
 import { EventItem, EventStatus } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -139,12 +140,8 @@ export default function AdminEventsManagerPage() {
     setStatusReason("");
     const now = new Date();
     const later = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
-    const toLocalISO = (d: Date) => {
-      const pad = (n: number) => n.toString().padStart(2, "0");
-      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    };
-    setStartDate(toLocalISO(now));
-    setEndDate(toLocalISO(later));
+    setStartDate(isoToPktInput(now.toISOString()));
+    setEndDate(isoToPktInput(later.toISOString()));
     setVenue("Syed Tabish Alwari Auditorium, UCET IUB");
     setIsOnline(false);
     setMeetingLink("");
@@ -167,8 +164,8 @@ export default function AdminEventsManagerPage() {
     setDescription(event.description || "");
     setStatus(event.status || "UPCOMING");
     setStatusReason(event.statusReason || "");
-    setStartDate(event.startDate ? event.startDate.slice(0, 16) : "");
-    setEndDate(event.endDate ? event.endDate.slice(0, 16) : "");
+    setStartDate(isoToPktInput(event.startDate));
+    setEndDate(isoToPktInput(event.endDate));
     setVenue(event.venue || "");
     setIsOnline(Boolean(event.isOnline));
     setMeetingLink(event.meetingLink || "");
@@ -223,8 +220,8 @@ export default function AdminEventsManagerPage() {
       let safeStart = new Date().toISOString();
       let safeEnd = new Date(Date.now() + 86400000).toISOString();
       try {
-        if (startDate) safeStart = new Date(startDate).toISOString();
-        if (endDate) safeEnd = new Date(endDate).toISOString();
+        if (startDate) safeStart = pktInputToIso(startDate);
+        if (endDate) safeEnd = pktInputToIso(endDate);
       } catch {}
 
       const cleanVenue = (venue || "").trim() || "UCET IUB";
@@ -277,6 +274,16 @@ export default function AdminEventsManagerPage() {
             event_data: {
               ...eventPayload,
               id: editingEventId || undefined,
+              start_date: safeStart,
+              end_date: safeEnd,
+              featured_image: cleanFeaturedImage,
+              gallery_images: gallery,
+              certificate_type: cleanCertType,
+              certificate_rule: cleanCertRule,
+              learning_objectives: objectives,
+              fee_pkr: Number(feePkr) || 0,
+              seats_limit: Number(seatsLimit) || 60,
+              is_online: Boolean(isOnline),
             },
           });
           if (!rpcErr && rpcData?.success) {

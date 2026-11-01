@@ -233,21 +233,36 @@ export default function EventDetailPage() {
 
         {/* Main Event Header Card */}
         <div className="bg-white border border-ieee-border rounded-card overflow-hidden shadow-sm">
-          <div className="relative h-64 sm:h-80 w-full bg-ieee-navy overflow-hidden">
-            <img
-              src={event.featuredImage}
-              alt={event.title}
-              className="w-full h-full object-cover opacity-90"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+          <div className="relative min-h-[16rem] sm:min-h-[22rem] w-full bg-ieee-navy overflow-hidden flex items-center justify-center">
+            {event.featuredImage ? (
+              <img
+                src={event.featuredImage}
+                alt={event.title}
+                className="w-full h-full max-h-[32rem] object-cover"
+                onError={(e) => {
+                  const target = e.currentTarget as HTMLImageElement;
+                  if (!target.src.includes("ieee-cs-logo.png")) {
+                    target.src = "/ieee-cs-logo.png";
+                    target.className = "w-48 h-48 object-contain p-4 opacity-80";
+                  }
+                }}
+              />
+            ) : (
+              <img
+                src="/ieee-cs-logo.png"
+                alt={event.title}
+                className="w-48 h-48 object-contain p-4 opacity-80"
+              />
+            )}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent pointer-events-none" />
             <div className="absolute bottom-6 left-6 right-6 text-white space-y-2">
               <div className="flex items-center gap-2">
                 <Badge status={event.status} />
-                <span className="text-xs bg-black/40 backdrop-blur-sm px-3 py-1 rounded-full text-white font-medium">
+                <span className="text-xs bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-white font-medium border border-white/20">
                   {event.feePkr > 0 ? `Fee: PKR ${event.feePkr}` : "Free Admission"}
                 </span>
               </div>
-              <h1 className="text-2xl sm:text-4xl font-montserrat font-extrabold leading-tight">
+              <h1 className="text-2xl sm:text-4xl font-montserrat font-extrabold leading-tight text-white drop-shadow-md">
                 {event.title}
               </h1>
             </div>

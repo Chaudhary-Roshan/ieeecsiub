@@ -22,6 +22,7 @@ import {
   Filter,
   RefreshCw,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 
 export default function AdminAttendancePage() {
@@ -68,12 +69,13 @@ export default function AdminAttendancePage() {
     setAttendanceList([...updated]);
   };
 
-  // Upload Excel or CSV file
+  // Upload Excel or CSV file with idempotent permanent certificate codes
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !selectedEventId) return;
 
     try {
+      const currentEvent = events.find((ev) => ev.id === selectedEventId);
       const buffer = await file.arrayBuffer();
       const workbook = XLSX.read(buffer, { type: "array" });
       const firstSheetName = workbook.SheetNames[0];
@@ -85,42 +87,168 @@ export default function AdminAttendancePage() {
         return;
       }
 
-      const importedRecords: AttendanceRecord[] = jsonRows.map((row, idx) => {
-        // Auto-detect columns
-        const name = row["Name"] || row["name"] || row["Full Name"] || row["Student Name"] || `Participant ${idx + 1}`;
-        const rollNumber = row["Roll Number"] || row["Roll No"] || row["rollNumber"] || row["Registration No"] || "";
-        const email = row["Email"] || row["email"] || "";
+      // Fetch all existing certificates and current attendance to ensure idempotent permanent codes
+      await db.fetchCertificates();
+      const allCerts = db.getCertificates();
+      const existingAttendance = db.getAttendance(selectedEventId);
+
+      const codeByName = new Map<string, string>();
+      const codeByRoll = new Map<string, string>();
+      const codeByEmail = new Map<string, string>();
+
+      // 1. Index all permanently issued certificates
+      allCerts.forEach((c) => {
+        if (c.code) {
+          const cCode = c.code.trim();
+          if (c.recipientName) codeByName.set(c.recipientName.trim().toLowerCase(), cCode);
+        }
+      });
+
+      // 2. Index existing attendance records for this event
+      existingAttendance.forEach((a) => {
+        if (a.certificateCode) {
+          const aCode = a.certificateCode.trim();
+          if (a.name) codeByName.set(a.name.trim().toLowerCase(), aCode);
+          if (a.rollNumber) codeByRoll.set(a.rollNumber.trim().toLowerCase(), aCode);
+          if (a.email) codeByEmail.set(a.email.trim().toLowerCase(), aCode);
+        }
+      });
+
+      let preservedCount = 0;
+      let newlyIssuedCount = 0;
+
+      const processedRecords: AttendanceRecord[] = [];
+
+      for (let idx = 0; idx < jsonRows.length; idx++) {
+        const row = jsonRows[idx];
+        const name = String(row["Name"] || row["name"] || row["Full Name"] || row["Student Name"] || `Participant ${idx + 1}`).trim();
+        const rollNumber = String(row["Roll Number"] || row["Roll No"] || row["rollNumber"] || row["Registration No"] || "").trim();
+        const email = String(row["Email"] || row["email"] || "").trim();
         const attendedRaw = String(row["Attended"] || row["Status"] || row["attended"] || "Yes").toLowerCase();
         const attended = attendedRaw.includes("yes") || attendedRaw.includes("present") || attendedRaw.includes("1") || attendedRaw.includes("true");
 
-        return {
+        const normName = name.toLowerCase();
+        const normRoll = rollNumber.toLowerCase();
+        const normEmail = email.toLowerCase();
+
+        // Check if existing code exists for this participant
+        let assignedCode: string | undefined = undefined;
+        if (normRoll && codeByRoll.has(normRoll)) {
+          assignedCode = codeByRoll.get(normRoll);
+        } else if (normEmail && codeByEmail.has(normEmail)) {
+          assignedCode = codeByEmail.get(normEmail);
+        } else if (normName && codeByName.has(normName)) {
+          assignedCode = codeByName.get(normName);
+        }
+
+        if (attended) {
+          if (assignedCode) {
+            // Existing participant: KEEP THEIR EXACT PREVIOUS CODE!
+            preservedCount++;
+          } else {
+            // New participant: Generate brand new permanent code!
+            assignedCode = generateCertificateCode("26");
+            newlyIssuedCount++;
+
+            // Register in lookup maps to avoid duplicates within same file
+            if (normName) codeByName.set(normName, assignedCode);
+            if (normRoll) codeByRoll.set(normRoll, assignedCode);
+            if (normEmail) codeByEmail.set(normEmail, assignedCode);
+          }
+
+          // Permanently record/upsert the certificate in DB so it is live and verifiable
+          const certRecord: CertificateRecord = {
+            id: `cert-${Date.now()}-${idx}`,
+            code: assignedCode,
+            recipientName: name,
+            publicNameFormat: "FULL_NAME",
+            eventId: selectedEventId,
+            eventTitle: currentEvent?.title || "UCET IUB Technical Event",
+            certificateType: currentEvent?.certificateType || "Certificate of Participation",
+            recognitionLevel: "CHAPTER_RECOGNITION",
+            issuerStatement: "In recognition of active participation and successful completion.",
+            activityDate: currentEvent?.startDate ? currentEvent.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+            issueDate: new Date().toISOString().slice(0, 10),
+            approverName: "Muhammad Roshan Ashraf",
+            approverRole: "Chapter Chair",
+            status: "ACTIVE",
+            source: "IN_SITE_GENERATED",
+            templateId: selectedTemplateId || undefined,
+            createdAt: new Date().toISOString(),
+          };
+          await db.addCertificate(certRecord);
+        }
+
+        processedRecords.push({
           id: `att-${Date.now()}-${idx}`,
           eventId: selectedEventId,
-          name: String(name).trim(),
-          rollNumber: String(rollNumber).trim(),
-          email: String(email).trim(),
+          name,
+          rollNumber,
+          email,
           attended,
-          certificateCode: attended ? generateCertificateCode("26") : undefined,
+          certificateCode: attended ? assignedCode : undefined,
           checkedInAt: attended ? new Date().toISOString() : undefined,
-        };
+        });
+      }
+
+      // Merge new records with any prior attendees who were not present in the new sheet
+      const mergedList: AttendanceRecord[] = [...processedRecords];
+      existingAttendance.forEach((oldRec) => {
+        const alreadyIn = processedRecords.some(
+          (p) =>
+            (p.rollNumber && oldRec.rollNumber && p.rollNumber.toLowerCase() === oldRec.rollNumber.toLowerCase()) ||
+            (p.email && oldRec.email && p.email.toLowerCase() === oldRec.email.toLowerCase()) ||
+            (p.name && oldRec.name && p.name.toLowerCase() === oldRec.name.toLowerCase())
+        );
+        if (!alreadyIn) {
+          mergedList.push(oldRec);
+        }
       });
 
-      db.saveAttendance(selectedEventId, importedRecords);
-      setAttendanceList(importedRecords);
-      alert(`Successfully imported ${importedRecords.length} attendees from "${file.name}"!`);
+      db.saveAttendance(selectedEventId, mergedList);
+      setAttendanceList(mergedList);
+
+      alert(
+        `Attendance Processed Successfully!\n\n` +
+        `• Total Rows in File: ${jsonRows.length}\n` +
+        `• Existing Codes Preserved: ${preservedCount} (codes remain permanent)\n` +
+        `• New Certificates Issued: ${newlyIssuedCount}\n` +
+        `• Total Event Attendees: ${mergedList.length}`
+      );
 
       db.addAuditLog(
         "Muhammad Roshan Ashraf",
         "ATTENDANCE_IMPORTED",
         "events",
         selectedEventId,
-        `Imported ${importedRecords.length} attendance rows from ${file.name}.`
+        `Imported ${jsonRows.length} attendees (${preservedCount} preserved, ${newlyIssuedCount} new issued) from ${file.name}.`
       );
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Failed to read the file. Please ensure it is a valid .xlsx or .csv file.");
+      alert("Failed to read the file: " + (err?.message || "Invalid file format."));
     } finally {
       if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClearEventData = async () => {
+    const currentEvent = events.find((e) => e.id === selectedEventId);
+    const eventName = currentEvent?.title || "this event";
+
+    if (
+      !confirm(
+        `DANGER / DATA WIPE:\n\nAre you sure you want to permanently clear all attendance records and certificates for:\n"${eventName}"?\n\nThis will wipe the data from the database so you can upload fresh records.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await db.clearEventAttendanceAndCertificates(selectedEventId, currentEvent?.title);
+      setAttendanceList([]);
+      alert(`All attendance records and certificates for "${eventName}" have been completely wiped! You can now upload a fresh attendance sheet.`);
+    } catch (err: any) {
+      alert("Failed to clear data: " + err.message);
     }
   };
 
@@ -349,6 +477,14 @@ export default function AdminAttendancePage() {
               className="px-3.5 py-2 border border-gray-300 bg-white text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 flex items-center gap-1.5 shadow-sm"
             >
               <Download size={14} /> Export Excel
+            </button>
+
+            <button
+              onClick={handleClearEventData}
+              className="px-3.5 py-2 border border-red-200 bg-red-50 text-red-700 text-xs font-semibold rounded-lg hover:bg-red-100 flex items-center gap-1.5 shadow-sm transition-colors"
+              title="Permanently wipe attendance records and certificates for this event"
+            >
+              <Trash2 size={14} className="text-red-600" /> Clear / Wipe Event Data
             </button>
 
             <Button

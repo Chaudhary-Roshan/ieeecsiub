@@ -296,6 +296,7 @@ class ChapterDatabase {
         code: cleanCode,
         recipient_name: cert.recipientName,
         public_name_format: cert.publicNameFormat,
+        event_id: cert.eventId || null,
         event_title: cert.eventTitle,
         certificate_type: cert.certificateType,
         recognition_level: cert.recognitionLevel,
@@ -947,6 +948,75 @@ class ChapterDatabase {
     const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
     stored[eventId] = records;
     this.setItem("attendance_records", stored);
+  }
+
+  clearAttendance(eventId: string): void {
+    const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    delete stored[eventId];
+    this.setItem("attendance_records", stored);
+  }
+
+  wipeAllAttendance(): void {
+    this.setItem("attendance_records", {});
+  }
+
+  async clearEventCertificates(eventId: string, eventTitle?: string): Promise<number> {
+    const list = this.getCertificates();
+    const cleanId = (eventId || "").trim();
+    const cleanTitle = (eventTitle || "").trim().toLowerCase();
+
+    const remaining = list.filter((c) => {
+      const matchId = cleanId && c.eventId && c.eventId === cleanId;
+      const matchTitle = cleanTitle && c.eventTitle && c.eventTitle.trim().toLowerCase() === cleanTitle;
+      return !matchId && !matchTitle;
+    });
+
+    const deletedCount = list.length - remaining.length;
+    this.setItem("certificates", remaining);
+
+    const client = getSupabase();
+    if (client) {
+      try {
+        if (cleanId) {
+          await client.from("certificates").delete().eq("event_id", cleanId);
+        }
+        if (cleanTitle) {
+          await client.from("certificates").delete().ilike("event_title", cleanTitle);
+        }
+      } catch (err) {
+        console.warn("Supabase clearEventCertificates error:", err);
+      }
+    }
+
+    return deletedCount;
+  }
+
+  async clearEventAttendanceAndCertificates(eventId: string, eventTitle?: string): Promise<void> {
+    this.clearAttendance(eventId);
+    await this.clearEventCertificates(eventId, eventTitle);
+    this.addAuditLog(
+      "Muhammad Roshan Ashraf",
+      "DATA_WIPED",
+      "events",
+      eventId,
+      `Cleared all attendance records and certificates for event ${eventTitle || eventId}.`
+    );
+  }
+
+  async wipeAllCertificates(): Promise<number> {
+    const list = this.getCertificates();
+    const count = list.length;
+    this.setItem("certificates", []);
+
+    const client = getSupabase();
+    if (client) {
+      try {
+        await client.from("certificates").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      } catch (err) {
+        console.warn("Supabase wipeAllCertificates error:", err);
+      }
+    }
+    return count;
   }
 
   toggleAttendance(eventId: string, recordId: string): AttendanceRecord[] {

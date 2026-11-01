@@ -83,11 +83,18 @@ export const EventsListClient: React.FC<EventsListClientProps> = ({ initialEvent
               >
                 <div>
                   {/* Event Image */}
-                  <div className="relative h-48 w-full bg-gray-200 overflow-hidden">
+                  <div className="relative h-48 w-full bg-gray-100 overflow-hidden">
                     <img
                       src={evt.featuredImage || "/ieee-cs-logo.png"}
                       alt={evt.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        const target = e.currentTarget as HTMLImageElement;
+                        if (!target.src.includes("ieee-cs-logo.png")) {
+                          target.src = "/ieee-cs-logo.png";
+                          target.className = "w-full h-full object-contain p-4";
+                        }
+                      }}
                     />
                     <div className="absolute top-3 right-3">
                       <Badge status={evt.status} />
