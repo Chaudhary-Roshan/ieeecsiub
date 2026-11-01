@@ -508,10 +508,10 @@ export default function EventDetailPage() {
                             </div>
 
                             {/* Members List */}
-                            {team.members && team.members.length > 0 && (
+                            {((team.teamMembers && team.teamMembers.length > 0) || ((team as any).members && (team as any).members.length > 0)) && (
                               <div className="border-t border-gray-100 pt-2 flex flex-wrap items-center gap-1.5 text-xs">
                                 <span className="text-[11px] text-gray-500 font-medium">Participants:</span>
-                                {team.members.map((memberName, i) => (
+                                {(team.teamMembers || (team as any).members || []).map((memberName: string, i: number) => (
                                   <span
                                     key={i}
                                     className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700 border border-gray-200"

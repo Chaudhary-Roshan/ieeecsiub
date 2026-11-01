@@ -31,6 +31,67 @@ import {
   Sparkles,
 } from "lucide-react";
 
+// Helper to compress images client-side before setting state or uploading
+const compressImageFile = (file: File): Promise<string> => {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (readerEvt) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxWidth = 1600;
+        const maxHeight = 1600;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", 0.85));
+        } else {
+          resolve((readerEvt.target?.result as string) || "");
+        }
+      };
+      img.onerror = () => resolve((readerEvt.target?.result as string) || "");
+      img.src = (readerEvt.target?.result as string) || "";
+    };
+    reader.onerror = () => resolve("");
+    reader.readAsDataURL(file);
+  });
+};
+
+const uploadImageFile = async (file: File, folder: string = "events"): Promise<string> => {
+  try {
+    const client = getSupabase();
+    if (client) {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+      const cleanPath = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+      const { data, error } = await client.storage
+        .from("public-media")
+        .upload(cleanPath, file, { cacheControl: "3600", upsert: true });
+      if (!error && data) {
+        const { data: pubData } = client.storage.from("public-media").getPublicUrl(cleanPath);
+        if (pubData?.publicUrl) {
+          return pubData.publicUrl;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("Storage upload notice:", err);
+  }
+  return await compressImageFile(file);
+};
+
 export default function AdminEventsManagerPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [activeTab, setActiveTab] = useState<string>("ALL");
@@ -39,6 +100,8 @@ export default function AdminEventsManagerPage() {
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -87,7 +150,7 @@ export default function AdminEventsManagerPage() {
   };
 
   const handleImportTeams = async () => {
-    if (!selectedEventForTeams || !importPastedText.trim()) {
+    if (!selectedEventForTeams || !(importPastedText || "").trim()) {
       alert("Please paste the teams and projects table data.");
       return;
     }
@@ -100,16 +163,19 @@ export default function AdminEventsManagerPage() {
 
   const handleSaveSingleTeam = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedEventForTeams || !singleTeamName.trim() || !singleProjectTitle.trim()) {
+    const cleanTeamName = (singleTeamName || "").trim();
+    const cleanProjectTitle = (singleProjectTitle || "").trim();
+    if (!selectedEventForTeams || !cleanTeamName || !cleanProjectTitle) {
       alert("Please provide at least a Team Name and Project Title.");
       return;
     }
-    const memberNames = singleMembers
-      ? singleMembers.split(/[,&]/).map((m) => m.trim()).filter(Boolean)
-      : [singleLeader || singleTeamName];
+    const memberNames = (singleMembers || "").trim()
+      ? (singleMembers || "").split(/[,&]/).map((m) => (m || "").trim()).filter(Boolean)
+      : [(singleLeader || "").trim() || cleanTeamName];
 
-    if (singleLeader && !memberNames.includes(singleLeader)) {
-      memberNames.unshift(singleLeader);
+    const cleanLeader = (singleLeader || "").trim();
+    if (cleanLeader && !memberNames.includes(cleanLeader)) {
+      memberNames.unshift(cleanLeader);
     }
 
     const sr = eventTeamsList.length > 0 ? Math.max(...eventTeamsList.map((t) => t.sr)) + 1 : 1;
@@ -117,14 +183,14 @@ export default function AdminEventsManagerPage() {
       id: `team-${selectedEventForTeams.id.replace("evt-", "")}-${sr}-${Date.now().toString().slice(-4)}`,
       eventId: selectedEventForTeams.id,
       sr,
-      teamName: singleTeamName.trim(),
-      projectTitle: singleProjectTitle.trim(),
-      teamLeader: singleLeader.trim() || memberNames[0] || "Team Leader",
-      semester: singleSemester.trim(),
+      teamName: cleanTeamName,
+      projectTitle: cleanProjectTitle,
+      teamLeader: cleanLeader || memberNames[0] || "Team Leader",
+      semester: (singleSemester || "").trim() || "6th",
       memberCount: memberNames.length,
       teamMembers: memberNames,
-      projectDomain: singleDomain.trim() || undefined,
-      positionAward: singleAward.trim() || undefined,
+      projectDomain: (singleDomain || "").trim() || undefined,
+      positionAward: (singleAward || "").trim() || undefined,
     };
 
     await db.saveEventTeam(team);
@@ -189,30 +255,40 @@ export default function AdminEventsManagerPage() {
   const openEditModal = (event: EventItem) => {
     setEditingEventId(event.id);
     setModalError(null);
-    setTitle(event.title);
-    setSlug(event.slug);
-    setDescription(event.description);
-    setStatus(event.status);
+    setTitle(event.title || "");
+    setSlug(event.slug || "");
+    setDescription(event.description || "");
+    setStatus(event.status || "UPCOMING");
     setStatusReason(event.statusReason || "");
     setStartDate(event.startDate ? event.startDate.slice(0, 16) : "");
     setEndDate(event.endDate ? event.endDate.slice(0, 16) : "");
-    setVenue(event.venue);
-    setIsOnline(event.isOnline);
+    setVenue(event.venue || "");
+    setIsOnline(Boolean(event.isOnline));
     setMeetingLink(event.meetingLink || "");
-    setFeePkr(event.feePkr);
-    setSeatsLimit(event.seatsLimit || 60);
-    setCertificateType(event.certificateType);
-    setCertificateRule(event.certificateRule);
-    setFeaturedImage(event.featuredImage);
-    setLearningObjectives(event.learningObjectives ? event.learningObjectives.join("\n") : "");
+    setFeePkr(Number(event.feePkr) || 0);
+    setSeatsLimit(Number(event.seatsLimit) || 60);
+    setCertificateType(event.certificateType || "Certificate of Participation");
+    setCertificateRule(event.certificateRule || "Minimum 80% physical attendance verified via digital check-in");
+    setFeaturedImage(event.featuredImage || "/ieee-cs-logo.png");
+    setLearningObjectives(
+      Array.isArray(event.learningObjectives)
+        ? event.learningObjectives.filter(Boolean).map((s) => String(s || "").trim()).join("\n")
+        : (typeof event.learningObjectives === "string" ? event.learningObjectives : "")
+    );
     setEventReport(event.eventReport || "");
-    setGalleryImages(event.galleryImages ? event.galleryImages.join("\n") : "");
+    setGalleryImages(
+      Array.isArray(event.galleryImages)
+        ? event.galleryImages.filter(Boolean).map((s) => String(s || "").trim()).join("\n")
+        : (typeof event.galleryImages === "string" ? event.galleryImages : "")
+    );
     setIsModalOpen(true);
   };
 
   const handleSaveEvent = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !slug.trim()) {
+    const cleanTitle = (title || "").trim();
+    const cleanSlugInput = (slug || "").trim();
+    if (!cleanTitle || !cleanSlugInput) {
       setModalError("Please enter title and slug.");
       return;
     }
@@ -221,18 +297,17 @@ export default function AdminEventsManagerPage() {
     setModalError(null);
 
     try {
-      const objectives = learningObjectives
+      const objectives = (typeof learningObjectives === "string" ? learningObjectives : "")
         .split("\n")
-        .map((s) => s.trim())
+        .map((s) => (s ? String(s).trim() : ""))
         .filter(Boolean);
 
-      const gallery = galleryImages
+      const gallery = (typeof galleryImages === "string" ? galleryImages : "")
         .split("\n")
-        .map((s) => s.trim())
+        .map((s) => (s ? String(s).trim() : ""))
         .filter(Boolean);
 
-      const cleanSlug = slug
-        .trim()
+      const cleanSlug = cleanSlugInput
         .replace(/^\/+/, "")
         .replace(/\/+$/, "")
         .replace(/\s+/g, "-")
@@ -245,27 +320,35 @@ export default function AdminEventsManagerPage() {
         if (endDate) safeEnd = new Date(endDate).toISOString();
       } catch {}
 
+      const cleanVenue = (venue || "").trim() || "UCET IUB";
+      const cleanMeetingLink = (meetingLink || "").trim();
+      const cleanStatusReason = (statusReason || "").trim();
+      const cleanCertType = (certificateType || "").trim() || "Certificate of Participation";
+      const cleanCertRule = (certificateRule || "").trim() || "Minimum 80% physical attendance verified via digital check-in";
+      const cleanFeaturedImage = (featuredImage || "").trim() || "/ieee-cs-logo.png";
+      const cleanEventReport = (eventReport || "").trim();
+
       const eventPayload: EventItem = {
         id: editingEventId || `evt-${Date.now()}`,
         slug: cleanSlug,
-        title: title.trim(),
-        description: description.trim(),
+        title: cleanTitle,
+        description: (description || "").trim(),
         learningObjectives: objectives,
         startDate: safeStart,
         endDate: safeEnd,
-        venue: venue.trim(),
-        isOnline,
-        meetingLink: isOnline ? meetingLink.trim() : undefined,
+        venue: cleanVenue,
+        isOnline: Boolean(isOnline),
+        meetingLink: isOnline ? (cleanMeetingLink || undefined) : undefined,
         status,
-        statusReason: statusReason.trim() || undefined,
-        seatsLimit: Number(seatsLimit),
-        feePkr: Number(feePkr),
+        statusReason: cleanStatusReason || undefined,
+        seatsLimit: Number(seatsLimit) || 60,
+        feePkr: Number(feePkr) || 0,
         paymentInstructions: feePkr > 0 ? "Transfer fee via Raast (ID: 0300-1234567) or Bank Alfalah and upload receipt." : undefined,
-        certificateType: certificateType.trim(),
-        certificateRule: certificateRule.trim(),
-        featuredImage: featuredImage.trim() || "/ieee-cs-logo.png",
+        certificateType: cleanCertType,
+        certificateRule: cleanCertRule,
+        featuredImage: cleanFeaturedImage,
         galleryImages: gallery.length > 0 ? gallery : undefined,
-        eventReport: eventReport.trim() || undefined,
+        eventReport: cleanEventReport || undefined,
       };
 
       // Save directly to live PostgreSQL database via Server Action with direct client RPC fallback
@@ -761,27 +844,33 @@ export default function AdminEventsManagerPage() {
                       Featured Cover Image (Banner / Poster)
                     </label>
                     <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
-                      <UploadCloud size={14} /> Upload Banner Image
+                      <UploadCloud size={14} /> {isUploadingBanner ? "Optimizing & Uploading..." : "Upload Banner Image"}
                       <input
                         type="file"
                         accept="image/*"
+                        disabled={isUploadingBanner}
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
-                          const reader = new FileReader();
-                          reader.onload = (loadEvt) => {
-                            const res = loadEvt.target?.result as string;
-                            if (res) setFeaturedImage(res);
-                          };
-                          reader.readAsDataURL(file);
+                          setIsUploadingBanner(true);
+                          try {
+                            const uploadedUrl = await uploadImageFile(file, "banners");
+                            if (uploadedUrl) {
+                              setFeaturedImage(uploadedUrl);
+                            }
+                          } catch (upErr) {
+                            console.error("Banner upload error:", upErr);
+                          } finally {
+                            setIsUploadingBanner(false);
+                          }
                         }}
                       />
                     </label>
                   </div>
                   <input
                     type="text"
-                    value={featuredImage}
+                    value={featuredImage || ""}
                     onChange={(e) => setFeaturedImage(e.target.value)}
                     placeholder="Enter image URL, /ieee-cs-logo.png, or upload file"
                     className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none text-xs font-mono bg-white"
@@ -809,7 +898,7 @@ export default function AdminEventsManagerPage() {
                   </label>
                   <textarea
                     rows={2}
-                    value={learningObjectives}
+                    value={learningObjectives || ""}
                     onChange={(e) => setLearningObjectives(e.target.value)}
                     placeholder="Key hands-on takeaway 1&#10;Key hands-on takeaway 2"
                     className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
@@ -823,7 +912,7 @@ export default function AdminEventsManagerPage() {
                   </label>
                   <textarea
                     rows={2}
-                    value={eventReport}
+                    value={eventReport || ""}
                     onChange={(e) => setEventReport(e.target.value)}
                     placeholder="The workshop concluded successfully with 50 attendees. Keynote address and certificates distributed."
                     className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
@@ -852,7 +941,7 @@ export default function AdminEventsManagerPage() {
 
                   <textarea
                     rows={3}
-                    value={galleryImages}
+                    value={galleryImages || ""}
                     onChange={(e) => setGalleryImages(e.target.value)}
                     placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"
                     className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-[11px] bg-white"
@@ -862,25 +951,35 @@ export default function AdminEventsManagerPage() {
                   <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
                     <span>Or upload image files from your computer:</span>
                     <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
-                      <UploadCloud size={14} /> Choose Files
+                      <UploadCloud size={14} /> {isUploadingGallery ? "Processing photos..." : "Choose Files"}
                       <input
                         type="file"
                         accept="image/*"
                         multiple
+                        disabled={isUploadingGallery}
                         className="hidden"
-                        onChange={(e) => {
+                        onChange={async (e) => {
                           const files = e.target.files;
                           if (!files || files.length === 0) return;
-                          Array.from(files).forEach((file) => {
-                            const reader = new FileReader();
-                            reader.onload = (loadEvt) => {
-                              const result = loadEvt.target?.result as string;
-                              if (result) {
-                                setGalleryImages((prev) => (prev ? `${prev}\n${result}` : result));
-                              }
-                            };
-                            reader.readAsDataURL(file);
-                          });
+                          setIsUploadingGallery(true);
+                          try {
+                            const urls: string[] = [];
+                            for (const file of Array.from(files)) {
+                              const uploadedUrl = await uploadImageFile(file, "gallery");
+                              if (uploadedUrl) urls.push(uploadedUrl);
+                            }
+                            if (urls.length > 0) {
+                              setGalleryImages((prev) => {
+                                const current = (prev || "").trim();
+                                const additions = urls.join("\n");
+                                return current ? `${current}\n${additions}` : additions;
+                              });
+                            }
+                          } catch (upErr) {
+                            console.error("Gallery upload error:", upErr);
+                          } finally {
+                            setIsUploadingGallery(false);
+                          }
                         }}
                       />
                     </label>
@@ -888,9 +987,9 @@ export default function AdminEventsManagerPage() {
 
                   {/* Live Thumbnails Preview */}
                   {(() => {
-                    const parsed = galleryImages
+                    const parsed = (typeof galleryImages === "string" ? galleryImages : "")
                       .split("\n")
-                      .map((s) => s.trim())
+                      .map((s) => (s ? String(s).trim() : ""))
                       .filter(Boolean);
                     if (parsed.length === 0) return null;
 
@@ -1085,8 +1184,8 @@ export default function AdminEventsManagerPage() {
                         <tbody className="divide-y divide-gray-100">
                           {eventTeamsList
                             .filter((t) => {
-                              if (!teamSearchTerm.trim()) return true;
-                              const q = teamSearchTerm.toLowerCase();
+                              if (!(teamSearchTerm || "").trim()) return true;
+                              const q = (teamSearchTerm || "").trim().toLowerCase();
                               return (
                                 t.teamName.toLowerCase().includes(q) ||
                                 t.projectTitle.toLowerCase().includes(q) ||
@@ -1202,7 +1301,7 @@ export default function AdminEventsManagerPage() {
                     <Button
                       variant="primary"
                       onClick={handleImportTeams}
-                      disabled={!importPastedText.trim()}
+                      disabled={!(importPastedText || "").trim()}
                     >
                       <Sparkles size={14} className="mr-1.5" />
                       Process & Import Teams

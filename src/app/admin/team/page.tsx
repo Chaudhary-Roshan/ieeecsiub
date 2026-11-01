@@ -106,12 +106,12 @@ export default function AdminTeamManagerPage() {
 
   const openEditModal = (member: TeamMember) => {
     setEditingId(member.id);
-    setName(member.name);
-    setPosition(member.position);
-    setCommitteeYear(member.committeeYear);
+    setName(member.name || "");
+    setPosition(member.position || "");
+    setCommitteeYear(member.committeeYear || "");
     setPhotoUrl(member.photoUrl || "");
     setApprovedBio(member.approvedBio || "");
-    setIsCurrent(member.isCurrent);
+    setIsCurrent(Boolean(member.isCurrent));
     setEmail(member.email || "");
     setLinkedinUrl(member.linkedinUrl || "");
     setIsModalOpen(true);
@@ -129,14 +129,17 @@ export default function AdminTeamManagerPage() {
     const reader = new FileReader();
     reader.onload = (event) => {
       const result = event.target?.result as string;
-      setPhotoUrl(result);
+      setPhotoUrl(result || "");
     };
     reader.readAsDataURL(file);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !position.trim() || !committeeYear.trim()) {
+    const cleanName = (name || "").trim();
+    const cleanPosition = (position || "").trim();
+    const cleanYear = (committeeYear || "").trim();
+    if (!cleanName || !cleanPosition || !cleanYear) {
       alert("Please fill in the required fields (Name, Position, Tenure Year).");
       return;
     }
@@ -144,14 +147,14 @@ export default function AdminTeamManagerPage() {
     const memberId = editingId || `team-${Date.now()}`;
     const targetMember: TeamMember = {
       id: memberId,
-      name: name.trim(),
-      position: position.trim(),
-      committeeYear: committeeYear.trim(),
-      photoUrl: photoUrl.trim(),
-      approvedBio: approvedBio.trim(),
+      name: cleanName,
+      position: cleanPosition,
+      committeeYear: cleanYear,
+      photoUrl: (photoUrl || "").trim(),
+      approvedBio: (approvedBio || "").trim(),
       isCurrent,
-      email: email.trim() || undefined,
-      linkedinUrl: linkedinUrl.trim() || undefined,
+      email: (email || "").trim() || undefined,
+      linkedinUrl: (linkedinUrl || "").trim() || undefined,
       orderIndex: editingId
         ? members.find((m) => m.id === editingId)?.orderIndex ?? 0
         : members.length,

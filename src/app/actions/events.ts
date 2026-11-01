@@ -8,38 +8,44 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
   try {
     const supabase = await createClient();
 
-    const slug = eventData.slug ? eventData.slug.replace(/^\/+/, "") : `event-${Date.now()}`;
-    const objectivesText = Array.isArray(eventData.learningObjectives)
-      ? eventData.learningObjectives.join("\n")
-      : (eventData.learningObjectives || "");
+    const cleanSlug = eventData.slug ? String(eventData.slug).replace(/^\/+/, "").replace(/\/+$/, "").replace(/\s+/g, "-").toLowerCase() : `event-${Date.now()}`;
+    const objectivesRaw = eventData.learningObjectives as any;
+    const objectivesText = Array.isArray(objectivesRaw)
+      ? objectivesRaw.filter(Boolean).map((s: any) => String(s || "").trim()).join("\n")
+      : (typeof objectivesRaw === "string" ? objectivesRaw.trim() : "");
+
+    const galleryRaw = eventData.galleryImages as any;
+    const galleryList = Array.isArray(galleryRaw)
+      ? galleryRaw.filter(Boolean).map((s: any) => String(s || "").trim())
+      : (typeof galleryRaw === "string" ? [galleryRaw.trim()].filter(Boolean) : []);
 
     const payload = {
       id: eventData.id || undefined,
-      slug,
-      title: eventData.title || "Untitled Event",
-      description: eventData.description || "",
+      slug: cleanSlug,
+      title: (eventData.title || "Untitled Event").trim(),
+      description: (eventData.description || "").trim(),
       learning_objectives: objectivesText,
-      target_audience: eventData.targetAudience || "",
+      target_audience: (eventData.targetAudience || "").trim(),
       start_date: eventData.startDate || new Date().toISOString(),
       end_date: eventData.endDate || new Date(Date.now() + 86400000).toISOString(),
-      venue: eventData.venue || "TBD",
+      venue: (eventData.venue || "TBD").trim(),
       is_online: Boolean(eventData.isOnline),
-      meeting_link: eventData.meetingLink || null,
-      status: (eventData.status || "UPCOMING").toUpperCase(),
-      status_reason: eventData.statusReason || null,
-      seats_limit: eventData.seatsLimit || 60,
-      registered_count: eventData.registeredCount || 0,
+      meeting_link: (eventData.meetingLink || "").trim() || null,
+      status: ((eventData.status || "UPCOMING") as string).trim().toUpperCase(),
+      status_reason: (eventData.statusReason || "").trim() || null,
+      seats_limit: Number(eventData.seatsLimit) || 60,
+      registered_count: Number(eventData.registeredCount) || 0,
       registration_deadline: eventData.registrationDeadline || null,
-      fee_pkr: eventData.feePkr ?? 0,
-      payment_instructions: eventData.paymentInstructions || null,
-      certificate_type: eventData.certificateType || "Certificate of Participation",
-      certificate_rule: eventData.certificateRule || "Attend full session",
-      vtools_id: eventData.vtoolsId || null,
-      vtools_link: eventData.vtoolsLink || null,
-      featured_image: eventData.featuredImage || "/ieee-cs-logo.png",
-      gallery_images: eventData.galleryImages || [],
-      event_report: eventData.eventReport || null,
-      speakers: eventData.speakers || [],
+      fee_pkr: Number(eventData.feePkr) || 0,
+      payment_instructions: (eventData.paymentInstructions || "").trim() || null,
+      certificate_type: (eventData.certificateType || "Certificate of Participation").trim(),
+      certificate_rule: (eventData.certificateRule || "Attend full session").trim(),
+      vtools_id: (eventData.vtoolsId || "").trim() || null,
+      vtools_link: (eventData.vtoolsLink || "").trim() || null,
+      featured_image: (eventData.featuredImage || "/ieee-cs-logo.png").trim(),
+      gallery_images: galleryList,
+      event_report: (eventData.eventReport || "").trim() || null,
+      speakers: Array.isArray(eventData.speakers) ? eventData.speakers : [],
       is_published: true,
     };
 
