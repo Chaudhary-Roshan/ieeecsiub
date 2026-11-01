@@ -22,7 +22,7 @@ import {
   TEMPLATE_EXPO_WINNER_MEMBERS,
   TEMPLATE_EXPO_PARTICIPATION_MEMBERS,
 } from "./certificateTemplates";
-import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_TEAMS, DIGITALFEST_EVENT_TEAMS } from "./digitalFestData";
+import { DIGITALFEST_PARTICIPANTS } from "./digitalFestData";
 
 // Seed Templates
 const SEED_TEMPLATES: CertificateTemplate[] = [
@@ -1706,23 +1706,10 @@ class ChapterDatabase {
         if (!error) counts.templates++;
       }
 
-      // 4. Seed Event Teams
-      for (const team of DIGITALFEST_EVENT_TEAMS) {
-        const { error } = await client.from("event_teams").upsert({
-          id: team.id,
-          event_id: team.eventId,
-          sr: team.sr,
-          team_name: team.teamName,
-          project_title: team.projectTitle,
-          team_leader: team.teamLeader,
-          semester: team.semester,
-          member_count: team.memberCount,
-          team_members: team.teamMembers,
-          project_domain: team.projectDomain || null,
-          position_award: team.positionAward || null,
-        });
-        if (!error) counts.eventTeams++;
-      }
+      // 4. Clean up any legacy event teams
+      try {
+        await client.from("event_teams").delete().neq("id", "none");
+      } catch {}
 
       // 5. Seed Certificates in batches of 25
       for (let i = 0; i < SEED_CERTIFICATES.length; i += 25) {

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { registerForEventAction, submitPaymentAction } from "@/app/actions/operations";
-import { EventItem, Registration, EventTeam } from "@/types";
+import { EventItem, Registration } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import clsx from "clsx";
@@ -30,10 +30,6 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Search,
-  Trophy,
-  Code2,
-  Sparkles,
-  Filter,
 } from "lucide-react";
 
 export default function EventDetailPage() {
@@ -46,7 +42,6 @@ export default function EventDetailPage() {
   const [event, setEvent] = useState<EventItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
-  const [eventTeams, setEventTeams] = useState<EventTeam[]>([]);
 
   // Registration Form State (Option 2)
   const [fullName, setFullName] = useState("");
@@ -84,10 +79,6 @@ export default function EventDetailPage() {
         currentEvt = db.getEventBySlug(cleanSlug) || db.getEventBySlug(baseSlug) || null;
       }
       setEvent(currentEvt);
-      if (currentEvt) {
-        const teams = await db.fetchEventTeams(currentEvt.id);
-        setEventTeams(teams);
-      }
       setLoading(false);
     }
 
@@ -466,66 +457,6 @@ export default function EventDetailPage() {
                       </p>
                     )}
                   </div>
-
-                  {/* Dynamic Event Teams (Rendered only if teams were explicitly added for this event) */}
-                  {eventTeams && eventTeams.length > 0 && (
-                    <div className="space-y-4 pt-6 border-t border-gray-200">
-                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <Trophy size={18} className="text-ieee-orange" />
-                            <h4 className="font-montserrat font-bold text-base text-ieee-navy">
-                              Participating Teams & Projects
-                            </h4>
-                          </div>
-                          <p className="text-xs text-gray-500 mt-0.5">
-                            {eventTeams.length} Registered Project Teams
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Teams Display */}
-                      <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-                        {eventTeams.map((team) => (
-                          <div
-                            key={team.id || team.sr}
-                            className="p-4 bg-white border border-gray-200 rounded-xl hover:border-ieee-blue/60 transition-all hover:shadow-xs space-y-2.5"
-                          >
-                            <div className="flex items-start justify-between gap-3">
-                              <div>
-                                <div className="flex items-center gap-2 flex-wrap mb-1">
-                                  <span className="font-mono text-[10px] bg-gray-100 text-gray-600 font-bold px-2 py-0.5 rounded">
-                                    #{team.sr}
-                                  </span>
-                                  <span className="font-montserrat font-extrabold text-xs text-ieee-navy">
-                                    {team.teamName}
-                                  </span>
-                                </div>
-                                <h5 className="font-montserrat font-bold text-sm text-ieee-navy leading-snug">
-                                  {team.projectTitle}
-                                </h5>
-                              </div>
-                            </div>
-
-                            {/* Members List */}
-                            {((team.teamMembers && team.teamMembers.length > 0) || ((team as any).members && (team as any).members.length > 0)) && (
-                              <div className="border-t border-gray-100 pt-2 flex flex-wrap items-center gap-1.5 text-xs">
-                                <span className="text-[11px] text-gray-500 font-medium">Participants:</span>
-                                {(team.teamMembers || (team as any).members || []).map((memberName: string, i: number) => (
-                                  <span
-                                    key={i}
-                                    className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700 border border-gray-200"
-                                  >
-                                    {memberName}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
