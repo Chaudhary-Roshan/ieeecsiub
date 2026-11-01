@@ -28,7 +28,7 @@ BEGIN
   v_slug := COALESCE(event_data->>'slug', 'event-' || floor(extract(epoch from now())));
 
   -- If ID exists and record is present in DB, perform UPDATE
-  IF v_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.events WHERE id = v_id) THEN
+  IF v_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.events WHERE id::text = v_id) THEN
     UPDATE public.events
     SET
       slug = v_slug,
@@ -56,7 +56,7 @@ BEGIN
       speakers = COALESCE(event_data->'speakers', '[]'::jsonb),
       is_published = COALESCE((event_data->>'is_published')::boolean, is_published),
       updated_at = NOW()
-    WHERE id = v_id
+    WHERE id::text = v_id
     RETURNING to_jsonb(public.events.*) INTO v_result;
   ELSE
     -- Perform INSERT
@@ -111,7 +111,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  DELETE FROM public.events WHERE id = p_event_id;
+  DELETE FROM public.events WHERE id::text = p_event_id;
   RETURN jsonb_build_object('success', true);
 END;
 $$;
@@ -131,7 +131,7 @@ DECLARE
 BEGIN
   v_id := member_data->>'id';
 
-  IF v_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.team_members WHERE id = v_id) THEN
+  IF v_id IS NOT NULL AND EXISTS (SELECT 1 FROM public.team_members WHERE id::text = v_id) THEN
     UPDATE public.team_members
     SET
       name = COALESCE(member_data->>'name', name),
@@ -144,7 +144,7 @@ BEGIN
       email = member_data->>'email',
       linkedin_url = member_data->>'linkedin_url',
       updated_at = NOW()
-    WHERE id = v_id
+    WHERE id::text = v_id
     RETURNING to_jsonb(public.team_members.*) INTO v_result;
   ELSE
     INSERT INTO public.team_members (
@@ -179,7 +179,7 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
 BEGIN
-  DELETE FROM public.team_members WHERE id = p_member_id;
+  DELETE FROM public.team_members WHERE id::text = p_member_id;
   RETURN jsonb_build_object('success', true);
 END;
 $$;

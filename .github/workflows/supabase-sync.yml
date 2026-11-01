@@ -44,4 +44,4 @@ jobs:
           supabase link --project-ref "$REF" --password "$SUPABASE_DB_PASSWORD"
 
           echo "Applying migrations to live database..."
-          supabase db push --password "$SUPABASE_DB_PASSWORD"
+          supabase db push --linked --password "$SUPABASE_DB_PASSWORD"

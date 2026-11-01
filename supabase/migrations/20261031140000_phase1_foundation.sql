@@ -125,7 +125,7 @@ END $$;
 -- 7. Certificate Runs Table
 CREATE TABLE IF NOT EXISTS public.certificate_runs (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    event_id TEXT REFERENCES public.events(id) ON DELETE SET NULL,
+    event_id TEXT,
     template TEXT NOT NULL,
     mode TEXT NOT NULL CHECK (mode IN ('PER_PERSON', 'PER_TEAM')),
     source_file_path TEXT,
@@ -140,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.certificate_runs (
 -- 8. Certificate Members Table (Kit Schema Team Roster)
 CREATE TABLE IF NOT EXISTS public.certificate_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    certificate_id TEXT NOT NULL REFERENCES public.certificates(id) ON DELETE CASCADE,
+    certificate_id TEXT NOT NULL,
     position INTEGER NOT NULL DEFAULT 1,
     member_name TEXT NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
@@ -240,7 +240,7 @@ BEGIN
         ) ORDER BY position ASC
     ), '[]'::jsonb) INTO members_list
     FROM public.certificate_members
-    WHERE certificate_id = cert_row.id;
+    WHERE certificate_id = cert_row.id::text;
 
     -- Query shared settings
     SELECT * INTO settings_row

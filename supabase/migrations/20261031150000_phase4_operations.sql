@@ -30,7 +30,7 @@ BEGIN
     -- Lock event row to prevent race conditions on last seat
     SELECT * INTO v_event
     FROM public.events
-    WHERE id = p_event_id
+    WHERE id::text = p_event_id
     FOR UPDATE;
 
     IF NOT FOUND THEN
@@ -107,7 +107,7 @@ BEGIN
     -- Update registered_count on event
     UPDATE public.events
     SET registered_count = COALESCE(registered_count, 0) + 1
-    WHERE id = p_event_id;
+    WHERE id::text = p_event_id;
 
     RETURN jsonb_build_object(
         'success', true,
@@ -207,7 +207,7 @@ BEGIN
 
         UPDATE public.registrations
         SET status = 'CONFIRMED'
-        WHERE id = v_payment.registration_id;
+        WHERE id::text = v_payment.registration_id::text;
     ELSE
         UPDATE public.payments
         SET status = 'REJECTED', rejection_reason = p_reason
