@@ -35,7 +35,6 @@ import {
   Sparkles,
   Filter,
 } from "lucide-react";
-import { DIGITALFEST_TEAMS, DIGITALFEST_PARTICIPANTS } from "@/lib/digitalFestData";
 
 export default function EventDetailPage() {
   const params = useParams();
@@ -48,8 +47,6 @@ export default function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activePhotoIndex, setActivePhotoIndex] = useState<number | null>(null);
   const [eventTeams, setEventTeams] = useState<EventTeam[]>([]);
-  const [teamSearch, setTeamSearch] = useState("");
-  const [selectedSemester, setSelectedSemester] = useState("ALL");
 
   // Registration Form State (Option 2)
   const [fullName, setFullName] = useState("");
@@ -470,139 +467,65 @@ export default function EventDetailPage() {
                     )}
                   </div>
 
-                  {/* Official Participating Projects & Teams Roster (60 Teams · 156 Innovators) */}
-                  <div className="space-y-4 pt-6 border-t border-gray-200">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <Trophy size={18} className="text-ieee-orange" />
-                          <h4 className="font-montserrat font-bold text-base text-ieee-navy">
-                            Participating Projects & Teams Roster
-                          </h4>
+                  {/* Dynamic Event Teams (Rendered only if teams were explicitly added for this event) */}
+                  {eventTeams && eventTeams.length > 0 && (
+                    <div className="space-y-4 pt-6 border-t border-gray-200">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <Trophy size={18} className="text-ieee-orange" />
+                            <h4 className="font-montserrat font-bold text-base text-ieee-navy">
+                              Participating Teams & Projects
+                            </h4>
+                          </div>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {eventTeams.length} Registered Project Teams
+                          </p>
                         </div>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          60 Engineering & Computing Projects · 156 Registered Student Innovators
-                        </p>
                       </div>
 
-                      <div className="flex items-center gap-2">
-                        <span className="text-[11px] font-mono bg-orange-50 text-ieee-orange border border-orange-200 font-bold px-2.5 py-1 rounded-full">
-                          60 Teams Evaluated
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Search & Semester Filter Bar */}
-                    <div className="bg-gray-50 border border-gray-200 p-3.5 rounded-xl space-y-3">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-2.5 text-gray-400" size={14} />
-                        <input
-                          type="text"
-                          value={teamSearch}
-                          onChange={(e) => setTeamSearch(e.target.value)}
-                          placeholder="Search by project title, team name, student, or keyword..."
-                          className="w-full pl-8 pr-3 py-1.5 border rounded-lg text-xs bg-white focus:outline-none focus:ring-1 focus:ring-ieee-blue"
-                        />
-                      </div>
-
-                      {/* Semester Filters */}
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
-                        <span className="text-[11px] text-gray-500 font-semibold flex items-center gap-1 mr-1">
-                          <Filter size={11} /> Semester:
-                        </span>
-                        {["ALL", "3rd", "4th", "6th", "7th", "8th"].map((sem) => (
-                          <button
-                            key={sem}
-                            onClick={() => setSelectedSemester(sem)}
-                            className={clsx(
-                              "px-2.5 py-1 rounded-md text-[11px] font-montserrat font-semibold transition-colors whitespace-nowrap",
-                              selectedSemester === sem
-                                ? "bg-ieee-navy text-white shadow-xs"
-                                : "bg-white text-gray-600 hover:bg-gray-100 border border-gray-200"
-                            )}
+                      {/* Teams Display */}
+                      <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
+                        {eventTeams.map((team) => (
+                          <div
+                            key={team.id || team.sr}
+                            className="p-4 bg-white border border-gray-200 rounded-xl hover:border-ieee-blue/60 transition-all hover:shadow-xs space-y-2.5"
                           >
-                            {sem === "ALL" ? "All Semesters" : `${sem} Semester`}
-                          </button>
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <div className="flex items-center gap-2 flex-wrap mb-1">
+                                  <span className="font-mono text-[10px] bg-gray-100 text-gray-600 font-bold px-2 py-0.5 rounded">
+                                    #{team.sr}
+                                  </span>
+                                  <span className="font-montserrat font-extrabold text-xs text-ieee-navy">
+                                    {team.teamName}
+                                  </span>
+                                </div>
+                                <h5 className="font-montserrat font-bold text-sm text-ieee-navy leading-snug">
+                                  {team.projectTitle}
+                                </h5>
+                              </div>
+                            </div>
+
+                            {/* Members List */}
+                            {team.members && team.members.length > 0 && (
+                              <div className="border-t border-gray-100 pt-2 flex flex-wrap items-center gap-1.5 text-xs">
+                                <span className="text-[11px] text-gray-500 font-medium">Participants:</span>
+                                {team.members.map((memberName, i) => (
+                                  <span
+                                    key={i}
+                                    className="inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-medium bg-gray-100 text-gray-700 border border-gray-200"
+                                  >
+                                    {memberName}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         ))}
                       </div>
                     </div>
-
-                    {/* Teams Display */}
-                    <div className="space-y-3 max-h-[600px] overflow-y-auto pr-1">
-                      {DIGITALFEST_TEAMS.filter((t) => {
-                        const matchesSearch =
-                          t.projectTitle.toLowerCase().includes(teamSearch.toLowerCase()) ||
-                          t.teamName.toLowerCase().includes(teamSearch.toLowerCase()) ||
-                          t.leader.toLowerCase().includes(teamSearch.toLowerCase()) ||
-                          t.members.some((m) => m.toLowerCase().includes(teamSearch.toLowerCase()));
-                        const matchesSemester = selectedSemester === "ALL" || t.semester === selectedSemester;
-                        return matchesSearch && matchesSemester;
-                      }).map((team) => (
-                        <div
-                          key={team.sr}
-                          className="p-4 bg-white border border-gray-200 rounded-xl hover:border-ieee-blue/60 transition-all hover:shadow-xs space-y-2.5"
-                        >
-                          <div className="flex items-start justify-between gap-3">
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap mb-1">
-                                <span className="font-mono text-[10px] bg-gray-100 text-gray-600 font-bold px-2 py-0.5 rounded">
-                                  #{team.sr}
-                                </span>
-                                <span className="font-montserrat font-extrabold text-xs text-ieee-navy">
-                                  {team.teamName}
-                                </span>
-                                <span className="text-[10px] bg-blue-50 text-ieee-blue font-semibold px-2 py-0.5 rounded-full border border-blue-200">
-                                  {team.semester} Semester
-                                </span>
-                                <span className="text-[10px] text-gray-400">
-                                  ({team.memberCount} Members)
-                                </span>
-                              </div>
-                              <h5 className="font-montserrat font-bold text-sm text-ieee-navy leading-snug">
-                                {team.projectTitle}
-                              </h5>
-                            </div>
-                          </div>
-
-                          {/* Members List */}
-                          <div className="border-t border-gray-100 pt-2 flex flex-wrap items-center gap-1.5 text-xs">
-                            <span className="text-[11px] text-gray-500 font-medium">Participants:</span>
-                            {team.members.map((memberName, i) => {
-                              const participant = DIGITALFEST_PARTICIPANTS.find(
-                                (p) => p.name.trim().toLowerCase() === memberName.trim().toLowerCase() && p.teamName === team.teamName
-                              ) || DIGITALFEST_PARTICIPANTS.find(
-                                (p) => p.name.trim().toLowerCase() === memberName.trim().toLowerCase()
-                              );
-
-                              const isLeader = memberName.trim().toLowerCase() === team.leader.trim().toLowerCase();
-
-                              return (
-                                <Link
-                                  key={i}
-                                  href={participant?.certificateCode ? `/verify/${participant.certificateCode}` : "/verify"}
-                                  title="Click to view verified certificate"
-                                  className={clsx(
-                                    "inline-flex items-center gap-1 text-[11px] px-2.5 py-0.5 rounded-full font-medium transition-all group",
-                                    isLeader
-                                      ? "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100 font-semibold"
-                                      : "bg-gray-100 text-gray-700 hover:bg-blue-50 hover:text-ieee-blue border border-gray-200"
-                                  )}
-                                >
-                                  <span>{memberName}</span>
-                                  {isLeader && (
-                                    <span className="text-[9px] bg-amber-200 text-amber-900 px-1 rounded uppercase font-bold">
-                                      Lead
-                                    </span>
-                                  )}
-                                  <ShieldCheck size={11} className="text-status-active opacity-0 group-hover:opacity-100 transition-opacity" />
-                                </Link>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
             </div>
