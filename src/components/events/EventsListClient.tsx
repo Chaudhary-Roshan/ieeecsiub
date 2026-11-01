@@ -72,7 +72,7 @@ export const EventsListClient: React.FC<EventsListClientProps> = ({ initialEvent
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {filteredEvents.map((evt) => {
-            const cleanSlug = evt.slug.trim().replace(/^\/+/, "");
+            const cleanSlug = (evt.slug || "").trim().replace(/^\/+/, "");
             const isPostponed = evt.status === "POSTPONED";
             const isCancelled = evt.status === "CANCELLED";
 

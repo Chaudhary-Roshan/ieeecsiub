@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { getSupabase } from "@/lib/supabase";
 import { saveEventAction, deleteEventAction } from "@/app/actions/events";
 import { EventItem, EventStatus, EventTeam } from "@/types";
 import { Button } from "@/components/ui/Button";
@@ -267,14 +268,35 @@ export default function AdminEventsManagerPage() {
         eventReport: eventReport.trim() || undefined,
       };
 
-      // Save directly to live PostgreSQL database via Server Action
-      const result = await saveEventAction({
-        ...eventPayload,
-        id: editingEventId || undefined,
-      });
+      // Save directly to live PostgreSQL database via Server Action with direct client RPC fallback
+      let result: any = null;
+      try {
+        result = await saveEventAction({
+          ...eventPayload,
+          id: editingEventId || undefined,
+        });
+      } catch (saErr: any) {
+        console.warn("Server action issue, trying direct RPC fallback:", saErr);
+      }
 
-      if (!result.success) {
-        setModalError(result.error || "Failed to save event to database.");
+      // Direct client-side RPC fallback if Server Action had flight payload error
+      if (!result || !result.success) {
+        const client = getSupabase();
+        if (client) {
+          const { data: rpcData, error: rpcErr } = await client.rpc("save_event", {
+            event_data: {
+              ...eventPayload,
+              id: editingEventId || undefined,
+            },
+          });
+          if (!rpcErr && rpcData?.success) {
+            result = { success: true, event: rpcData.event };
+          }
+        }
+      }
+
+      if (!result || !result.success) {
+        setModalError(result?.error || "Failed to save event to database.");
         return;
       }
 
@@ -310,6 +332,12 @@ export default function AdminEventsManagerPage() {
         await deleteEventAction(event.id);
       } catch (err) {
         console.warn("Server action delete error:", err);
+      }
+      const client = getSupabase();
+      if (client) {
+        try {
+          await client.rpc("delete_event", { p_event_id: event.id });
+        } catch {}
       }
       db.deleteEvent(event.id);
       db.addAuditLog(

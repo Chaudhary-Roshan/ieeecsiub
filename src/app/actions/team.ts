@@ -27,10 +27,13 @@ export async function saveTeamMemberAction(memberData: Partial<TeamMember>): Pro
     });
 
     if (!rpcErr && rpcRes && rpcRes.success) {
-      try { revalidateTag("team"); } catch {}
-      revalidatePath("/");
-      revalidatePath("/team");
-      revalidatePath("/admin/team");
+      try {
+        revalidateTag("team");
+        revalidatePath("/");
+        revalidatePath("/team");
+      } catch (revErr) {
+        console.warn("Revalidation warning:", revErr);
+      }
       return { success: true, member: rpcRes.member };
     }
 
@@ -56,10 +59,13 @@ export async function saveTeamMemberAction(memberData: Partial<TeamMember>): Pro
       return { success: false, error: res.error.message || rpcErr?.message || "Failed to save officer." };
     }
 
-    try { revalidateTag("team"); } catch {}
-    revalidatePath("/");
-    revalidatePath("/team");
-    revalidatePath("/admin/team");
+    try {
+      revalidateTag("team");
+      revalidatePath("/");
+      revalidatePath("/team");
+    } catch (revErr) {
+      console.warn("Revalidation warning:", revErr);
+    }
 
     return { success: true, member: res.data };
   } catch (err: any) {
@@ -78,10 +84,13 @@ export async function deleteTeamMemberAction(id: string): Promise<{ success: boo
     });
 
     if (!rpcErr && rpcRes && rpcRes.success) {
-      try { revalidateTag("team"); } catch {}
-      revalidatePath("/");
-      revalidatePath("/team");
-      revalidatePath("/admin/team");
+      try {
+        revalidateTag("team");
+        revalidatePath("/");
+        revalidatePath("/team");
+      } catch (revErr) {
+        console.warn("Revalidation warning:", revErr);
+      }
       return { success: true };
     }
 
@@ -95,10 +104,13 @@ export async function deleteTeamMemberAction(id: string): Promise<{ success: boo
       return { success: false, error: error.message };
     }
 
-    try { revalidateTag("team"); } catch {}
-    revalidatePath("/");
-    revalidatePath("/team");
-    revalidatePath("/admin/team");
+    try {
+      revalidateTag("team");
+      revalidatePath("/");
+      revalidatePath("/team");
+    } catch (revErr) {
+      console.warn("Revalidation warning:", revErr);
+    }
 
     return { success: true };
   } catch (err: any) {

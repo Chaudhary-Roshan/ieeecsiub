@@ -249,7 +249,7 @@ export default function HomePage() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {upcomingEvents.map((evt) => {
-                const eventSlug = evt.slug.trim().replace(/^\/+/, "");
+                const eventSlug = (evt.slug || "").trim().replace(/^\/+/, "");
                 return (
                   <div
                     key={evt.id}
@@ -326,7 +326,7 @@ export default function HomePage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {completedEvents.map((evt) => {
-            const eventSlug = evt.slug.trim().replace(/^\/+/, "");
+            const eventSlug = (evt.slug || "").trim().replace(/^\/+/, "");
             return (
               <div
                 key={evt.id}

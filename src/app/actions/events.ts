@@ -49,11 +49,13 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
     });
 
     if (!rpcErr && rpcRes && rpcRes.success) {
-      try { revalidateTag("events"); } catch {}
-      revalidatePath("/");
-      revalidatePath("/events");
-      revalidatePath(`/events/${slug}`);
-      revalidatePath("/admin/events");
+      try {
+        revalidateTag("events");
+        revalidatePath("/");
+        revalidatePath("/events");
+      } catch (revErr) {
+        console.warn("Revalidation warning:", revErr);
+      }
       return { success: true, event: rpcRes.event };
     }
 
@@ -79,11 +81,13 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
       return { success: false, error: res.error.message || rpcErr?.message || "Failed to save event." };
     }
 
-    try { revalidateTag("events"); } catch {}
-    revalidatePath("/");
-    revalidatePath("/events");
-    revalidatePath(`/events/${slug}`);
-    revalidatePath("/admin/events");
+    try {
+      revalidateTag("events");
+      revalidatePath("/");
+      revalidatePath("/events");
+    } catch (revErr) {
+      console.warn("Revalidation warning:", revErr);
+    }
 
     return { success: true, event: res.data };
   } catch (err: any) {
@@ -102,10 +106,13 @@ export async function deleteEventAction(id: string): Promise<{ success: boolean;
     });
 
     if (!rpcErr && rpcRes && rpcRes.success) {
-      try { revalidateTag("events"); } catch {}
-      revalidatePath("/");
-      revalidatePath("/events");
-      revalidatePath("/admin/events");
+      try {
+        revalidateTag("events");
+        revalidatePath("/");
+        revalidatePath("/events");
+      } catch (revErr) {
+        console.warn("Revalidation warning:", revErr);
+      }
       return { success: true };
     }
 
@@ -119,10 +126,13 @@ export async function deleteEventAction(id: string): Promise<{ success: boolean;
       return { success: false, error: error.message };
     }
 
-    try { revalidateTag("events"); } catch {}
-    revalidatePath("/");
-    revalidatePath("/events");
-    revalidatePath("/admin/events");
+    try {
+      revalidateTag("events");
+      revalidatePath("/");
+      revalidatePath("/events");
+    } catch (revErr) {
+      console.warn("Revalidation warning:", revErr);
+    }
 
     return { success: true };
   } catch (err: any) {
