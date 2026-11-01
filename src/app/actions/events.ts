@@ -56,7 +56,6 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
 
     if (!rpcErr && rpcRes && rpcRes.success) {
       try {
-        revalidateTag("events");
         revalidatePath("/");
         revalidatePath("/events");
         revalidatePath(`/events/${cleanSlug}`);
@@ -68,43 +67,12 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
       return { success: true, event: rpcRes.event };
     }
 
-    // 2. Direct table fallback if RPC is not yet present
-    let res;
-    const { data: existing } = await supabase
-      .from("events")
-      .select("id")
-      .or(`id.eq.${payload.id || "00000000-0000-0000-0000-000000000000"},slug.eq.${payload.slug}`)
-      .maybeSingle();
-
-    if (existing?.id) {
-      res = await supabase
-        .from("events")
-        .update(payload)
-        .eq("id", existing.id)
-        .select()
-        .single();
-    } else {
-      res = await supabase
-        .from("events")
-        .insert(payload)
-        .select()
-        .single();
+    if (rpcErr) {
+      console.error("saveEventAction RPC error:", rpcErr);
+      return { success: false, error: rpcErr.message || "Database RPC rejected save_event." };
     }
 
-    if (res.error) {
-      console.error("saveEventAction database error:", res.error, rpcErr);
-      return { success: false, error: res.error.message || rpcErr?.message || "Failed to save event." };
-    }
-
-    try {
-      revalidateTag("events");
-      revalidatePath("/");
-      revalidatePath("/events");
-    } catch (revErr) {
-      console.warn("Revalidation warning:", revErr);
-    }
-
-    return { success: true, event: res.data };
+    return { success: false, error: "Failed to save event to database." };
   } catch (err: any) {
     console.error("saveEventAction unexpected error:", err);
     return { success: false, error: err?.message || "An unexpected error occurred while saving event." };

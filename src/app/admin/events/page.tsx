@@ -255,45 +255,65 @@ export default function AdminEventsManagerPage() {
         eventReport: cleanEventReport || undefined,
       };
 
-      // Save directly to live PostgreSQL database via Server Action with direct client RPC fallback
+      // Save directly to live PostgreSQL database via Supabase RPC with Server Action fallback
       let result: any = null;
-      try {
-        result = await saveEventAction({
-          ...eventPayload,
-          id: editingEventId || undefined,
-        });
-      } catch (saErr: any) {
-        console.warn("Server action issue, trying direct RPC fallback:", saErr);
-      }
+      let lastErrorMessage = "";
 
-      // Direct client-side RPC fallback if Server Action had flight payload error
-      if (!result || !result.success) {
+      const clientRpcPayload = {
+        ...eventPayload,
+        id: editingEventId || undefined,
+        start_date: safeStart,
+        end_date: safeEnd,
+        featured_image: cleanFeaturedImage,
+        gallery_images: gallery,
+        certificate_type: cleanCertType,
+        certificate_rule: cleanCertRule,
+        learning_objectives: objectives,
+        fee_pkr: Number(feePkr) || 0,
+        seats_limit: Number(seatsLimit) || 60,
+        is_online: Boolean(isOnline),
+      };
+
+      // 1. Try direct Supabase client RPC (bypasses Server Action 1MB payload limits and network hops)
+      try {
         const client = getSupabase();
         if (client) {
           const { data: rpcData, error: rpcErr } = await client.rpc("save_event", {
-            event_data: {
-              ...eventPayload,
-              id: editingEventId || undefined,
-              start_date: safeStart,
-              end_date: safeEnd,
-              featured_image: cleanFeaturedImage,
-              gallery_images: gallery,
-              certificate_type: cleanCertType,
-              certificate_rule: cleanCertRule,
-              learning_objectives: objectives,
-              fee_pkr: Number(feePkr) || 0,
-              seats_limit: Number(seatsLimit) || 60,
-              is_online: Boolean(isOnline),
-            },
+            event_data: clientRpcPayload,
           });
+
           if (!rpcErr && rpcData?.success) {
             result = { success: true, event: rpcData.event };
+          } else if (rpcErr) {
+            console.warn("Direct RPC notice:", rpcErr);
+            lastErrorMessage = rpcErr.message || rpcErr.details || "Database RPC rejected save_event.";
           }
+        }
+      } catch (clientErr: any) {
+        console.warn("Client RPC exception:", clientErr);
+        lastErrorMessage = clientErr?.message || "";
+      }
+
+      // 2. Fallback to Server Action if client RPC didn't return success
+      if (!result || !result.success) {
+        try {
+          const saRes = await saveEventAction({
+            ...eventPayload,
+            id: editingEventId || undefined,
+          });
+          if (saRes?.success) {
+            result = saRes;
+          } else if (saRes?.error) {
+            lastErrorMessage = saRes.error;
+          }
+        } catch (saErr: any) {
+          console.warn("Server action issue:", saErr);
+          if (!lastErrorMessage) lastErrorMessage = saErr?.message || "Server action network timeout.";
         }
       }
 
       if (!result || !result.success) {
-        setModalError(result?.error || "Failed to save event to database.");
+        setModalError(lastErrorMessage || result?.error || "Failed to save event to database. Please check required fields.");
         return;
       }
 
