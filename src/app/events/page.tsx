@@ -2,6 +2,7 @@ import React from "react";
 import { getEvents } from "@/lib/data/events";
 import { EventsListClient } from "@/components/events/EventsListClient";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 0; // Always serve fresh data synchronized with Postgres
 
 export const metadata = {

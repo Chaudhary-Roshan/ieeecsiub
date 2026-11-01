@@ -484,6 +484,7 @@ class ChapterDatabase {
           .from("events")
           .select("*")
           .or(`slug.eq.${clean},slug.eq./${clean},slug.eq.2026/${baseClean},slug.eq.${baseClean}`)
+          .limit(1)
           .maybeSingle();
         if (data && !error) {
           const evt: EventItem = {

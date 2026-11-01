@@ -1,12 +1,9 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
-import { db } from "@/lib/db";
-import { EventItem } from "@/types";
+import { getEvents } from "@/lib/data/events";
 import { formatPKTDateOnly, formatPKTDateTime } from "@/lib/sha256";
 import {
   Calendar,
@@ -21,16 +18,11 @@ import {
   Sparkles,
 } from "lucide-react";
 
-export default function HomePage() {
-  const [events, setEvents] = useState<EventItem[]>([]);
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-  useEffect(() => {
-    async function load() {
-      const data = await db.fetchEvents();
-      setEvents(data);
-    }
-    load();
-  }, []);
+export default async function HomePage() {
+  const events = await getEvents({ publishedOnly: true });
 
   const upcomingEvents = events.filter((e) => e.status === "UPCOMING" || e.status === "ONGOING").slice(0, 3);
   const completedEvents = events.filter((e) => e.status === "COMPLETED").slice(0, 3);

@@ -2,6 +2,7 @@ import React from "react";
 import { getTeamMembers } from "@/lib/data/team";
 import { TeamListClient } from "@/components/team/TeamListClient";
 
+export const dynamic = "force-dynamic";
 export const revalidate = 0; // Always serve fresh data synchronized with Postgres
 
 export const metadata = {

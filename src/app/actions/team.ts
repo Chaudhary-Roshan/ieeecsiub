@@ -8,8 +8,9 @@ export async function saveTeamMemberAction(memberData: Partial<TeamMember>): Pro
   try {
     const supabase = await createClient();
 
-    const payload = {
-      id: memberData.id || undefined,
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(memberData.id || "");
+    const payload: any = {
+      id: isUUID ? memberData.id : undefined,
       name: memberData.name || "Member",
       position: memberData.position || "Executive Member",
       committee_year: memberData.committeeYear || "2026-2027",

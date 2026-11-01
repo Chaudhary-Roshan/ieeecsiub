@@ -61,6 +61,7 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
     .from("events")
     .select("*")
     .or(`slug.eq.${cleanSlug},slug.eq./${cleanSlug},slug.eq.2026/${baseSlug},slug.eq.${baseSlug}`)
+    .limit(1)
     .maybeSingle();
 
   if (error || !data) {
