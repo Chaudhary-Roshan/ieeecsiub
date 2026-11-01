@@ -297,18 +297,24 @@ export default function AdminEventsManagerPage() {
         return;
       }
 
+      const canonicalId = result.event?.id || editingEventId || eventPayload.id;
+      const canonicalEvent: EventItem = {
+        ...eventPayload,
+        id: canonicalId,
+      };
+
       // Keep local in-memory view synced
       if (editingEventId) {
-        db.updateEvent(editingEventId, eventPayload);
-      } else {
-        db.addEvent(eventPayload);
+        db.updateEvent(editingEventId, canonicalEvent);
       }
+      db.updateEvent(canonicalId, canonicalEvent);
+      db.addEvent(canonicalEvent);
 
       db.addAuditLog(
         "Muhammad Roshan Ashraf",
         editingEventId ? "EVENT_UPDATED" : "EVENT_CREATED",
         "events",
-        eventPayload.id,
+        canonicalId,
         `${editingEventId ? "Updated" : "Created"} event "${title}" with status "${status}".`
       );
 

@@ -483,7 +483,7 @@ class ChapterDatabase {
         const { data, error } = await client
           .from("events")
           .select("*")
-          .or(`slug.eq.${clean},slug.eq.2026/${baseClean},slug.eq.${baseClean}`)
+          .or(`slug.eq.${clean},slug.eq./${clean},slug.eq.2026/${baseClean},slug.eq.${baseClean}`)
           .maybeSingle();
         if (data && !error) {
           const evt: EventItem = {

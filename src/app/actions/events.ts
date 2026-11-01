@@ -59,6 +59,9 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
         revalidateTag("events");
         revalidatePath("/");
         revalidatePath("/events");
+        revalidatePath(`/events/${cleanSlug}`);
+        const baseSlug = cleanSlug.split("/").pop();
+        if (baseSlug) revalidatePath(`/events/${baseSlug}`);
       } catch (revErr) {
         console.warn("Revalidation warning:", revErr);
       }
@@ -67,11 +70,17 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
 
     // 2. Direct table fallback if RPC is not yet present
     let res;
-    if (payload.id) {
+    const { data: existing } = await supabase
+      .from("events")
+      .select("id")
+      .or(`id.eq.${payload.id || "00000000-0000-0000-0000-000000000000"},slug.eq.${payload.slug}`)
+      .maybeSingle();
+
+    if (existing?.id) {
       res = await supabase
         .from("events")
         .update(payload)
-        .eq("id", payload.id)
+        .eq("id", existing.id)
         .select()
         .single();
     } else {

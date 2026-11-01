@@ -55,12 +55,13 @@ export async function getEvents(options?: { publishedOnly?: boolean }): Promise<
 export async function getEventBySlug(slug: string): Promise<EventItem | null> {
   const supabase = await createClient();
   
-  const cleanSlug = slug.replace(/^\/+/, "");
+  const cleanSlug = slug.replace(/^\/+/, "").replace(/\/+$/, "");
+  const baseSlug = cleanSlug.split("/").pop() || cleanSlug;
   const { data, error } = await supabase
     .from("events")
     .select("*")
-    .or(`slug.eq.${cleanSlug},slug.eq./${cleanSlug}`)
-    .single();
+    .or(`slug.eq.${cleanSlug},slug.eq./${cleanSlug},slug.eq.2026/${baseSlug},slug.eq.${baseSlug}`)
+    .maybeSingle();
 
   if (error || !data) {
     return null;
