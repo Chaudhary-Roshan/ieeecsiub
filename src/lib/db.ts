@@ -84,172 +84,13 @@ const SEED_TEMPLATES: CertificateTemplate[] = [
   },
 ];
 
-// Seed Events
-const SEED_EVENTS: EventItem[] = [
-  {
-    id: "evt-digitalfest-2026",
-    slug: "2026/digitalfest-projects-expo",
-    title: "IEEE DigitalFest 2026 – Projects Expo",
-    description: "Premier student innovation expo featuring hardware prototypes, AI/ML systems, cybersecurity defenses, IoT devices, and software solutions evaluated by academic and industry judges.",
-    learningObjectives: [
-      "Cyber Physical Systems, Robotics & Embedded Hardware",
-      "Artificial Intelligence, Machine Learning & Deep Neural Nets",
-      "Cyber Security, Ethical Hacking & Defensive Hardening",
-      "Internet of Things (IoT) & Next-Generation Computing",
-      "Data Science, Big Data Analytics & Predictive Modeling",
-      "Software Development, Cloud & Innovative Mobile Applications",
-      "Emerging Technologies & Scalable System Architectures",
-    ],
-    targetAudience: "Undergraduate Engineering, Computer Science, IT & Software Engineering students with working prototypes",
-    startDate: "2026-06-03T03:30:00Z",
-    endDate: "2026-06-03T12:00:00Z",
-    venue: "Department of Information & Communication Engineering, The Islamia University of Bahawalpur (IUB)",
-    isOnline: false,
-    status: "COMPLETED",
-    seatsLimit: 160,
-    registeredCount: 156,
-    feePkr: 0,
-    certificateType: "Certificate of Participation & Project Merit",
-    certificateRule: "Successfully set up project booth, demonstrated functional prototype, and presented project to evaluation jury at the Expo",
-    vtoolsId: "vtools-evt-10492",
-    vtoolsLink: "https://events.vtools.ieee.org/m/10492",
-    featuredImage: "/ieee-cs-logo.png",
-    eventReport: "IEEE DigitalFest 2026 – Projects Expo concluded with grand success at the Department of Information & Communication Engineering, IUB. Over 60 student teams demonstrated working hardware & software prototypes across 7 tech domains. Organized in collaboration with IEEE Bahawalpur Subsection, IEEE CS, IEEE SPS, IEEE ComSoc, and Cyber Security Student Club under the leadership of Muhammad Roshan Ashraf. Cash prizes of Rs. 10,000 (1st Position), Rs. 5,000 (2nd Position), and Rs. 3,000 (3rd Position) awarded alongside official IEEE & IUB participation certificates.",
-    galleryImages: [],
-    speakers: [
-      {
-        name: "Muhammad Roshan Ashraf",
-        role: "President, Cyber Security Student Club & Event Lead",
-        bio: "Led project organization, evaluation criteria, and event operations for IEEE DigitalFest 2026.",
-      },
-      {
-        name: "Dr. Asjad Amin",
-        role: "Branch Counselor & Faculty Jury Chair",
-        bio: "Presided over the project judging session and closing award distribution ceremony.",
-      },
-      {
-        name: "Support Desk: M. Talha, Aliza Kashif, Sharjeel Ibtisam",
-        role: "Project Logistics & Participant Support",
-        bio: "Support helpline (+92-303-7357002), booth allocations, and judging coordination.",
-      },
-    ],
-  },
-];
-
-// Official IEEE DigitalFest 2026 Certificates Registry (156 Participants Across 60 Teams)
-const SEED_CERTIFICATES: CertificateRecord[] = DIGITALFEST_PARTICIPANTS.map((p, idx) => ({
-  id: `cert-df-${idx + 1}`,
-  code: p.certificateCode,
-  recipientName: p.name,
-  publicNameFormat: "FULL_NAME",
-  eventId: "evt-digitalfest-2026",
-  eventTitle: `IEEE DigitalFest 2026 – Projects Expo (Project: "${p.projectTitle}" · Team: ${p.teamName})`,
-  certificateType: "Certificate of Participation & Project Merit",
-  recognitionLevel: "CHAPTER_RECOGNITION",
-  issuerStatement: "Official chapter recognition issued by IEEE Computer Society Student Branch Chapter UCET-IUB in collaboration with Cyber Security Student Club, Department of Information & Communication Engineering, IUB.",
-  activityDate: "2026-06-03",
-  issueDate: "2026-06-03",
-  approverName: "Muhammad Roshan Ashraf",
-  approverRole: "Chapter Administrator & Event Lead",
-  status: "ACTIVE",
-  source: "IN_SITE_GENERATED",
-  createdAt: "2026-06-03T10:00:00Z",
-}));
-
-// Seed Team
-const SEED_TEAM: TeamMember[] = [
-  {
-    id: "team-1",
-    name: "Dr. Asjad Amin",
-    position: "Branch Counselor / Senior Advisor",
-    committeeYear: "2026-2027",
-    photoUrl: "",
-    approvedBio: "Associate Professor and Branch Counselor for IEEE UCET-IUB Student Branch. Guiding chapter excellence and university-wide engineering leadership.",
-    isCurrent: true,
-  },
-  {
-    id: "team-2",
-    name: "Dr. Aoun Muhammad",
-    position: "Faculty Advisor",
-    committeeYear: "2026-2027",
-    photoUrl: "",
-    approvedBio: "Assistant Professor, Department of Computer Science & Engineering, UCET. Dedicated to computing research, IEEE CS accreditation, and student research mentoring.",
-    isCurrent: true,
-  },
-  {
-    id: "team-3",
-    name: "Muhammad Roshan Ashraf",
-    position: "Chapter Chair",
-    committeeYear: "2026-2027",
-    photoUrl: "",
-    approvedBio: "Leading chapter strategy, technical programs, and web infrastructure. Passionate about AI systems, software architecture, and developer education.",
-    isCurrent: true,
-  },
-  {
-    id: "team-4",
-    name: "Fatima Noor",
-    position: "Vice Chair & Content Lead",
-    committeeYear: "2026-2027",
-    photoUrl: "",
-    approvedBio: "Overseeing chapter communications, technical reporting, and workshop moderation.",
-    isCurrent: true,
-  },
-  {
-    id: "team-5",
-    name: "Hamza Tariq",
-    position: "Treasurer",
-    committeeYear: "2026-2027",
-    photoUrl: "",
-    approvedBio: "Managing transparent financial records, workshop budgeting, and official payment reconciliations.",
-    isCurrent: true,
-  },
-  {
-    id: "team-6",
-    name: "Ayesha Siddiqa",
-    position: "General Secretary",
-    committeeYear: "2026-2027",
-    photoUrl: "",
-    approvedBio: "Responsible for IEEE vTools reporting, executive documentation, and meeting minutes.",
-    isCurrent: true,
-  },
-  // Archive member
-  {
-    id: "team-arch-1",
-    name: "Usman Ghani",
-    position: "Former Chapter Chair (2025)",
-    committeeYear: "2025-2026",
-    photoUrl: "",
-    approvedBio: "Pioneered early chapter initiatives and student branch collaboration in 2025.",
-    isCurrent: false,
-  },
-];
-
-// Clean Upload Batches (Fetched in real time from database)
+// Initial stores are empty by default; data is fetched exclusively from Supabase
+const SEED_EVENTS: EventItem[] = [];
+const SEED_CERTIFICATES: CertificateRecord[] = [];
+const SEED_TEAM: TeamMember[] = [];
 const SEED_BATCHES: UploadBatch[] = [];
-
-// Official IEEE DigitalFest 2026 Event Registrations & Tickets (156 Participants Across 60 Teams)
-const SEED_REGISTRATIONS: Registration[] = DIGITALFEST_PARTICIPANTS.map((p) => ({
-  id: p.id,
-  eventId: "evt-digitalfest-2026",
-  privateToken: `token-${p.id}`,
-  fullName: p.name,
-  namePreference: "FULL_NAME",
-  email: `${p.name.toLowerCase().replace(/[^a-z]/g, "")}@iub.edu.pk`,
-  phone: "+92-300-0000000",
-  department: "Department of Information & Communication Engineering, IUB",
-  rollNumber: `${p.semester} Semester • Team ${p.teamName}`,
-  isIeeeMember: p.isLeader,
-  photoConsent: true,
-  status: "ATTENDED",
-  ticketCode: `TCK-DF26-${p.certificateCode.slice(-4)}`,
-  checkedInAt: "2026-06-03T08:45:00Z",
-  createdAt: "2026-05-20T10:00:00Z",
-}));
-
-// Clean Payment Proofs (Fetched in real time from database)
+const SEED_REGISTRATIONS: Registration[] = [];
 const SEED_PAYMENTS: PaymentProof[] = [];
-
-// Clean Audit Logs (Fetched in real time from database)
 const SEED_AUDIT: AuditLogItem[] = [];
 
 // Helper to access LocalStorage safely in Next.js
@@ -396,7 +237,6 @@ class ChapterDatabase {
   }
 
   async fetchCertificates(): Promise<CertificateRecord[]> {
-    const local = this.getCertificates();
     const client = getSupabase();
     if (client) {
       try {
@@ -404,7 +244,7 @@ class ChapterDatabase {
           .from("certificates")
           .select("*")
           .order("created_at", { ascending: false });
-        if (data && !error && data.length > 0) {
+        if (!error && data !== null) {
           const list: CertificateRecord[] = data.map((d: any) => ({
             id: d.id,
             code: d.code,
@@ -440,7 +280,7 @@ class ChapterDatabase {
         console.warn("Supabase fetchCertificates error:", err);
       }
     }
-    return local;
+    return this.getCertificates();
   }
 
   async addCertificate(cert: CertificateRecord): Promise<boolean> {
@@ -565,7 +405,6 @@ class ChapterDatabase {
   }
 
   async fetchEvents(): Promise<EventItem[]> {
-    const local = this.getEvents();
     const client = getSupabase();
     if (client) {
       try {
@@ -573,7 +412,7 @@ class ChapterDatabase {
           .from("events")
           .select("*")
           .order("start_date", { ascending: false });
-        if (data && !error && data.length > 0) {
+        if (!error && data !== null) {
           const mapped: EventItem[] = data.map((d: any) => ({
             id: d.id || `evt-${Date.now()}`,
             slug: d.slug,
@@ -605,10 +444,10 @@ class ChapterDatabase {
           return mapped;
         }
       } catch (err) {
-        console.warn("Supabase fetchEvents fallback to local:", err);
+        console.warn("Supabase fetchEvents error:", err);
       }
     }
-    return local;
+    return this.getEvents();
   }
 
   getEventBySlug(slug: string): EventItem | undefined {
@@ -1129,7 +968,6 @@ class ChapterDatabase {
   }
 
   async fetchTeamMembers(): Promise<TeamMember[]> {
-    const local = this.getTeamMembers();
     const client = getSupabase();
     if (client) {
       try {
@@ -1138,7 +976,7 @@ class ChapterDatabase {
           .select("*")
           .order("order_index", { ascending: true });
 
-        if (data && !error && data.length > 0) {
+        if (!error && data !== null) {
           const mapped: TeamMember[] = data.map((d: any) => ({
             id: d.id,
             name: d.name,
@@ -1154,10 +992,10 @@ class ChapterDatabase {
           return mapped;
         }
       } catch (err) {
-        console.warn("Supabase fetchTeamMembers fallback to local:", err);
+        console.warn("Supabase fetchTeamMembers error:", err);
       }
     }
-    return local;
+    return this.getTeamMembers();
   }
 
   async saveTeamMember(member: TeamMember): Promise<void> {
@@ -1232,13 +1070,7 @@ class ChapterDatabase {
   // --- Event Teams & Projects (Competitions, Expos & Hackathons) ---
   getEventTeams(eventId: string): EventTeam[] {
     const stored = this.getItem<Record<string, EventTeam[]>>("event_teams", {});
-    if (stored[eventId] && stored[eventId].length > 0) {
-      return stored[eventId];
-    }
-    if (eventId === "evt-digitalfest-2026") {
-      return DIGITALFEST_EVENT_TEAMS;
-    }
-    return [];
+    return stored[eventId] || [];
   }
 
   async fetchEventTeams(eventId: string): Promise<EventTeam[]> {
@@ -1251,7 +1083,7 @@ class ChapterDatabase {
           .eq("event_id", eventId)
           .order("sr", { ascending: true });
 
-        if (data && !error && data.length > 0) {
+        if (!error && data !== null) {
           const mapped: EventTeam[] = data.map((d: any) => ({
             id: d.id,
             eventId: d.event_id,
@@ -1273,7 +1105,7 @@ class ChapterDatabase {
           return mapped;
         }
       } catch (err) {
-        console.warn("Supabase fetchEventTeams fallback to local:", err);
+        console.warn("Supabase fetchEventTeams error:", err);
       }
     }
     return this.getEventTeams(eventId);
@@ -1281,7 +1113,7 @@ class ChapterDatabase {
 
   async saveEventTeam(team: EventTeam): Promise<void> {
     const stored = this.getItem<Record<string, EventTeam[]>>("event_teams", {});
-    const list = stored[team.eventId] || (team.eventId === "evt-digitalfest-2026" ? [...DIGITALFEST_EVENT_TEAMS] : []);
+    const list = stored[team.eventId] || [];
     const idx = list.findIndex((t) => t.id === team.id || (t.sr === team.sr && t.teamName === team.teamName));
     if (idx >= 0) {
       list[idx] = team;
@@ -1925,7 +1757,7 @@ class ChapterDatabase {
     }
   }
 
-  // Reset database back to default seed state
+  // Reset database and wipe all local storage keys
   resetAll(): void {
     if (!this.isBrowser()) return;
     localStorage.removeItem("ieee_cs_certificates");
@@ -1935,6 +1767,12 @@ class ChapterDatabase {
     localStorage.removeItem("ieee_cs_registrations");
     localStorage.removeItem("ieee_cs_payments");
     localStorage.removeItem("ieee_cs_audit_logs");
+    localStorage.removeItem("event_teams");
+    localStorage.removeItem("certificates");
+    localStorage.removeItem("events");
+    localStorage.removeItem("team");
+    localStorage.removeItem("registrations");
+    localStorage.removeItem("payments");
   }
 }
 

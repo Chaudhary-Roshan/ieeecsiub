@@ -42,3 +42,4 @@ BEGIN
     DELETE FROM storage.objects WHERE bucket_id IN ('certificates', 'payment-proofs');
   END IF;
 END $$;
+

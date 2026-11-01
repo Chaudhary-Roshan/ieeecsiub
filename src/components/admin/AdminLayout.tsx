@@ -184,6 +184,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
               onClick={async () => {
                 setIsSyncing(true);
                 try {
+                  db.resetAll();
                   await Promise.allSettled([
                     db.fetchEvents(),
                     db.fetchTeamMembers(),
@@ -197,7 +198,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
               }}
               disabled={isSyncing}
               className="px-2.5 py-1 text-[11px] rounded bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold border border-gray-300 transition-colors flex items-center gap-1.5"
-              title="Pulls latest data from the live database into this browser"
+              title="Clears stale local cache and pulls latest data from the live database"
             >
               <RefreshCw size={12} className={isSyncing ? "animate-spin text-ieee-blue" : ""} />
               <span>{isSyncing ? "Syncing..." : "Sync Database"}</span>
