@@ -121,15 +121,32 @@ export default function AdminTeamManagerPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert("Image file size should be less than 2MB.");
-      return;
-    }
-
     const reader = new FileReader();
     reader.onload = (event) => {
-      const result = event.target?.result as string;
-      setPhotoUrl(result || "");
+      const img = new Image();
+      img.onload = () => {
+        const maxWidth = 500;
+        const maxHeight = 500;
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth || height > maxHeight) {
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          setPhotoUrl(canvas.toDataURL("image/jpeg", 0.75));
+        } else {
+          setPhotoUrl((event.target?.result as string) || "");
+        }
+      };
+      img.onerror = () => setPhotoUrl((event.target?.result as string) || "");
+      img.src = (event.target?.result as string) || "";
     };
     reader.readAsDataURL(file);
   };

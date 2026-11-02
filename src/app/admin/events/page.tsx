@@ -30,24 +30,23 @@ import {
 } from "lucide-react";
 
 // Helper to compress images client-side before setting state or uploading
-const compressImageFile = (file: File): Promise<string> => {
+const compressImageFile = (
+  file: File,
+  maxWidth: number = 960,
+  maxHeight: number = 720,
+  quality: number = 0.68
+): Promise<string> => {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (readerEvt) => {
       const img = new Image();
       img.onload = () => {
-        const maxWidth = 1600;
-        const maxHeight = 1600;
         let width = img.width;
         let height = img.height;
         if (width > maxWidth || height > maxHeight) {
-          if (width > height) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          } else {
-            width = Math.round((width * maxHeight) / height);
-            height = maxHeight;
-          }
+          const ratio = Math.min(maxWidth / width, maxHeight / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
         }
         const canvas = document.createElement("canvas");
         canvas.width = width;
@@ -55,7 +54,7 @@ const compressImageFile = (file: File): Promise<string> => {
         const ctx = canvas.getContext("2d");
         if (ctx) {
           ctx.drawImage(img, 0, 0, width, height);
-          resolve(canvas.toDataURL("image/jpeg", 0.85));
+          resolve(canvas.toDataURL("image/jpeg", quality));
         } else {
           resolve((readerEvt.target?.result as string) || "");
         }
@@ -87,7 +86,7 @@ const uploadImageFile = async (file: File, folder: string = "events"): Promise<s
   } catch (err) {
     console.warn("Storage upload notice:", err);
   }
-  return await compressImageFile(file);
+  return await compressImageFile(file, 960, 720, 0.68);
 };
 
 export default function AdminEventsManagerPage() {
