@@ -118,6 +118,7 @@ export default function AdminAttendancePage() {
       let newlyIssuedCount = 0;
 
       const processedRecords: AttendanceRecord[] = [];
+      const newCertificates: CertificateRecord[] = [];
 
       for (let idx = 0; idx < jsonRows.length; idx++) {
         const row = jsonRows[idx];
@@ -176,7 +177,7 @@ export default function AdminAttendancePage() {
             templateId: selectedTemplateId || undefined,
             createdAt: new Date().toISOString(),
           };
-          await db.addCertificate(certRecord);
+          newCertificates.push(certRecord);
         }
 
         processedRecords.push({
@@ -189,6 +190,11 @@ export default function AdminAttendancePage() {
           certificateCode: attended ? assignedCode : undefined,
           checkedInAt: attended ? new Date().toISOString() : undefined,
         });
+      }
+
+      // Fast atomic bulk upsert to database
+      if (newCertificates.length > 0) {
+        await db.addCertificatesBulk(newCertificates);
       }
 
       // Merge new records with any prior attendees who were not present in the new sheet
@@ -353,6 +359,7 @@ export default function AdminAttendancePage() {
     try {
       const zip = new JSZip();
       const today = new Date().toISOString().split("T")[0];
+      const bulkCerts: CertificateRecord[] = [];
 
       for (let i = 0; i < attendedRecords.length; i++) {
         const rec = attendedRecords[i];
@@ -381,14 +388,17 @@ export default function AdminAttendancePage() {
           createdAt: new Date().toISOString(),
         };
 
-        // Add to registry database
-        db.addCertificate(certRecord);
+        bulkCerts.push(certRecord);
 
         // Render PDF
         const pdfDoc = await generateCertificatePdf(certRecord);
         const pdfBlob = pdfDoc.output("blob");
         const filename = `${code}_${rec.name.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
         zip.file(filename, pdfBlob);
+      }
+
+      if (bulkCerts.length > 0) {
+        await db.addCertificatesBulk(bulkCerts);
       }
 
       setGenerationProgress("Compressing ZIP archive...");

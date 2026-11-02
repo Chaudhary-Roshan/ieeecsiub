@@ -284,56 +284,77 @@ class ChapterDatabase {
   }
 
   async addCertificate(cert: CertificateRecord): Promise<boolean> {
+    return this.addCertificatesBulk([cert]);
+  }
+
+  async addCertificatesBulk(certs: CertificateRecord[]): Promise<boolean> {
+    if (!certs || certs.length === 0) return true;
     const list = this.getCertificates();
-    const cleanCode = cert.code.trim().toUpperCase();
-    const filtered = list.filter((c) => c.code.toUpperCase() !== cleanCode);
-    filtered.unshift(cert);
-    this.setItem("certificates", filtered);
+    const map = new Map<string, CertificateRecord>();
+    certs.forEach((c) => {
+      if (c && c.code) map.set(c.code.trim().toUpperCase(), c);
+    });
+
+    const remaining = list.filter((c) => !map.has(c.code.trim().toUpperCase()));
+    const combined = [...Array.from(map.values()), ...remaining];
+    this.setItem("certificates", combined);
 
     const client = getSupabase();
     if (client) {
-      const payload: Record<string, any> = {
-        code: cleanCode,
-        recipient_name: cert.recipientName,
-        public_name_format: cert.publicNameFormat,
-        event_id: cert.eventId || null,
-        event_title: cert.eventTitle,
-        certificate_type: cert.certificateType,
-        recognition_level: cert.recognitionLevel,
-        issuer_statement: cert.issuerStatement,
-        activity_date: cert.activityDate,
-        issue_date: cert.issueDate,
-        approver_name: cert.approverName,
-        approver_role: cert.approverRole,
-        status: cert.status,
-        source: cert.source,
-        template_id: cert.templateId || null,
-        team_name: cert.teamName || null,
-        project_title: cert.projectTitle || null,
-        replaced_by_code: cert.replacedByCode,
-        replacement_reason: cert.replacementReason,
-        revocation_date: cert.revocationDate,
-        revocation_reason: cert.revocationReason,
-        sha256_fingerprint: cert.sha256Fingerprint,
-        pdf_url: cert.pdfUrl,
-      };
-
       try {
-        const { data: existing } = await client
-          .from("certificates")
-          .select("id")
-          .eq("code", cleanCode)
-          .maybeSingle();
+        const payload = certs.map((cert) => {
+          const cleanCode = cert.code.trim().toUpperCase();
+          return {
+            code: cleanCode,
+            recipient_name: cert.recipientName || "Participant",
+            public_name_format: cert.publicNameFormat || "FULL_NAME",
+            event_id: cert.eventId || null,
+            event_title: cert.eventTitle || "",
+            certificate_type: cert.certificateType || "Certificate of Participation",
+            recognition_level: cert.recognitionLevel || "CHAPTER_RECOGNITION",
+            issuer_statement: cert.issuerStatement || CHAPTER_INFO.issuerStatementDefault,
+            activity_date: cert.activityDate || "",
+            issue_date: cert.issueDate || "",
+            approver_name: cert.approverName || "Muhammad Roshan Ashraf",
+            approver_role: cert.approverRole || "Chapter Chair",
+            status: cert.status || "ACTIVE",
+            source: cert.source || "IN_SITE_GENERATED",
+            template_id: cert.templateId || null,
+            team_name: cert.teamName || null,
+            project_title: cert.projectTitle || null,
+            replaced_by_code: cert.replacedByCode || null,
+            replacement_reason: cert.replacementReason || null,
+            revocation_date: cert.revocationDate || null,
+            revocation_reason: cert.revocationReason || null,
+            sha256_fingerprint: cert.sha256Fingerprint || null,
+            pdf_url: cert.pdfUrl || null,
+          };
+        });
 
-        if (existing?.id) {
-          const { error } = await client.from("certificates").update(payload).eq("id", existing.id);
-          if (error) console.warn("Supabase addCertificate sync error:", error);
-        } else {
-          const { error } = await client.from("certificates").insert(payload);
-          if (error) console.warn("Supabase addCertificate sync error:", error);
+        // 1. Try high-performance bulk RPC first
+        const rpcPromise = client.rpc("bulk_save_certificates", { p_certs: payload });
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("RPC Timeout")), 6000));
+        
+        let rpcSuccess = false;
+        try {
+          const { data: rpcRes, error: rpcErr } = await (Promise.race([rpcPromise, timeoutPromise]) as Promise<any>);
+          if (!rpcErr && rpcRes && rpcRes.success) {
+            rpcSuccess = true;
+          }
+        } catch {}
+
+        // 2. Direct upsert fallback in batches of 50
+        if (!rpcSuccess) {
+          for (let i = 0; i < payload.length; i += 50) {
+            const chunk = payload.slice(i, i + 50);
+            await Promise.race([
+              client.from("certificates").upsert(chunk, { onConflict: "code" }),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Upsert Timeout")), 6000))
+            ]).catch((err) => console.warn("Supabase certificate sync batch notice:", err?.message));
+          }
         }
       } catch (err) {
-        console.warn("Supabase addCertificate error:", err);
+        console.warn("Supabase addCertificatesBulk notice:", err);
       }
     }
     return true;
@@ -979,10 +1000,28 @@ class ChapterDatabase {
     if (client) {
       try {
         if (cleanId) {
-          await client.from("certificates").delete().eq("event_id", cleanId);
+          // 1. Try atomic clear_event_data RPC
+          const rpcPromise = client.rpc("clear_event_data", { p_event_id: cleanId });
+          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
+          try {
+            await Promise.race([rpcPromise, timeoutPromise]);
+          } catch {}
+
+          // 2. Direct delete fallback
+          try {
+            await Promise.race([
+              client.from("certificates").delete().eq("event_id", cleanId),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+            ]);
+          } catch {}
         }
         if (cleanTitle) {
-          await client.from("certificates").delete().ilike("event_title", cleanTitle);
+          try {
+            await Promise.race([
+              client.from("certificates").delete().ilike("event_title", cleanTitle),
+              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
+            ]);
+          } catch {}
         }
       } catch (err) {
         console.warn("Supabase clearEventCertificates error:", err);
@@ -1012,7 +1051,10 @@ class ChapterDatabase {
     const client = getSupabase();
     if (client) {
       try {
-        await client.from("certificates").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+        await Promise.race([
+          client.from("certificates").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 6000))
+        ]).catch((err) => console.warn("Supabase wipeAllCertificates notice:", err));
       } catch (err) {
         console.warn("Supabase wipeAllCertificates error:", err);
       }
