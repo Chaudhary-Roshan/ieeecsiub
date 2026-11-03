@@ -141,6 +141,7 @@ export interface Registration {
   email: string;
   phone?: string;
   rollNumber: string;
+  degreeProgram?: string; // e.g. "BS Computer Science", "BS Software Engineering"
   isIeeeMember: boolean;
   ieeeMembershipNumber?: string;
   department: string;

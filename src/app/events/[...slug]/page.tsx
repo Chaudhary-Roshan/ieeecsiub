@@ -49,6 +49,7 @@ export default function EventDetailPage() {
   const [phone, setPhone] = useState("");
   const [rollNumber, setRollNumber] = useState("");
   const [department, setDepartment] = useState("");
+  const [degreeProgram, setDegreeProgram] = useState("");
   const [isIeeeMember, setIsIeeeMember] = useState(false);
   const [ieeeNumber, setIeeeNumber] = useState("");
   const [namePref, setNamePref] = useState<"FULL_NAME" | "FIRST_INITIAL">("FULL_NAME");
@@ -114,6 +115,7 @@ export default function EventDetailPage() {
         phone: phone.trim(),
         rollNumber: rollNumber.trim() || undefined,
         department: department.trim() || "Computer Science",
+        degreeProgram: degreeProgram.trim() || undefined,
         isIeeeMember,
         ieeeNumber: ieeeNumber.trim() || undefined,
       });
@@ -130,6 +132,7 @@ export default function EventDetailPage() {
         isIeeeMember,
         ieeeMembershipNumber: ieeeNumber.trim() || undefined,
         department: department.trim() || "Computer Science",
+        degreeProgram: degreeProgram.trim() || undefined,
         photoConsent,
         status: res.status || (event.feePkr > 0 ? "PAYMENT_PENDING" : "CONFIRMED"),
         ticketCode: res.ticketCode,
@@ -608,6 +611,21 @@ export default function EventDetailPage() {
                             className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
                           />
                         </div>
+                      </div>
+
+                      {/* Program / Degree */}
+                      <div>
+                        <label className="block font-semibold text-gray-700 mb-1">
+                          Program / Degree *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={degreeProgram}
+                          onChange={(e) => setDegreeProgram(e.target.value)}
+                          placeholder="e.g. BS Computer Science, BS Software Engineering, MS AI"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                        />
                       </div>
 
                       {/* IEEE Member checkbox */}

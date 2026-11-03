@@ -1824,6 +1824,13 @@ class ChapterDatabase {
   }
 
   async fetchRegistrations(eventId?: string): Promise<Registration[]> {
+    const localList = this.getRegistrations();
+    const regMap = new Map<string, Registration>();
+    localList.forEach((r) => {
+      if (r.id) regMap.set(r.id, r);
+      if (r.ticketCode) regMap.set(r.ticketCode, r);
+    });
+
     const client = getSupabase();
     if (client) {
       try {
@@ -1837,32 +1844,44 @@ class ChapterDatabase {
         }
 
         const { data, error } = await query;
-        if (data && !error) {
-          const list: Registration[] = data.map((d: any) => ({
-            id: d.id,
-            eventId: d.event_id,
-            privateToken: d.private_token,
-            fullName: d.full_name,
-            namePreference: d.name_display_preference || "FULL_NAME",
-            email: d.email,
-            phone: d.phone,
-            rollNumber: d.roll_number,
-            isIeeeMember: Boolean(d.is_ieee_member),
-            ieeeMembershipNumber: d.ieee_membership_number,
-            department: d.department,
-            photoConsent: Boolean(d.photo_consent),
-            status: d.status,
-            ticketCode: d.ticket_code,
-            createdAt: d.created_at,
-          }));
-          this.setItem("registrations", list);
-          return list;
+        if (data && !error && data.length > 0) {
+          data.forEach((d: any) => {
+            const mapped: Registration = {
+              id: d.id,
+              eventId: d.event_id || eventId || "",
+              privateToken: d.private_token,
+              fullName: d.full_name,
+              namePreference: d.name_display_preference || "FULL_NAME",
+              email: d.email,
+              phone: d.phone,
+              rollNumber: d.roll_number,
+              degreeProgram: d.degree_program || d.program_degree || undefined,
+              isIeeeMember: Boolean(d.is_ieee_member),
+              ieeeMembershipNumber: d.ieee_membership_number,
+              department: d.department,
+              photoConsent: Boolean(d.photo_consent),
+              status: d.status,
+              ticketCode: d.ticket_code,
+              createdAt: d.created_at,
+            };
+            regMap.set(mapped.id, mapped);
+          });
         }
       } catch (err) {
         console.warn("Supabase fetchRegistrations fallback:", err);
       }
     }
-    return this.getRegistrations();
+
+    const merged = Array.from(regMap.values()).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+
+    this.setItem("registrations", merged);
+
+    if (eventId) {
+      return merged.filter((r) => r.eventId === eventId);
+    }
+    return merged;
   }
 
   saveRegistrations(regs: Registration[]): void {
@@ -1871,29 +1890,34 @@ class ChapterDatabase {
 
   async addRegistration(reg: Registration): Promise<void> {
     const list = this.getRegistrations();
-    list.unshift(reg);
+    const existingIdx = list.findIndex((r) => r.id === reg.id || (reg.ticketCode && r.ticketCode === reg.ticketCode));
+    if (existingIdx >= 0) {
+      list[existingIdx] = { ...list[existingIdx], ...reg };
+    } else {
+      list.unshift(reg);
+    }
     this.setItem("registrations", list);
 
     const client = getSupabase();
     if (client) {
       try {
-        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reg.eventId);
-        const { error } = await client.from("registrations").insert({
+        const { error } = await client.from("registrations").upsert({
           id: reg.id,
-          event_id: isUuid ? reg.eventId : null,
+          event_id: reg.eventId,
           full_name: reg.fullName,
           name_display_preference: reg.namePreference || "FULL_NAME",
           email: reg.email,
           phone: reg.phone,
           roll_number: reg.rollNumber,
+          department: reg.department,
+          degree_program: reg.degreeProgram || null,
           is_ieee_member: reg.isIeeeMember,
           ieee_membership_number: reg.ieeeMembershipNumber,
-          department: reg.department,
           photo_consent: reg.photoConsent,
           status: reg.status,
           ticket_code: reg.ticketCode,
           private_token: reg.privateToken,
-        });
+        }, { onConflict: "id" });
         if (error) console.warn("Supabase addRegistration sync error:", error);
       } catch (err) {
         console.warn("Supabase addRegistration error:", err);
@@ -1918,6 +1942,7 @@ class ChapterDatabase {
         if (updates.phone !== undefined) payload.phone = updates.phone;
         if (updates.rollNumber !== undefined) payload.roll_number = updates.rollNumber;
         if (updates.department) payload.department = updates.department;
+        if (updates.degreeProgram !== undefined) payload.degree_program = updates.degreeProgram;
         if (updates.isIeeeMember !== undefined) payload.is_ieee_member = updates.isIeeeMember;
         if (updates.ieeeMembershipNumber !== undefined) payload.ieee_membership_number = updates.ieeeMembershipNumber;
         if (updates.status) payload.status = updates.status;

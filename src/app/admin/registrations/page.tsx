@@ -42,6 +42,7 @@ export default function AdminRegistrationsPage() {
   const [editPhone, setEditPhone] = useState("");
   const [editRoll, setEditRoll] = useState("");
   const [editDept, setEditDept] = useState("Computer Science");
+  const [editDegreeProgram, setEditDegreeProgram] = useState("");
   const [editStatus, setEditStatus] = useState<Registration["status"]>("CONFIRMED");
   const [editIsIeee, setEditIsIeee] = useState(false);
   const [editIeeeNo, setEditIeeeNo] = useState("");
@@ -55,6 +56,7 @@ export default function AdminRegistrationsPage() {
   const [addPhone, setAddPhone] = useState("");
   const [addRoll, setAddRoll] = useState("");
   const [addDept, setAddDept] = useState("Computer Science");
+  const [addDegreeProgram, setAddDegreeProgram] = useState("");
   const [addStatus, setAddStatus] = useState<Registration["status"]>("CONFIRMED");
   const [addIsIeee, setAddIsIeee] = useState(false);
   const [addIeeeNo, setAddIeeeNo] = useState("");
@@ -100,6 +102,7 @@ export default function AdminRegistrationsPage() {
     setEditPhone(reg.phone || "");
     setEditRoll(reg.rollNumber || "");
     setEditDept(reg.department || "Computer Science");
+    setEditDegreeProgram(reg.degreeProgram || "");
     setEditStatus(reg.status || "CONFIRMED");
     setEditIsIeee(Boolean(reg.isIeeeMember));
     setEditIeeeNo(reg.ieeeMembershipNumber || "");
@@ -118,6 +121,7 @@ export default function AdminRegistrationsPage() {
         phone: editPhone.trim() || undefined,
         rollNumber: editRoll.trim() || "",
         department: editDept.trim() || "Computer Science",
+        degreeProgram: editDegreeProgram.trim() || undefined,
         status: editStatus,
         isIeeeMember: editIsIeee,
         ieeeMembershipNumber: editIeeeNo.trim() || undefined,
@@ -132,6 +136,7 @@ export default function AdminRegistrationsPage() {
               phone: editPhone.trim() || undefined,
               rollNumber: editRoll.trim() || "",
               department: editDept.trim() || "Computer Science",
+              degreeProgram: editDegreeProgram.trim() || undefined,
               status: editStatus,
               isIeeeMember: editIsIeee,
               ieeeMembershipNumber: editIeeeNo.trim() || undefined,
@@ -188,6 +193,7 @@ export default function AdminRegistrationsPage() {
         phone: addPhone.trim() || undefined,
         rollNumber: addRoll.trim() || "",
         department: addDept.trim() || "Computer Science",
+        degreeProgram: addDegreeProgram.trim() || undefined,
         isIeeeMember: addIsIeee,
         ieeeMembershipNumber: addIeeeNo.trim() || undefined,
         photoConsent: true,
@@ -205,6 +211,8 @@ export default function AdminRegistrationsPage() {
       setAddEmail("");
       setAddPhone("");
       setAddRoll("");
+      setAddDept("Computer Science");
+      setAddDegreeProgram("");
       setAddIeeeNo("");
       setAddIsIeee(false);
       alert(`Registration created successfully with ticket code: ${ticketCode}`);
@@ -269,6 +277,7 @@ export default function AdminRegistrationsPage() {
         "Email Address": r.email,
         "Phone Number": r.phone || "N/A",
         "Event Title": ev?.title || "N/A",
+        "Program / Degree": r.degreeProgram || "N/A",
         "Department": r.department || "Computer Science",
         "IEEE Member": r.isIeeeMember ? "Yes" : "No",
         "IEEE Membership #": r.ieeeMembershipNumber || "N/A",
@@ -311,6 +320,7 @@ export default function AdminRegistrationsPage() {
       (r.phone && r.phone.toLowerCase().includes(query)) ||
       (r.ticketCode && r.ticketCode.toLowerCase().includes(query)) ||
       (r.department && r.department.toLowerCase().includes(query)) ||
+      (r.degreeProgram && r.degreeProgram.toLowerCase().includes(query)) ||
       (ev && ev.title.toLowerCase().includes(query));
 
     return matchesEvent && matchesStatus && matchesSearch;
@@ -493,7 +503,7 @@ export default function AdminRegistrationsPage() {
                   <tr>
                     <th className="p-4">Student Information</th>
                     <th className="p-4">Event</th>
-                    <th className="p-4">Department & IEEE</th>
+                    <th className="p-4">Program & Department</th>
                     <th className="p-4">Ticket Code</th>
                     <th className="p-4">Status</th>
                     <th className="p-4">Registered Date</th>
@@ -541,7 +551,10 @@ export default function AdminRegistrationsPage() {
                         </td>
 
                         <td className="p-4 text-gray-700">
-                          <div>{reg.department || "Computer Science"}</div>
+                          {reg.degreeProgram ? (
+                            <div className="font-semibold text-gray-900">{reg.degreeProgram}</div>
+                          ) : null}
+                          <div className="text-[11px] text-gray-500">{reg.department || "Computer Science"}</div>
                           {reg.isIeeeMember ? (
                             <span className="inline-block mt-0.5 text-[10px] font-bold text-ieee-blue bg-ieee-surfaceTint px-1.5 py-0.5 rounded">
                               IEEE Member {reg.ieeeMembershipNumber ? `(${reg.ieeeMembershipNumber})` : ""}
@@ -703,14 +716,28 @@ export default function AdminRegistrationsPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Department</label>
-                  <input
-                    type="text"
-                    value={editDept}
-                    onChange={(e) => setEditDept(e.target.value)}
-                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={editDept}
+                      onChange={(e) => setEditDept(e.target.value)}
+                      placeholder="e.g. Computer Science"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Program / Degree</label>
+                    <input
+                      type="text"
+                      value={editDegreeProgram}
+                      onChange={(e) => setEditDegreeProgram(e.target.value)}
+                      placeholder="e.g. BS Computer Science"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -853,14 +880,28 @@ export default function AdminRegistrationsPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Department</label>
-                  <input
-                    type="text"
-                    value={addDept}
-                    onChange={(e) => setAddDept(e.target.value)}
-                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Department</label>
+                    <input
+                      type="text"
+                      value={addDept}
+                      onChange={(e) => setAddDept(e.target.value)}
+                      placeholder="e.g. Computer Science"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Program / Degree</label>
+                    <input
+                      type="text"
+                      value={addDegreeProgram}
+                      onChange={(e) => setAddDegreeProgram(e.target.value)}
+                      placeholder="e.g. BS Computer Science"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
                 </div>
 
                 <div>

@@ -10,6 +10,7 @@ export interface RegisterForEventParams {
   phone: string;
   rollNumber?: string;
   department?: string;
+  degreeProgram?: string;
   isIeeeMember?: boolean;
   ieeeNumber?: string;
 }
@@ -36,6 +37,7 @@ export async function registerForEventAction(params: RegisterForEventParams) {
           revalidateTag("events");
         } catch {}
         revalidatePath("/events");
+        revalidatePath(`/admin/registrations`);
         revalidatePath(`/admin/attendance`);
         return data;
       }
@@ -46,16 +48,41 @@ export async function registerForEventAction(params: RegisterForEventParams) {
       console.warn("register_for_event RPC exception:", rpcErr);
     }
 
-    // 2. Safe Fallback: Generate cryptographic tokens and issue confirmation
+    // 2. Safe Fallback: Direct insert into registrations table with cryptographic tokens
     const crypto = await import("crypto");
     const ticketCode = "TCK-" + crypto.randomBytes(4).toString("hex").toUpperCase();
     const privateToken = crypto.randomBytes(16).toString("hex");
     const regId = "reg-" + crypto.randomBytes(8).toString("hex");
 
     try {
+      const { error: insErr } = await supabase.from("registrations").insert({
+        id: regId,
+        event_id: params.eventId,
+        full_name: params.fullName,
+        name_display_preference: "FULL_NAME",
+        email: params.email,
+        phone: params.phone,
+        roll_number: params.rollNumber || null,
+        department: params.department || "Computer Science",
+        degree_program: params.degreeProgram || null,
+        is_ieee_member: Boolean(params.isIeeeMember),
+        ieee_membership_number: params.ieeeNumber || null,
+        status: "CONFIRMED",
+        ticket_code: ticketCode,
+        private_token: privateToken,
+      });
+      if (insErr) {
+        console.warn("Fallback direct registration insert warning:", insErr.message);
+      }
+    } catch (insertEx) {
+      console.warn("Fallback direct registration insert exception:", insertEx);
+    }
+
+    try {
       revalidateTag("events");
     } catch {}
     revalidatePath("/events");
+    revalidatePath(`/admin/registrations`);
     revalidatePath(`/admin/attendance`);
 
     return {
@@ -77,6 +104,73 @@ export async function registerForEventAction(params: RegisterForEventParams) {
       status: "CONFIRMED",
       feePkr: 0,
     };
+  }
+}
+
+export async function getRegistrationsAction(eventId?: string) {
+  try {
+    const supabase = await createClient();
+    let query = supabase
+      .from("registrations")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (eventId) {
+      query = query.eq("event_id", eventId);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn("getRegistrationsAction warning:", error.message);
+      return [];
+    }
+    return data || [];
+  } catch (err: any) {
+    console.warn("getRegistrationsAction exception:", err?.message);
+    return [];
+  }
+}
+
+export async function saveRegistrationAction(reg: any) {
+  try {
+    const supabase = await createClient();
+    const payload: Record<string, any> = {
+      id: reg.id,
+      event_id: reg.eventId,
+      full_name: reg.fullName,
+      name_display_preference: reg.namePreference || "FULL_NAME",
+      email: reg.email,
+      phone: reg.phone,
+      roll_number: reg.rollNumber,
+      department: reg.department,
+      degree_program: reg.degreeProgram || null,
+      is_ieee_member: Boolean(reg.isIeeeMember),
+      ieee_membership_number: reg.ieeeMembershipNumber,
+      photo_consent: Boolean(reg.photoConsent),
+      status: reg.status,
+      ticket_code: reg.ticketCode,
+      private_token: reg.privateToken,
+    };
+
+    const { data, error } = await supabase
+      .from("registrations")
+      .upsert(payload, { onConflict: "id" })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.warn("saveRegistrationAction warning:", error.message);
+      return { success: false, error: error.message };
+    }
+
+    try {
+      revalidatePath("/admin/registrations");
+      revalidatePath("/admin/attendance");
+    } catch {}
+
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
   }
 }
 
