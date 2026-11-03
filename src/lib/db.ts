@@ -24,6 +24,7 @@ import {
   TEMPLATE_EXPO_PARTICIPATION_MEMBERS,
 } from "./certificateTemplates";
 import { DIGITALFEST_PARTICIPANTS } from "./digitalFestData";
+import { normalizeVerificationCode } from "./codeGenerator";
 
 // Seed Templates
 const SEED_TEMPLATES: CertificateTemplate[] = [
@@ -198,14 +199,94 @@ class ChapterDatabase {
     return combined;
   }
 
-  getCertificateByCode(code: string): CertificateRecord | undefined {
+  getCertificateByCode(query: string): CertificateRecord | undefined {
+    if (!query) return undefined;
     const list = this.getCertificates();
-    const clean = code.trim().toUpperCase();
-    return list.find((c) => c.code.toUpperCase() === clean);
+    const clean = normalizeVerificationCode(query);
+    const cleanAlpha = clean.replace(/[^A-Z0-9]/g, "");
+
+    // 1. Exact code match
+    let match = list.find((c) => c.code && c.code.trim().toUpperCase() === clean);
+    if (match) return match;
+
+    // 2. Alphanumeric stripped code match (ignoring dashes, spaces)
+    if (cleanAlpha.length >= 8) {
+      match = list.find((c) => {
+        if (!c.code) return false;
+        const cAlpha = c.code.replace(/[^A-Z0-9]/g, "").toUpperCase();
+        return cAlpha === cleanAlpha;
+      });
+      if (match) return match;
+    }
+
+    // 3. Roll number match
+    match = list.find((c) => {
+      if (!c.recipientRollNumber) return false;
+      const rClean = c.recipientRollNumber.trim().toUpperCase();
+      if (rClean === clean) return true;
+      const rAlpha = rClean.replace(/[^A-Z0-9]/g, "");
+      return rAlpha.length >= 4 && rAlpha === cleanAlpha;
+    });
+    if (match) return match;
+
+    // 4. Email match
+    const queryLower = query.trim().toLowerCase();
+    if (queryLower.includes("@")) {
+      match = list.find((c) => c.recipientEmail?.trim().toLowerCase() === queryLower);
+      if (match) return match;
+    }
+
+    // 5. Direct search in attendance_records as fallback
+    const attendanceRecords = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    for (const [eventId, records] of Object.entries(attendanceRecords)) {
+      if (Array.isArray(records)) {
+        for (const rec of records) {
+          if (!rec.certificateCode) continue;
+          const recCode = rec.certificateCode.trim().toUpperCase();
+          const recRoll = (rec.rollNumber || "").trim().toUpperCase();
+          const recEmail = (rec.email || "").trim().toLowerCase();
+          const recAlpha = recCode.replace(/[^A-Z0-9]/g, "");
+
+          if (
+            recCode === clean ||
+            (cleanAlpha.length >= 8 && recAlpha === cleanAlpha) ||
+            (recRoll && recRoll === clean) ||
+            (recRoll && cleanAlpha.length >= 4 && recRoll.replace(/[^A-Z0-9]/g, "") === cleanAlpha) ||
+            (recEmail && queryLower.includes("@") && recEmail === queryLower)
+          ) {
+            const events = this.getEvents();
+            const ev = events.find((e) => e.id === eventId);
+            return {
+              id: `cert-${rec.id || recCode}`,
+              code: recCode,
+              recipientName: rec.name || "Participant",
+              recipientRollNumber: rec.rollNumber || undefined,
+              recipientEmail: rec.email || undefined,
+              publicNameFormat: "FULL_NAME",
+              eventId: eventId,
+              eventTitle: ev?.title || "UCET IUB Technical Event",
+              certificateType: ev?.certificateType || "Certificate of Participation",
+              recognitionLevel: "CHAPTER_RECOGNITION",
+              issuerStatement: "In recognition of active participation and successful completion.",
+              activityDate: ev?.startDate ? ev.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+              issueDate: rec.checkedInAt ? rec.checkedInAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+              approverName: "Muhammad Roshan Ashraf",
+              approverRole: "Chapter Chair",
+              status: "ACTIVE",
+              source: "IN_SITE_GENERATED",
+              createdAt: rec.checkedInAt || new Date().toISOString(),
+            };
+          }
+        }
+      }
+    }
+
+    return undefined;
   }
 
-  async fetchCertificateByCode(code: string): Promise<CertificateRecord | undefined> {
-    const clean = code.trim().toUpperCase();
+  async fetchCertificateByCode(query: string): Promise<CertificateRecord | undefined> {
+    if (!query) return undefined;
+    const clean = normalizeVerificationCode(query);
     const client = getSupabase();
 
     if (client) {
@@ -248,7 +329,7 @@ class ChapterDatabase {
           return mapped;
         }
 
-        // Fallback to direct select for authenticated staff or fallback schemas
+        // Direct select fallback by code
         const { data, error } = await client
           .from("certificates")
           .select("*")
@@ -288,12 +369,72 @@ class ChapterDatabase {
           };
           return mapped;
         }
+
+        // Search by email or roll number if query looks like one
+        const queryLower = query.trim().toLowerCase();
+        if (queryLower.includes("@")) {
+          const { data: emailData } = await client
+            .from("certificates")
+            .select("*")
+            .ilike("recipient_email", queryLower)
+            .maybeSingle();
+          if (emailData) {
+            return {
+              id: emailData.id,
+              code: emailData.code,
+              recipientName: emailData.recipient_name,
+              recipientRollNumber: emailData.recipient_roll_number || emailData.roll_number || undefined,
+              recipientEmail: emailData.recipient_email || emailData.email || undefined,
+              publicNameFormat: (emailData.public_name_format as any) || "FULL_NAME",
+              eventId: emailData.event_id || "",
+              eventTitle: emailData.event_title || emailData.event_name || "IEEE Technical Session",
+              certificateType: emailData.certificate_type || "Certificate of Participation",
+              recognitionLevel: (emailData.recognition_level as any) || "CHAPTER_RECOGNITION",
+              issuerStatement: emailData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+              activityDate: emailData.activity_date || emailData.event_date || "",
+              issueDate: emailData.issue_date || "",
+              approverName: emailData.approver_name || "Chapter Chair",
+              approverRole: emailData.approver_role || "Chapter Chair",
+              status: emailData.status,
+              source: emailData.source || "IN_SITE_GENERATED",
+              createdAt: emailData.created_at || new Date().toISOString(),
+            };
+          }
+        } else if (clean.length >= 4) {
+          const { data: rollData } = await client
+            .from("certificates")
+            .select("*")
+            .ilike("recipient_roll_number", clean)
+            .maybeSingle();
+          if (rollData) {
+            return {
+              id: rollData.id,
+              code: rollData.code,
+              recipientName: rollData.recipient_name,
+              recipientRollNumber: rollData.recipient_roll_number || rollData.roll_number || undefined,
+              recipientEmail: rollData.recipient_email || rollData.email || undefined,
+              publicNameFormat: (rollData.public_name_format as any) || "FULL_NAME",
+              eventId: rollData.event_id || "",
+              eventTitle: rollData.event_title || rollData.event_name || "IEEE Technical Session",
+              certificateType: rollData.certificate_type || "Certificate of Participation",
+              recognitionLevel: (rollData.recognition_level as any) || "CHAPTER_RECOGNITION",
+              issuerStatement: rollData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+              activityDate: rollData.activity_date || rollData.event_date || "",
+              issueDate: rollData.issue_date || "",
+              approverName: rollData.approver_name || "Chapter Chair",
+              approverRole: rollData.approver_role || "Chapter Chair",
+              status: rollData.status,
+              source: rollData.source || "IN_SITE_GENERATED",
+              createdAt: rollData.created_at || new Date().toISOString(),
+            };
+          }
+        }
       } catch (err) {
         console.warn("Supabase fetchCertificateByCode error:", err);
       }
     }
 
-    return this.getCertificateByCode(clean);
+    return this.getCertificateByCode(query);
   }
 
   async fetchCertificates(): Promise<CertificateRecord[]> {

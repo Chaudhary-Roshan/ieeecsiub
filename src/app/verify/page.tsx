@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { PdfVerifyModal } from "@/components/certificates/PdfVerifyModal";
 import { CHAPTER_INFO } from "@/lib/constants";
+import { normalizeVerificationCode } from "@/lib/codeGenerator";
 import {
   ShieldCheck,
   Search,
@@ -24,13 +25,13 @@ export default function VerifyPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const clean = inputCode.trim().toUpperCase();
+    const clean = normalizeVerificationCode(inputCode);
     if (!clean) {
-      setErrorMsg("Please enter a certificate verification code.");
+      setErrorMsg("Please enter a verification code, roll number, or paste verification link.");
       return;
     }
     setErrorMsg("");
-    router.push(`/verify/${clean}`);
+    router.push(`/verify/${encodeURIComponent(clean)}`);
   };
 
   return (
@@ -58,8 +59,7 @@ export default function VerifyPage() {
           </h1>
 
           <p className="text-sm text-gray-600 max-w-xl mx-auto leading-relaxed">
-            Enter the alphanumeric verification code printed at the bottom of the
-            certificate or scan the QR code to confirm its authentic issuance.
+            Enter the alphanumeric verification code, student roll number, or paste the full verification link to confirm authentic chapter issuance.
           </p>
         </div>
 
@@ -70,7 +70,7 @@ export default function VerifyPage() {
               htmlFor="cert-code-input"
               className="block font-montserrat font-bold text-xs uppercase tracking-wider text-gray-700"
             >
-              Certificate Code
+              Verification Code, Roll Number, or Link
             </label>
 
             <div className="relative">
@@ -80,13 +80,13 @@ export default function VerifyPage() {
               <input
                 id="cert-code-input"
                 type="text"
-                placeholder="e.g. CSIUB-26-7K3M-Q9TC"
+                placeholder="e.g. CSIUB-26-7K3M-Q9TC, Roll Number, or paste link"
                 value={inputCode}
                 onChange={(e) => {
                   setInputCode(e.target.value);
                   setErrorMsg("");
                 }}
-                className="w-full pl-12 pr-4 py-3.5 text-base md:text-lg font-mono tracking-wider uppercase border border-gray-300 rounded-xl focus:ring-2 focus:ring-ieee-blue focus:border-ieee-blue outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400"
+                className="w-full pl-12 pr-4 py-3.5 text-base md:text-lg font-mono tracking-wider border border-gray-300 rounded-xl focus:ring-2 focus:ring-ieee-blue focus:border-ieee-blue outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400"
               />
             </div>
 

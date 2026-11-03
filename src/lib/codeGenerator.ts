@@ -64,6 +64,51 @@ export function validateCertificateCode(code: string): boolean {
 }
 
 /**
+ * Normalizes any user verification input:
+ * - Extracts code from full URLs (e.g., https://ieeecsiub.vercel.app/verify/CSIUB-26-XXXX-XXXX)
+ * - Strips query parameters, hashes, quotes, and whitespace
+ * - Converts spaces to hyphens for standard code format
+ * - Formats 15-character unbroken strings (e.g., CSIUB26XXXXXXXX) into standard CSIUB-26-XXXX-XXXX format
+ * - Preserves roll numbers and email addresses for multi-tier search
+ */
+export function normalizeVerificationCode(input: string): string {
+  if (!input) return "";
+  let clean = decodeURIComponent(input).trim();
+
+  // Handle URL prefixes and paths
+  if (clean.includes("/verify/")) {
+    clean = clean.split("/verify/").pop() || clean;
+  } else if (clean.includes("verify/")) {
+    clean = clean.split("verify/").pop() || clean;
+  } else if (clean.startsWith("http://") || clean.startsWith("https://")) {
+    clean = clean.split("/").pop() || clean;
+  }
+
+  // Strip query parameters, hash fragments, and surrounding punctuation/quotes
+  clean = clean.split("?")[0].split("#")[0].trim();
+  clean = clean.replace(/^[<"'{(\[]+|[>"'})\]]+$/g, "").trim();
+
+  // If user entered formatted with spaces instead of dashes e.g. "CSIUB 26 ABCD EFGH"
+  const spaceless = clean.replace(/\s+/g, "-");
+  if (/^CSIUB-26-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(spaceless)) {
+    return spaceless.toUpperCase();
+  }
+
+  // If user entered unbroken alphanumeric e.g. "CSIUB267K3MQ9TC" (15 alphanumeric characters: CSIUB26 + 8 chars)
+  const strippedAlpha = clean.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (strippedAlpha.startsWith("CSIUB26") && strippedAlpha.length === 15) {
+    return `CSIUB-26-${strippedAlpha.slice(7, 11)}-${strippedAlpha.slice(11, 15)}`;
+  }
+
+  // If already standard code format
+  if (/^CSIUB-\d{2}-[A-Z0-9]{4}-[A-Z0-9]{4}$/i.test(clean)) {
+    return clean.toUpperCase();
+  }
+
+  return clean.toUpperCase();
+}
+
+/**
  * Generates a Data URL (base64 PNG) of the QR code for a given verification URL
  */
 export async function generateQrPngDataUrl(verifyUrl: string): Promise<string> {

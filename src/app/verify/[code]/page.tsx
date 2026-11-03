@@ -8,6 +8,7 @@ import { CertificateRecord } from "@/types";
 import { CertificateCard } from "@/components/certificates/CertificateCard";
 import { Button } from "@/components/ui/Button";
 import { CHAPTER_INFO } from "@/lib/constants";
+import { normalizeVerificationCode } from "@/lib/codeGenerator";
 import {
   ShieldCheck,
   Search,
@@ -20,10 +21,11 @@ export default function CertificateVerificationResultPage() {
   const params = useParams();
   const router = useRouter();
   const rawCode = params?.code ? decodeURIComponent(params.code as string) : "";
+  const normalizedCode = normalizeVerificationCode(rawCode);
 
   const [cert, setCert] = useState<CertificateRecord | null>(null);
   const [loading, setLoading] = useState(true);
-  const [searchInput, setSearchInput] = useState(rawCode);
+  const [searchInput, setSearchInput] = useState(normalizedCode || rawCode);
 
   useEffect(() => {
     if (!rawCode) return;
@@ -46,7 +48,8 @@ export default function CertificateVerificationResultPage() {
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchInput.trim()) {
-      router.push(`/verify/${searchInput.trim().toUpperCase()}`);
+      const clean = normalizeVerificationCode(searchInput);
+      router.push(`/verify/${encodeURIComponent(clean || searchInput.trim().toUpperCase())}`);
     }
   };
 
@@ -108,10 +111,10 @@ export default function CertificateVerificationResultPage() {
                 No matching record found
               </h2>
               <p className="text-sm font-mono text-gray-500 uppercase">
-                Queried Code: <span className="font-bold text-gray-700">{rawCode}</span>
+                Queried Identifier: <span className="font-bold text-gray-700">{normalizedCode || rawCode}</span>
               </p>
               <p className="text-xs sm:text-sm text-gray-600 max-w-lg mx-auto leading-relaxed pt-2">
-                This verification code does not match any currently published active,
+                This verification code or identifier does not match any currently published active,
                 replaced, or archived record in the chapter registry.
               </p>
             </div>
