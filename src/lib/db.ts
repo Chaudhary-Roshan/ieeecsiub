@@ -1391,16 +1391,28 @@ class ChapterDatabase {
           .order("order_index", { ascending: true });
 
         if (!error && data !== null) {
-          const mapped: TeamMember[] = data.map((d: any) => ({
-            id: d.id,
-            name: d.name,
-            position: d.position,
-            committeeYear: d.committee_year,
-            photoUrl: d.photo_url || "",
-            approvedBio: d.approved_bio || "",
-            isCurrent: d.is_current ?? true,
-            orderIndex: d.order_index ?? 0,
-          }));
+          const localList = this.getTeamMembers();
+          const localMap = new Map<string, TeamMember>();
+          localList.forEach((m) => {
+            if (m.id) localMap.set(m.id, m);
+            if (m.name && m.committeeYear) localMap.set(`${m.name}__${m.committeeYear}`, m);
+          });
+
+          const mapped: TeamMember[] = data.map((d: any) => {
+            const local = localMap.get(d.id) || localMap.get(`${d.name}__${d.committee_year}`);
+            return {
+              id: d.id,
+              name: d.name,
+              position: d.position,
+              committeeYear: d.committee_year,
+              photoUrl: d.photo_url || local?.photoUrl || "",
+              approvedBio: d.approved_bio || local?.approvedBio || "",
+              isCurrent: d.is_current ?? local?.isCurrent ?? true,
+              email: d.email || local?.email || "",
+              linkedinUrl: d.linkedin_url || d.linkedinUrl || local?.linkedinUrl || "",
+              orderIndex: d.order_index ?? local?.orderIndex ?? 0,
+            };
+          });
 
           this.setItem("team", mapped);
           return mapped;
@@ -1432,6 +1444,8 @@ class ChapterDatabase {
           photo_url: member.photoUrl || "",
           approved_bio: member.approvedBio || "",
           is_current: member.isCurrent ?? true,
+          email: member.email || null,
+          linkedin_url: member.linkedinUrl || null,
           order_index: member.orderIndex ?? (index >= 0 ? index : list.length - 1),
         };
 
@@ -1440,15 +1454,27 @@ class ChapterDatabase {
           payload.id = member.id;
         }
 
-        const { data: existing } = await client
-          .from("team_members")
-          .select("id")
-          .eq("name", member.name)
-          .eq("committee_year", member.committeeYear)
-          .maybeSingle();
+        let existingId: string | undefined = undefined;
+        if (isUUID) {
+          const { data: byId } = await client
+            .from("team_members")
+            .select("id")
+            .eq("id", member.id)
+            .maybeSingle();
+          if (byId?.id) existingId = byId.id;
+        }
+        if (!existingId) {
+          const { data: byName } = await client
+            .from("team_members")
+            .select("id")
+            .eq("name", member.name)
+            .eq("committee_year", member.committeeYear)
+            .maybeSingle();
+          if (byName?.id) existingId = byName.id;
+        }
 
-        if (existing?.id) {
-          const { error } = await client.from("team_members").update(payload).eq("id", existing.id);
+        if (existingId) {
+          const { error } = await client.from("team_members").update(payload).eq("id", existingId);
           if (error) console.warn("Supabase update team_member error:", error);
         } else {
           const { error } = await client.from("team_members").insert(payload);

@@ -40,11 +40,24 @@ export async function saveTeamMemberAction(memberData: Partial<TeamMember>): Pro
 
     // 2. Direct table fallback
     let res;
-    if (payload.id) {
+    let targetId = payload.id;
+    if (!targetId) {
+      const { data: existing } = await supabase
+        .from("team_members")
+        .select("id")
+        .eq("name", payload.name)
+        .eq("committee_year", payload.committee_year)
+        .maybeSingle();
+      if (existing?.id) {
+        targetId = existing.id;
+      }
+    }
+
+    if (targetId) {
       res = await supabase
         .from("team_members")
         .update(payload)
-        .eq("id", payload.id)
+        .eq("id", targetId)
         .select()
         .single();
     } else {

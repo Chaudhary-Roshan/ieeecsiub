@@ -53,6 +53,7 @@ export default function AdminTeamManagerPage() {
   const [email, setEmail] = useState("");
   const [linkedinUrl, setLinkedinUrl] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -177,28 +178,33 @@ export default function AdminTeamManagerPage() {
         : members.length,
     };
 
+    setIsSaving(true);
     try {
-      await saveTeamMemberAction({
-        ...targetMember,
-        id: editingId || undefined,
-      });
-    } catch (err: any) {
-      console.warn("Save team member action warning:", err);
+      try {
+        await saveTeamMemberAction({
+          ...targetMember,
+          id: editingId || undefined,
+        });
+      } catch (err: any) {
+        console.warn("Save team member action warning:", err);
+      }
+
+      await db.saveTeamMember(targetMember);
+      await loadTeam();
+
+      db.addAuditLog(
+        "Muhammad Roshan Ashraf",
+        editingId ? "TEAM_MEMBER_UPDATED" : "TEAM_MEMBER_CREATED",
+        "team_members",
+        memberId,
+        `${editingId ? "Updated" : "Added"} officer "${targetMember.name}" (${targetMember.position}) for tenure ${targetMember.committeeYear}.`
+      );
+
+      setIsModalOpen(false);
+      showNotification(`Officer "${targetMember.name}" successfully saved to cloud database!`);
+    } finally {
+      setIsSaving(false);
     }
-
-    await db.saveTeamMember(targetMember);
-    await loadTeam();
-
-    db.addAuditLog(
-      "Muhammad Roshan Ashraf",
-      editingId ? "TEAM_MEMBER_UPDATED" : "TEAM_MEMBER_CREATED",
-      "team_members",
-      memberId,
-      `${editingId ? "Updated" : "Added"} officer "${targetMember.name}" (${targetMember.position}) for tenure ${targetMember.committeeYear}.`
-    );
-
-    setIsModalOpen(false);
-    showNotification(`Officer "${targetMember.name}" successfully saved to cloud database!`);
   };
 
   const handleDelete = async (id: string) => {
@@ -782,13 +788,14 @@ export default function AdminTeamManagerPage() {
                 <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
                   <button
                     type="button"
+                    disabled={isSaving}
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold"
+                    className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-100 font-semibold disabled:opacity-50"
                   >
                     Cancel
                   </button>
-                  <Button type="submit" variant="accent" size="md">
-                    {editingId ? "Save Changes" : "Create Officer"}
+                  <Button type="submit" variant="accent" size="md" disabled={isSaving}>
+                    {isSaving ? "Saving..." : editingId ? "Save Changes" : "Create Officer"}
                   </Button>
                 </div>
               </form>
