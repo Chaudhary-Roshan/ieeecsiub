@@ -601,11 +601,34 @@ class ChapterDatabase {
       this.setItem("certificates", list);
     }
 
+    // Also sync updates to attendance_records so attendance sheets reflect edited details
+    const attendanceRecords = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    let attChanged = false;
+    Object.entries(attendanceRecords).forEach(([evId, recs]) => {
+      if (Array.isArray(recs)) {
+        recs.forEach((r) => {
+          if (r.certificateCode && r.certificateCode.trim().toUpperCase() === clean) {
+            if (updates.recipientName) r.name = updates.recipientName;
+            if (updates.recipientRollNumber !== undefined) r.rollNumber = updates.recipientRollNumber;
+            if (updates.recipientEmail !== undefined) r.email = updates.recipientEmail;
+            attChanged = true;
+          }
+        });
+      }
+    });
+    if (attChanged) {
+      this.setItem("attendance_records", attendanceRecords);
+    }
+
     const client = getSupabase();
     if (client) {
       const payload: Record<string, any> = {};
       if (updates.status) payload.status = updates.status;
       if (updates.recipientName) payload.recipient_name = updates.recipientName;
+      if (updates.recipientRollNumber !== undefined) payload.recipient_roll_number = updates.recipientRollNumber;
+      if (updates.recipientEmail !== undefined) payload.recipient_email = updates.recipientEmail;
+      if (updates.eventTitle) payload.event_title = updates.eventTitle;
+      if (updates.certificateType) payload.certificate_type = updates.certificateType;
       if (updates.replacedByCode) payload.replaced_by_code = updates.replacedByCode;
       if (updates.replacementReason) payload.replacement_reason = updates.replacementReason;
       if (updates.revocationDate) payload.revocation_date = updates.revocationDate;

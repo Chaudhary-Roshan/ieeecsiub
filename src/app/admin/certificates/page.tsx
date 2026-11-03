@@ -25,12 +25,23 @@ import {
   Download,
   X,
   Trash2,
+  Edit2,
 } from "lucide-react";
 
 export default function AdminCertificatesPage() {
   const [certs, setCerts] = useState<CertificateRecord[]>([]);
   const [search, setSearch] = useState("");
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
+
+  // Edit Credential Modal State
+  const [editingCert, setEditingCert] = useState<CertificateRecord | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editRoll, setEditRoll] = useState("");
+  const [editEmail, setEditEmail] = useState("");
+  const [editEventTitle, setEditEventTitle] = useState("");
+  const [editCertType, setEditCertType] = useState("");
+  const [editStatus, setEditStatus] = useState<"ACTIVE" | "REVOKED">("ACTIVE");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Revocation Modal State
   const [revokingCert, setRevokingCert] = useState<CertificateRecord | null>(null);
@@ -78,6 +89,72 @@ export default function AdminCertificatesPage() {
       setTimeout(() => setCopiedCode(null), 2500);
     } catch {
       prompt("Copy official verification URL:", verifyUrl);
+    }
+  };
+
+  const handleOpenEdit = (cert: CertificateRecord) => {
+    setEditingCert(cert);
+    setEditName(cert.recipientName || "");
+    setEditRoll(cert.recipientRollNumber || "");
+    setEditEmail(cert.recipientEmail || "");
+    setEditEventTitle(cert.eventTitle || "");
+    setEditCertType(cert.certificateType || "Certificate of Participation");
+    setEditStatus(cert.status === "REVOKED" ? "REVOKED" : "ACTIVE");
+  };
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingCert || !editName.trim()) return;
+
+    setIsSavingEdit(true);
+    try {
+      await db.updateCertificate(editingCert.code, {
+        recipientName: editName.trim(),
+        recipientRollNumber: editRoll.trim() || undefined,
+        recipientEmail: editEmail.trim() || undefined,
+        eventTitle: editEventTitle.trim() || editingCert.eventTitle,
+        certificateType: editCertType.trim() || editingCert.certificateType,
+        status: editStatus,
+      });
+
+      db.addAuditLog(
+        currentUser?.name || "Muhammad Roshan Ashraf",
+        "CERTIFICATE_UPDATED",
+        "certificates",
+        editingCert.id,
+        `Updated details for ${editingCert.code} (${editName.trim()}).`
+      );
+
+      await refreshList();
+      setEditingCert(null);
+    } catch (err: any) {
+      alert("Failed to update credential: " + (err?.message || ""));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  const handleDeleteCert = async (cert: CertificateRecord) => {
+    if (
+      !confirm(
+        `Are you sure you want to permanently delete and remove certificate ${cert.code} for "${cert.recipientName}"?\n\nThis will remove it from the verification registry and local attendance sheets.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      await db.deleteCertificate(cert.code);
+      db.addAuditLog(
+        currentUser?.name || "Muhammad Roshan Ashraf",
+        "CERTIFICATE_DELETED",
+        "certificates",
+        cert.id,
+        `Permanently deleted certificate ${cert.code} for ${cert.recipientName}.`
+      );
+      await refreshList();
+    } catch (err: any) {
+      alert("Failed to delete certificate: " + (err?.message || ""));
     }
   };
 
@@ -402,6 +479,15 @@ export default function AdminCertificatesPage() {
                         )}
                       </button>
 
+                      {/* Edit Attendee / Credential Button */}
+                      <button
+                        onClick={() => handleOpenEdit(cert)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-ieee-navy bg-gray-100 hover:bg-ieee-surfaceTint px-2 py-1 rounded transition-colors"
+                        title="Edit recipient name, roll number, or details"
+                      >
+                        <Edit2 size={11} className="text-ieee-blue" /> Edit
+                      </button>
+
                       {cert.status === "ACTIVE" && (
                         <>
                           <button
@@ -411,9 +497,9 @@ export default function AdminCertificatesPage() {
                               setSelectedTemplateId(cert.templateId || db.getActiveTemplate().id);
                             }}
                             className="inline-flex items-center gap-1 text-[11px] font-semibold text-ieee-blue hover:underline bg-ieee-surfaceTint/50 px-2 py-1 rounded"
-                            title="Correct student name"
+                            title="Re-issue with a new code and replace old"
                           >
-                            <RefreshCw size={11} /> Replace Name
+                            <RefreshCw size={11} /> Replace
                           </button>
 
                           <button
@@ -432,17 +518,13 @@ export default function AdminCertificatesPage() {
                         </span>
                       )}
 
+                      {/* Delete / Remove Single Row Button */}
                       <button
-                        onClick={async () => {
-                          if (confirm(`Permanently delete certificate ${cert.code} for "${cert.recipientName}" from the database?`)) {
-                            await db.deleteCertificate(cert.code);
-                            refreshList();
-                          }
-                        }}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 hover:text-red-600 bg-gray-100 hover:bg-red-50 px-2 py-1 rounded"
-                        title="Permanently remove from registry"
+                        onClick={() => handleDeleteCert(cert)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-red-600 hover:text-white bg-red-50 hover:bg-red-600 px-2 py-1 rounded transition-colors"
+                        title="Permanently remove and delete from database"
                       >
-                        <Trash2 size={11} /> Delete
+                        <Trash2 size={11} /> Remove
                       </button>
                     </td>
                   </tr>
@@ -517,6 +599,126 @@ export default function AdminCertificatesPage() {
                   <Copy size={13} />
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal: Edit Credential (Name, Roll, Email, Details) */}
+        {editingCert && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-card max-w-md w-full p-6 space-y-4 border border-gray-200 shadow-2xl">
+              <div className="flex items-center justify-between border-b pb-3">
+                <div>
+                  <h3 className="font-montserrat font-bold text-base text-ieee-navy flex items-center gap-2">
+                    <Edit2 size={16} className="text-ieee-blue" /> Edit Credential Details
+                  </h3>
+                  <span className="font-mono text-xs text-ieee-blue font-bold">{editingCert.code}</span>
+                </div>
+                <button onClick={() => !isSavingEdit && setEditingCert(null)} className="text-gray-400 hover:text-gray-600">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleSaveEdit} className="space-y-3.5 text-xs">
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Recipient Full Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    placeholder="e.g. Muhammad Roshan Ashraf"
+                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-medium"
+                  />
+                  <p className="text-[10px] text-gray-400 mt-0.5">This name appears on the public verification page and QR records.</p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Roll / Student ID</label>
+                    <input
+                      type="text"
+                      value={editRoll}
+                      onChange={(e) => setEditRoll(e.target.value)}
+                      placeholder="e.g. FA21-BCS-042"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Email Address</label>
+                    <input
+                      type="email"
+                      value={editEmail}
+                      onChange={(e) => setEditEmail(e.target.value)}
+                      placeholder="e.g. student@iub.edu.pk"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Event Title</label>
+                  <input
+                    type="text"
+                    value={editEventTitle}
+                    onChange={(e) => setEditEventTitle(e.target.value)}
+                    placeholder="e.g. Hands-on Cyber Defense Workshop"
+                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Credential Type</label>
+                  <input
+                    type="text"
+                    value={editCertType}
+                    onChange={(e) => setEditCertType(e.target.value)}
+                    placeholder="e.g. Certificate of Participation"
+                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                  />
+                </div>
+
+                <div>
+                  <label className="font-semibold text-gray-700 block mb-1">Credential Status</label>
+                  <select
+                    value={editStatus}
+                    onChange={(e) => setEditStatus(e.target.value as any)}
+                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-semibold"
+                  >
+                    <option value="ACTIVE">ACTIVE (Valid & Verified)</option>
+                    <option value="REVOKED">REVOKED (Invalidated)</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 pt-3 border-t">
+                  <button
+                    type="button"
+                    disabled={isSavingEdit}
+                    onClick={() => setEditingCert(null)}
+                    className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSavingEdit}
+                    className="px-4 py-2 bg-ieee-navy hover:bg-ieee-blue text-white font-bold rounded-lg shadow-sm disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {isSavingEdit ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" />
+                        <span>Updating...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Check size={14} />
+                        <span>Save Changes</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
