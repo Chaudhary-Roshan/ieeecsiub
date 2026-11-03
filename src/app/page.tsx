@@ -73,7 +73,7 @@ export default async function HomePage() {
 
             <Button href="/verify" variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-ieee-navy">
               <ShieldCheck size={18} className="mr-2 text-ieee-cyan" />
-              Verify a Certificate
+              Verify QR Credential
             </Button>
 
             <Button href="/membership" variant="accent" size="lg">
@@ -253,13 +253,6 @@ export default async function HomePage() {
                           src={evt.featuredImage || "/ieee-cs-logo.png"}
                           alt={evt.title}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          onError={(e) => {
-                            const target = e.currentTarget as HTMLImageElement;
-                            if (!target.src.includes("ieee-cs-logo.png")) {
-                              target.src = "/ieee-cs-logo.png";
-                              target.className = "w-full h-full object-contain p-4";
-                            }
-                          }}
                         />
                         <div className="absolute top-3 right-3">
                           <Badge status={evt.status} />
@@ -414,7 +407,7 @@ export default async function HomePage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle size={15} className="text-status-active" />
-                    Receive verifiable chapter certificates of participation
+                    Receive tamper-evident QR verification credentials
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle size={15} className="text-status-active" />

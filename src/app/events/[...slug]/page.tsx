@@ -239,13 +239,6 @@ export default function EventDetailPage() {
                 src={event.featuredImage}
                 alt={event.title}
                 className="w-full h-full max-h-[32rem] object-cover"
-                onError={(e) => {
-                  const target = e.currentTarget as HTMLImageElement;
-                  if (!target.src.includes("ieee-cs-logo.png")) {
-                    target.src = "/ieee-cs-logo.png";
-                    target.className = "w-48 h-48 object-contain p-4 opacity-80";
-                  }
-                }}
               />
             ) : (
               <img
