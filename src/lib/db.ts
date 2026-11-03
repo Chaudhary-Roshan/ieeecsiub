@@ -138,9 +138,64 @@ class ChapterDatabase {
     }
   }
 
-  // --- Certificates ---
+  // --- Certificates & Verified QR Credentials ---
   getCertificates(): CertificateRecord[] {
-    return this.getItem("certificates", SEED_CERTIFICATES);
+    const list = this.getItem<CertificateRecord[]>("certificates", []);
+    const certMap = new Map<string, CertificateRecord>();
+
+    // 1. Add explicitly saved certificates
+    if (Array.isArray(list)) {
+      list.forEach((c) => {
+        if (c && c.code) certMap.set(c.code.trim().toUpperCase(), c);
+      });
+    }
+
+    // 2. Automatically harvest all active issued credentials from attendance sheets
+    const attendanceRecords = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    const events = this.getEvents();
+    const eventMap = new Map<string, EventItem>();
+    events.forEach((ev) => eventMap.set(ev.id, ev));
+
+    Object.entries(attendanceRecords).forEach(([eventId, records]) => {
+      const event = eventMap.get(eventId);
+      if (Array.isArray(records)) {
+        records.forEach((rec) => {
+          if (rec.certificateCode) {
+            const cleanCode = rec.certificateCode.trim().toUpperCase();
+            if (!certMap.has(cleanCode)) {
+              certMap.set(cleanCode, {
+                id: `cert-${rec.id || cleanCode}`,
+                code: cleanCode,
+                recipientName: rec.name || "Participant",
+                recipientRollNumber: rec.rollNumber || undefined,
+                recipientEmail: rec.email || undefined,
+                publicNameFormat: "FULL_NAME",
+                eventId: eventId,
+                eventTitle: event?.title || "UCET IUB Technical Event",
+                certificateType: event?.certificateType || "Certificate of Participation",
+                recognitionLevel: "CHAPTER_RECOGNITION",
+                issuerStatement: "In recognition of active participation and successful completion.",
+                activityDate: event?.startDate ? event.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                issueDate: rec.checkedInAt ? rec.checkedInAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                approverName: "Muhammad Roshan Ashraf",
+                approverRole: "Chapter Chair",
+                status: "ACTIVE",
+                source: "IN_SITE_GENERATED",
+                createdAt: rec.checkedInAt || new Date().toISOString(),
+              });
+            } else {
+              // Ensure roll number and email are populated if missing
+              const existing = certMap.get(cleanCode)!;
+              if (!existing.recipientRollNumber && rec.rollNumber) existing.recipientRollNumber = rec.rollNumber;
+              if (!existing.recipientEmail && rec.email) existing.recipientEmail = rec.email;
+            }
+          }
+        });
+      }
+    });
+
+    const combined = Array.from(certMap.values());
+    return combined;
   }
 
   getCertificateByCode(code: string): CertificateRecord | undefined {
@@ -242,6 +297,7 @@ class ChapterDatabase {
   }
 
   async fetchCertificates(): Promise<CertificateRecord[]> {
+    const localCerts = this.getCertificates();
     const client = getSupabase();
     if (client) {
       try {
@@ -249,11 +305,13 @@ class ChapterDatabase {
           .from("certificates")
           .select("*")
           .order("created_at", { ascending: false });
-        if (!error && data !== null) {
+        if (!error && Array.isArray(data) && data.length > 0) {
           const list: CertificateRecord[] = data.map((d: any) => ({
             id: d.id,
             code: d.code,
             recipientName: d.recipient_name,
+            recipientRollNumber: d.recipient_roll_number || d.roll_number || undefined,
+            recipientEmail: d.recipient_email || d.email || undefined,
             publicNameFormat: (d.public_name_format as any) || "FULL_NAME",
             eventId: d.event_id || "",
             eventTitle: d.event_title || "",
@@ -278,14 +336,19 @@ class ChapterDatabase {
             createdAt: d.created_at,
           }));
 
-          this.setItem("certificates", list);
-          return list;
+          const mergedMap = new Map<string, CertificateRecord>();
+          localCerts.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
+          list.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
+
+          const merged = Array.from(mergedMap.values());
+          this.setItem("certificates", merged);
+          return merged;
         }
       } catch (err) {
         console.warn("Supabase fetchCertificates error:", err);
       }
     }
-    return this.getCertificates();
+    return localCerts;
   }
 
   async addCertificate(cert: CertificateRecord): Promise<{ success: boolean; cloudSaved: boolean; count: number; error?: string }> {
@@ -429,6 +492,23 @@ class ChapterDatabase {
     const list = this.getCertificates();
     const filtered = list.filter((c) => c.code.toUpperCase() !== clean);
     this.setItem("certificates", filtered);
+
+    // Also remove code from attendance records so it doesn't re-harvest
+    const attendanceRecords = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    let changed = false;
+    Object.entries(attendanceRecords).forEach(([evId, recs]) => {
+      if (Array.isArray(recs)) {
+        recs.forEach((r) => {
+          if (r.certificateCode && r.certificateCode.trim().toUpperCase() === clean) {
+            r.certificateCode = undefined;
+            changed = true;
+          }
+        });
+      }
+    });
+    if (changed) {
+      this.setItem("attendance_records", attendanceRecords);
+    }
 
     const client = getSupabase();
     if (client) {

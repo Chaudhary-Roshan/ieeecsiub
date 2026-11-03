@@ -7,6 +7,7 @@ import { db } from "@/lib/db";
 import { revokeCertificateAction, replaceCertificateAction } from "@/app/actions/certificates";
 import { CertificateRecord, StaffUser, CertificateTemplate } from "@/types";
 import { generateCertificateCode } from "@/lib/codeGenerator";
+import QRCode from "qrcode";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import {
@@ -18,7 +19,10 @@ import {
   ShieldAlert,
   FilePlus,
   CheckCircle,
-  Printer,
+  QrCode,
+  Copy,
+  Check,
+  Download,
   X,
   Trash2,
 } from "lucide-react";
@@ -44,6 +48,38 @@ export default function AdminCertificatesPage() {
   const [legacyName, setLegacyName] = useState("");
   const [legacyEvent, setLegacyEvent] = useState("");
   const [legacyYear, setLegacyYear] = useState("2025");
+
+  // QR Preview & Copy States
+  const [previewQrCert, setPreviewQrCert] = useState<{ name: string; roll: string; code: string; qrDataUrl: string } | null>(null);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  const handleOpenQrPreview = async (cert: CertificateRecord) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
+    const verifyUrl = `${origin}/verify/${cert.code.trim().toUpperCase()}`;
+    const qrDataUrl = await QRCode.toDataURL(verifyUrl, {
+      width: 400,
+      margin: 2,
+      color: { dark: "#002855", light: "#ffffff" },
+    });
+    setPreviewQrCert({
+      name: cert.recipientName,
+      roll: cert.recipientRollNumber || "",
+      code: cert.code.trim().toUpperCase(),
+      qrDataUrl,
+    });
+  };
+
+  const handleCopyLink = async (code: string) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
+    const verifyUrl = `${origin}/verify/${code.trim().toUpperCase()}`;
+    try {
+      await navigator.clipboard.writeText(verifyUrl);
+      setCopiedCode(code);
+      setTimeout(() => setCopiedCode(null), 2500);
+    } catch {
+      prompt("Copy official verification URL:", verifyUrl);
+    }
+  };
 
   useEffect(() => {
     async function load() {
@@ -326,16 +362,45 @@ export default function AdminCertificatesPage() {
                       )}
                     </td>
 
-                    <td className="p-4 text-right space-x-2 whitespace-nowrap">
+                    <td className="p-4 text-right space-x-1.5 whitespace-nowrap">
+                      {/* Live Verify Link */}
                       <a
-                        href={`/verify/${cert.code}/certificate`}
+                        href={`/verify/${cert.code}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-ieee-navy bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded"
-                        title="View / Print Printable Certificate"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-ieee-navy hover:text-white bg-ieee-surfaceTint hover:bg-ieee-blue px-2.5 py-1 rounded transition-colors"
+                        title="Open live verification page"
                       >
-                        <Printer size={11} /> Print
+                        <ExternalLink size={11} /> Verify
                       </a>
+
+                      {/* View / Download QR */}
+                      <button
+                        onClick={() => handleOpenQrPreview(cert)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-ieee-navy bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors"
+                        title="View & Download QR Code Card"
+                      >
+                        <QrCode size={11} /> QR Code
+                      </button>
+
+                      {/* Copy Link */}
+                      <button
+                        onClick={() => handleCopyLink(cert.code)}
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-ieee-navy bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded transition-colors"
+                        title="Copy direct verification link"
+                      >
+                        {copiedCode === cert.code ? (
+                          <>
+                            <Check size={11} className="text-green-600" />
+                            <span className="text-green-600 font-bold">Copied</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={11} />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
 
                       {cert.status === "ACTIVE" && (
                         <>
@@ -345,14 +410,16 @@ export default function AdminCertificatesPage() {
                               setCorrectedName(cert.recipientName);
                               setSelectedTemplateId(cert.templateId || db.getActiveTemplate().id);
                             }}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-ieee-blue hover:underline bg-ieee-surfaceTint/50 px-2.5 py-1 rounded"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-ieee-blue hover:underline bg-ieee-surfaceTint/50 px-2 py-1 rounded"
+                            title="Correct student name"
                           >
                             <RefreshCw size={11} /> Replace Name
                           </button>
 
                           <button
                             onClick={() => setRevokingCert(cert)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#BA0C2F] hover:underline bg-[#FCE8E6] px-2.5 py-1 rounded"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#BA0C2F] hover:underline bg-[#FCE8E6] px-2 py-1 rounded"
+                            title="Mark certificate as revoked"
                           >
                             <AlertTriangle size={11} /> Revoke
                           </button>
@@ -364,6 +431,7 @@ export default function AdminCertificatesPage() {
                           Locked ({cert.status.toLowerCase()})
                         </span>
                       )}
+
                       <button
                         onClick={async () => {
                           if (confirm(`Permanently delete certificate ${cert.code} for "${cert.recipientName}" from the database?`)) {
@@ -381,8 +449,77 @@ export default function AdminCertificatesPage() {
                 ))}
               </tbody>
             </table>
+
+            {filteredCerts.length === 0 && (
+              <div className="p-12 text-center text-gray-500 space-y-3">
+                <div className="w-12 h-12 rounded-full bg-ieee-surfaceTint flex items-center justify-center mx-auto text-ieee-navy">
+                  <Award size={24} />
+                </div>
+                <h3 className="font-montserrat font-bold text-sm text-gray-800">
+                  {search ? "No matching records found" : "No Credentials Issued Yet"}
+                </h3>
+                <p className="text-xs text-gray-500 max-w-md mx-auto">
+                  {search
+                    ? `No verified credentials matched "${search}". Try searching by another name, roll number, or code.`
+                    : "Verification codes and tamper-evident QR codes are generated directly from the Attendance Hub."}
+                </p>
+                {!search && (
+                  <div className="pt-2">
+                    <Link href="/admin/attendance">
+                      <Button variant="accent" size="sm" className="text-xs font-bold shadow-sm">
+                        Go to Attendance & QR Generator Hub →
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* QR Code Preview Modal */}
+        {previewQrCert && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-card max-w-sm w-full p-6 shadow-2xl border border-gray-200 text-center space-y-4">
+              <div className="flex justify-between items-start">
+                <div className="text-left">
+                  <h3 className="font-montserrat font-bold text-base text-ieee-navy">{previewQrCert.name}</h3>
+                  {previewQrCert.roll && (
+                    <span className="text-xs font-mono text-gray-500 block">{previewQrCert.roll}</span>
+                  )}
+                </div>
+                <button onClick={() => setPreviewQrCert(null)} className="text-gray-400 hover:text-gray-600 p-1">
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* QR Image Box */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={previewQrCert.qrDataUrl} alt="QR Code" className="w-48 h-48 rounded shadow-xs" />
+                <span className="mt-3 font-mono font-bold text-xs text-ieee-blue tracking-wider bg-white px-3 py-1 rounded-full border">
+                  {previewQrCert.code}
+                </span>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <a
+                  href={previewQrCert.qrDataUrl}
+                  download={`IEEE-QR-${previewQrCert.code}.png`}
+                  className="flex-1 py-2 bg-ieee-navy hover:bg-ieee-blue text-white rounded-lg text-xs font-bold inline-flex items-center justify-center gap-1.5 shadow-sm transition-colors"
+                >
+                  <Download size={14} /> Download QR PNG
+                </a>
+                <button
+                  onClick={() => handleCopyLink(previewQrCert.code)}
+                  className="px-3 py-2 border rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 flex items-center gap-1"
+                >
+                  <Copy size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Modal: Revoke Certificate */}
         {revokingCert && (
