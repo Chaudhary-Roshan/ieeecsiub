@@ -48,7 +48,7 @@ export default function EventDetailPage() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [rollNumber, setRollNumber] = useState("");
-  const [department, setDepartment] = useState("Computer Science");
+  const [department, setDepartment] = useState("");
   const [isIeeeMember, setIsIeeeMember] = useState(false);
   const [ieeeNumber, setIeeeNumber] = useState("");
   const [namePref, setNamePref] = useState<"FULL_NAME" | "FIRST_INITIAL">("FULL_NAME");
@@ -597,35 +597,17 @@ export default function EventDetailPage() {
 
                         <div>
                           <label className="block font-semibold text-gray-700 mb-1">
-                            Department
+                            Department *
                           </label>
-                          <select
+                          <input
+                            type="text"
+                            required
                             value={department}
                             onChange={(e) => setDepartment(e.target.value)}
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
-                          >
-                            <option value="Computer Science">Computer Science</option>
-                            <option value="Software Engineering">Software Engineering</option>
-                            <option value="Electrical Engineering">Electrical Engineering</option>
-                            <option value="Information Technology">Information Technology</option>
-                            <option value="Other">Other</option>
-                          </select>
+                            placeholder="e.g. Computer Science"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                          />
                         </div>
-                      </div>
-
-                      {/* Name display consent preference */}
-                      <div>
-                        <label className="block font-semibold text-gray-700 mb-1">
-                          Public Verification Name Format
-                        </label>
-                        <select
-                          value={namePref}
-                          onChange={(e) => setNamePref(e.target.value as any)}
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
-                        >
-                          <option value="FULL_NAME">Display Full Name (Recommended)</option>
-                          <option value="FIRST_INITIAL">First Name + Initial Only</option>
-                        </select>
                       </div>
 
                       {/* IEEE Member checkbox */}

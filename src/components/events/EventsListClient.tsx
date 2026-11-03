@@ -165,7 +165,7 @@ export const EventsListClient: React.FC<EventsListClientProps> = ({ initialEvent
                     href={`/events/${cleanSlug}`}
                     className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue group-hover:text-ieee-navy hover:underline"
                   >
-                    Permanent Page <ArrowRight size={13} className="ml-1" />
+                    More Details <ArrowRight size={13} className="ml-1" />
                   </Link>
                 </div>
               </div>
