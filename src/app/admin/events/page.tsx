@@ -106,6 +106,7 @@ export default function AdminEventsManagerPage() {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState<EventStatus>("UPCOMING");
   const [statusReason, setStatusReason] = useState("");
+  const [isRegistrationOpen, setIsRegistrationOpen] = useState(true);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [venue, setVenue] = useState("");
@@ -137,6 +138,7 @@ export default function AdminEventsManagerPage() {
     setDescription("");
     setStatus("UPCOMING");
     setStatusReason("");
+    setIsRegistrationOpen(true);
     const now = new Date();
     const later = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
     setStartDate(isoToPktInput(now.toISOString()));
@@ -163,6 +165,7 @@ export default function AdminEventsManagerPage() {
     setDescription(event.description || "");
     setStatus(event.status || "UPCOMING");
     setStatusReason(event.statusReason || "");
+    setIsRegistrationOpen(event.isRegistrationOpen ?? (event.status === "UPCOMING"));
     setStartDate(isoToPktInput(event.startDate));
     setEndDate(isoToPktInput(event.endDate));
     setVenue(event.venue || "");
@@ -244,6 +247,7 @@ export default function AdminEventsManagerPage() {
         meetingLink: isOnline ? (cleanMeetingLink || undefined) : undefined,
         status,
         statusReason: cleanStatusReason || undefined,
+        isRegistrationOpen: Boolean(isRegistrationOpen),
         seatsLimit: Number(seatsLimit) || 60,
         feePkr: Number(feePkr) || 0,
         paymentInstructions: feePkr > 0 ? "Transfer fee via Raast (ID: 0300-1234567) or Bank Alfalah and upload receipt." : undefined,
@@ -373,6 +377,18 @@ export default function AdminEventsManagerPage() {
     }
   };
 
+  const handleToggleRegistration = async (evt: EventItem) => {
+    const currentlyOpen = evt.isRegistrationOpen ?? (evt.status === "UPCOMING");
+    const nextState = !currentlyOpen;
+    db.updateEvent(evt.id, { isRegistrationOpen: nextState });
+    try {
+      await saveEventAction({ ...evt, isRegistrationOpen: nextState });
+    } catch (err) {
+      console.warn("Toggle registration save error:", err);
+    }
+    await refreshEvents();
+  };
+
   const handleQuickStatusChange = async (eventId: string, newStatus: EventStatus) => {
     try {
       const existing = events.find((e) => e.id === eventId);
@@ -478,6 +494,7 @@ export default function AdminEventsManagerPage() {
                     <th className="p-4">Schedule & Venue</th>
                     <th className="p-4">Fee & Cert</th>
                     <th className="p-4">Status</th>
+                    <th className="p-4">Registration</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
                 </thead>
@@ -528,6 +545,28 @@ export default function AdminEventsManagerPage() {
                           <option value="POSTPONED">Postponed</option>
                           <option value="CANCELLED">Cancelled</option>
                         </select>
+                      </td>
+
+                      <td className="p-4">
+                        <button
+                          type="button"
+                          onClick={() => handleToggleRegistration(evt)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-montserrat font-bold transition-all shadow-xs ${
+                            (evt.isRegistrationOpen ?? (evt.status === "UPCOMING"))
+                              ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                              : "bg-red-50 text-red-700 border border-red-300 hover:bg-red-100"
+                          }`}
+                          title={`Click to ${
+                            (evt.isRegistrationOpen ?? (evt.status === "UPCOMING"))
+                              ? "close registrations for this event"
+                              : "open registrations for this event"
+                          }`}
+                        >
+                          <span className={`w-2 h-2 rounded-full ${
+                            (evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                          }`} />
+                          {(evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "Open" : "Closed"}
+                        </button>
                       </td>
 
                       <td className="p-4 text-right">
@@ -662,6 +701,47 @@ export default function AdminEventsManagerPage() {
                       placeholder="e.g. Rescheduled due to university midterms"
                       className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
                     />
+                  </div>
+                </div>
+
+                {/* Registration Open / Closed Control */}
+                <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-montserrat font-bold text-xs text-ieee-navy block">
+                        Attendee Registration Status
+                      </span>
+                      <span className="text-[11px] text-gray-500">
+                        Controls whether students can submit registrations on the public event page.
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setIsRegistrationOpen(true)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-bold transition-all flex items-center gap-1.5 ${
+                          isRegistrationOpen
+                            ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300"
+                            : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${isRegistrationOpen ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
+                        Registration Open
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsRegistrationOpen(false)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-bold transition-all flex items-center gap-1.5 ${
+                          !isRegistrationOpen
+                            ? "bg-red-600 text-white shadow-sm ring-2 ring-red-300"
+                            : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${!isRegistrationOpen ? "bg-white" : "bg-red-500"}`} />
+                        Registration Closed
+                      </button>
+                    </div>
                   </div>
                 </div>
 

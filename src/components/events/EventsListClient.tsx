@@ -154,11 +154,11 @@ export const EventsListClient: React.FC<EventsListClientProps> = ({ initialEvent
                     <span className="text-xs font-bold text-gray-800">
                       {evt.feePkr > 0 ? `PKR ${evt.feePkr}` : "Free Event"}
                     </span>
-                    {evt.seatsLimit && evt.status === "UPCOMING" && (
-                      <span className="block text-[10px] text-gray-500">
-                        {evt.registeredCount || 0} / {evt.seatsLimit} seats filled
-                      </span>
-                    )}
+                    <span className={`block text-[10px] font-semibold ${
+                      (evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "text-emerald-600" : "text-gray-400"
+                    }`}>
+                      {(evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "● Registration Open" : "Registration Closed"}
+                    </span>
                   </div>
 
                   <Link

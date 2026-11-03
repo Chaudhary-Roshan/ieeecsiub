@@ -122,19 +122,23 @@ export default function EventDetailPage() {
         id: res.registrationId || `reg-${Date.now()}`,
         eventId: event.id,
         privateToken: res.privateToken,
-        fullName,
+        fullName: fullName.trim(),
         namePreference: namePref,
-        email,
-        phone,
-        rollNumber,
+        email: email.trim(),
+        phone: phone.trim(),
+        rollNumber: rollNumber.trim(),
         isIeeeMember,
-        ieeeMembershipNumber: ieeeNumber || undefined,
-        department,
+        ieeeMembershipNumber: ieeeNumber.trim() || undefined,
+        department: department.trim() || "Computer Science",
         photoConsent,
         status: res.status || (event.feePkr > 0 ? "PAYMENT_PENDING" : "CONFIRMED"),
         ticketCode: res.ticketCode,
         createdAt: new Date().toISOString(),
       };
+
+      // Also persist to local database for instant visibility across admin tabs
+      await db.addRegistration(newReg);
+      db.updateEvent(event.id, { registeredCount: (event.registeredCount || 0) + 1 });
 
       // If paid event and transaction ID provided
       if (event.feePkr > 0 && txId.trim() && res.privateToken) {
@@ -152,7 +156,7 @@ export default function EventDetailPage() {
 
       setConfirmedReg(newReg);
     } catch (err: any) {
-      alert("Registration failed: " + err.message);
+      alert("Registration failed: " + (err?.message || "Please check details and retry."));
     }
   };
 
@@ -184,6 +188,9 @@ export default function EventDetailPage() {
   const isCancelled = event.status === "CANCELLED";
   const isCompleted = event.status === "COMPLETED";
   const isUpcoming = event.status === "UPCOMING";
+  const isRegistrationOpen = event.isRegistrationOpen !== undefined
+    ? event.isRegistrationOpen
+    : isUpcoming;
 
   return (
     <div className="flex-1 bg-gray-50 py-10 md:py-16 px-4 sm:px-8">
@@ -471,7 +478,7 @@ export default function EventDetailPage() {
 
             {/* Right Column: Option 2 Registration & Ticket Flow */}
             <div className="space-y-6">
-              {isUpcoming ? (
+              {isRegistrationOpen ? (
                 confirmedReg ? (
                   /* Success Confirmation Box */
                   <div className="bg-[#E6F4EA] border border-[#A8DAB5] rounded-card p-6 space-y-4">
@@ -716,13 +723,14 @@ export default function EventDetailPage() {
                   </div>
                 )
               ) : (
-                /* Non-upcoming event status block */
+                /* Non-upcoming or closed registration status block */
                 <div className="bg-white border border-ieee-border rounded-card p-6 shadow-sm space-y-3 text-xs">
-                  <h3 className="font-montserrat font-bold text-sm text-ieee-navy">
+                  <h3 className="font-montserrat font-bold text-sm text-ieee-navy flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
                     Registration Closed
                   </h3>
                   <p className="text-gray-600 leading-relaxed">
-                    This event is currently {event.status.toLowerCase()}. Registrations are no longer being accepted.
+                    Registrations for this event are currently closed by chapter administration.
                   </p>
                   <Button href="/events" variant="outline" size="sm" className="w-full">
                     Browse Other Events

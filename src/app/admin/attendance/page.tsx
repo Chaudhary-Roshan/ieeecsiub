@@ -1346,10 +1346,34 @@ export default function AdminAttendancePage() {
             </div>
 
             {currentEvent && (
-              <div className="text-[11px] text-gray-500 flex flex-wrap gap-4 pt-1 border-t border-gray-100">
-                <span>Date: <strong>{new Date(currentEvent.startDate).toLocaleDateString()}</strong></span>
-                <span>Venue: <strong>{currentEvent.venue}</strong></span>
-                <span>Cert Type: <strong>{currentEvent.certificateType}</strong></span>
+              <div className="text-[11px] text-gray-500 flex flex-wrap items-center justify-between gap-4 pt-1 border-t border-gray-100">
+                <div className="flex flex-wrap gap-4">
+                  <span>Date: <strong>{new Date(currentEvent.startDate).toLocaleDateString()}</strong></span>
+                  <span>Venue: <strong>{currentEvent.venue}</strong></span>
+                  <span>Cert Type: <strong>{currentEvent.certificateType}</strong></span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const currentlyOpen = currentEvent.isRegistrationOpen ?? (currentEvent.status === "UPCOMING");
+                    const nextState = !currentlyOpen;
+                    await db.updateEvent(currentEvent.id, { isRegistrationOpen: nextState });
+                    const updated = events.map((ev) => ev.id === currentEvent.id ? { ...ev, isRegistrationOpen: nextState } : ev);
+                    setEvents(updated);
+                  }}
+                  className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-montserrat font-bold transition-all shadow-xs ${
+                    (currentEvent.isRegistrationOpen ?? (currentEvent.status === "UPCOMING"))
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                      : "bg-red-50 text-red-700 border border-red-300 hover:bg-red-100"
+                  }`}
+                  title="Click to toggle public registration open / closed for this event"
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${
+                    (currentEvent.isRegistrationOpen ?? (currentEvent.status === "UPCOMING")) ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                  }`} />
+                  {(currentEvent.isRegistrationOpen ?? (currentEvent.status === "UPCOMING")) ? "Registration: OPEN" : "Registration: CLOSED"}
+                </button>
               </div>
             )}
           </div>

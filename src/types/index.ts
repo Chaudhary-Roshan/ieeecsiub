@@ -42,6 +42,7 @@ export interface EventItem {
   meetingLink?: string;
   status: EventStatus;
   statusReason?: string; // Reason if postponed or cancelled
+  isRegistrationOpen?: boolean; // Controls whether attendee registration is open or closed
   seatsLimit?: number;
   registeredCount?: number;
   registrationDeadline?: string;

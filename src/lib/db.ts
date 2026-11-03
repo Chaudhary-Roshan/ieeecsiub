@@ -701,6 +701,7 @@ class ChapterDatabase {
             featuredImage: d.featured_image || "/ieee-cs-logo.png",
             galleryImages: Array.isArray(d.gallery_images) ? d.gallery_images.filter(Boolean) : [],
             eventReport: d.event_report || "",
+            isRegistrationOpen: d.is_registration_open !== undefined ? Boolean(d.is_registration_open) : (d.status === "UPCOMING"),
           }));
 
           // Remote is the single source of truth
@@ -774,6 +775,7 @@ class ChapterDatabase {
             featuredImage: data.featured_image || "/ieee-cs-logo.png",
             galleryImages: Array.isArray(data.gallery_images) ? data.gallery_images.filter(Boolean) : [],
             eventReport: data.event_report || "",
+            isRegistrationOpen: data.is_registration_open !== undefined ? Boolean(data.is_registration_open) : (data.status === "UPCOMING"),
           };
           return evt;
         }
