@@ -126,7 +126,8 @@ export default function MobileCheckinPage() {
         const defaultEvt = allEvents.find((e) => e.id.includes("digitalfest")) || allEvents[0];
         setSelectedEventId(defaultEvt.id);
       }
-      setRegistrations(db.getRegistrations());
+      const liveRegs = await db.fetchRegistrations();
+      setRegistrations(liveRegs);
 
       if (typeof window !== "undefined") {
         const saved = localStorage.getItem("ieee_cs_active_staff");
@@ -227,68 +228,113 @@ export default function MobileCheckinPage() {
     }
   };
 
-  // Process ticket code from QR or text entry via atomic database RPC
+  // Process ticket code from QR or text entry via atomic database RPC with offline fallback
   const handleProcessTicketCode = async (rawCode: string) => {
     const cleanCode = cleanScannedCode(rawCode);
     if (!cleanCode) return;
 
+    let res: any = null;
     try {
-      const res = await checkInTicketAction(cleanCode);
+      res = await checkInTicketAction(cleanCode);
+    } catch (err: any) {
+      console.warn("Server check-in notice, checking local database:", err);
+    }
 
-      if (res.success) {
-        if (soundEnabled) playAudioFeedback("SUCCESS");
-        if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(100);
+    if (res && res.success) {
+      if (soundEnabled) playAudioFeedback("SUCCESS");
+      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(100);
 
-        setResultMsg({
-          type: "SUCCESS",
-          title: "Check-in Successful!",
-          description: `Verified ${res.fullName || "Attendee"} (${res.rollNumber || "Participant"}). Entry wristband issued.`,
-        });
+      setResultMsg({
+        type: "SUCCESS",
+        title: "Check-in Successful!",
+        description: `Verified ${res.fullName || "Attendee"} (${res.rollNumber || "Participant"}). Entry wristband issued.`,
+      });
 
-        setTicketInput("");
-        const live = await db.fetchRegistrations();
-        setRegistrations(live);
-        return;
+      // Update local storage so both local and remote stay synchronized
+      const allRegs = db.getRegistrations();
+      const localTarget = allRegs.find(
+        (r) => r.ticketCode && r.ticketCode.trim().toUpperCase() === cleanCode
+      );
+      if (localTarget) {
+        localTarget.status = "ATTENDED";
+        localTarget.checkedInAt = res.checkedInAt || new Date().toISOString();
+        db.saveRegistrations(allRegs);
       }
 
-      // Handle specific database rejection reasons
-      if (res.error === "ALREADY_CHECKED_IN") {
+      setTicketInput("");
+      const live = await db.fetchRegistrations();
+      setRegistrations(live);
+      return;
+    }
+
+    // Handle specific database rejection reasons
+    if (res && res.error === "ALREADY_CHECKED_IN") {
+      if (soundEnabled) playAudioFeedback("WARNING");
+      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([100, 60, 100]);
+      setResultMsg({
+        type: "WARNING",
+        title: "Duplicate Check-in Alert!",
+        description: `${res.fullName || "Attendee"} was ALREADY checked in. Duplicate badge denied.`,
+      });
+      return;
+    }
+
+    if (res && res.error === "UNPAID") {
+      if (soundEnabled) playAudioFeedback("ERROR");
+      setResultMsg({
+        type: "ERROR",
+        title: "Registration Unpaid / Pending",
+        description: `${res.fullName || "Attendee"}: Payment verification is pending with Chapter Treasurer.`,
+      });
+      return;
+    }
+
+    // Fallback: Check local registration records directly
+    const allRegs = db.getRegistrations();
+    const localTarget = allRegs.find(
+      (r) =>
+        (r.ticketCode && r.ticketCode.trim().toUpperCase() === cleanCode) ||
+        (r.rollNumber && r.rollNumber.trim().toUpperCase() === cleanCode)
+    );
+
+    if (localTarget) {
+      if (localTarget.status === "ATTENDED") {
         if (soundEnabled) playAudioFeedback("WARNING");
         if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([100, 60, 100]);
         setResultMsg({
           type: "WARNING",
           title: "Duplicate Check-in Alert!",
-          description: `${res.fullName} was ALREADY checked in. Duplicate badge denied.`,
+          description: `${localTarget.fullName} was ALREADY checked in. Duplicate badge denied.`,
         });
         return;
       }
 
-      if (res.error === "UNPAID") {
-        if (soundEnabled) playAudioFeedback("ERROR");
-        setResultMsg({
-          type: "ERROR",
-          title: "Registration Unpaid / Pending",
-          description: `${res.fullName}: Payment verification is pending with Chapter Treasurer.`,
-        });
-        return;
-      }
+      localTarget.status = "ATTENDED";
+      localTarget.checkedInAt = new Date().toISOString();
+      db.saveRegistrations(allRegs);
 
-      // Other error / not found
-      if (soundEnabled) playAudioFeedback("ERROR");
-      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([180, 80, 180]);
+      if (soundEnabled) playAudioFeedback("SUCCESS");
+      if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(100);
+
       setResultMsg({
-        type: "ERROR",
-        title: "Ticket Check-in Denied",
-        description: res.error || `Ticket "${cleanCode}" could not be checked in.`,
+        type: "SUCCESS",
+        title: "Check-in Successful!",
+        description: `Verified ${localTarget.fullName} (${localTarget.rollNumber || "Participant"}). Entry wristband issued.`,
       });
-    } catch (err: any) {
-      if (soundEnabled) playAudioFeedback("ERROR");
-      setResultMsg({
-        type: "ERROR",
-        title: "Database Error",
-        description: err.message || "Could not connect to database for check-in verification.",
-      });
+
+      setTicketInput("");
+      setRegistrations([...allRegs]);
+      return;
     }
+
+    // Not found
+    if (soundEnabled) playAudioFeedback("ERROR");
+    if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate([180, 80, 180]);
+    setResultMsg({
+      type: "ERROR",
+      title: "Ticket Not Found",
+      description: `Ticket code "${cleanCode}" does not match any confirmed event registration.`,
+    });
   };
 
   const handleManualSubmit = (e: React.FormEvent) => {
@@ -445,8 +491,15 @@ export default function MobileCheckinPage() {
   };
 
   // Filtered List Computation
-  const currentEvent = events.find((e) => e.id === selectedEventId);
-  const eventScopedList = selectedEventId === "ALL" ? registrations : registrations.filter((r) => r.eventId === selectedEventId);
+  const currentEvent = events.find((e) => e.id === selectedEventId || e.slug === selectedEventId);
+  const eventScopedList = selectedEventId === "ALL"
+    ? registrations
+    : registrations.filter((r) => {
+        if (r.eventId === selectedEventId) return true;
+        if (currentEvent && (r.eventId === currentEvent.id || r.eventId === currentEvent.slug)) return true;
+        if (currentEvent?.slug?.includes("/") && r.eventId === currentEvent.slug.split("/").slice(1).join("/")) return true;
+        return false;
+      });
 
   const totalRegisteredCount = eventScopedList.length;
   const attendedCount = eventScopedList.filter((r) => r.status === "ATTENDED").length;

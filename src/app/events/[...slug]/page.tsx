@@ -506,6 +506,16 @@ export default function EventDetailPage() {
                       </span>
                     </div>
 
+                    {/* Screenshot / Save Code Notice */}
+                    <div className="p-3.5 bg-[#FEF3D6] border border-[#FAD79A] rounded-xl text-xs text-[#B45309] space-y-1">
+                      <div className="font-bold font-montserrat flex items-center gap-1.5 text-xs text-[#92400E]">
+                        📸 Please Take a Screenshot or Save Your Ticket Code!
+                      </div>
+                      <p className="text-[11px] text-gray-700 leading-relaxed">
+                        Capture this screen or write down your code: <strong>{confirmedReg.ticketCode}</strong>. You must present this ticket code or screenshot at the venue check-in desk on the event date.
+                      </p>
+                    </div>
+
                     {confirmedReg.status === "PAYMENT_PENDING" ? (
                       <div className="p-3 bg-[#FEF3D6] border border-[#FAD79A] rounded-lg text-xs text-[#B45309]">
                         <strong>Payment Under Verification:</strong> The chapter Treasurer is
@@ -514,7 +524,7 @@ export default function EventDetailPage() {
                       </div>
                     ) : (
                       <div className="p-3 bg-white/70 rounded-lg text-xs text-gray-700">
-                        Present this ticket code or QR code during event check-in at the venue.
+                        Present this ticket code or screenshot during event check-in at the venue.
                       </div>
                     )}
 
