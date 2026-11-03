@@ -113,6 +113,7 @@ export default function AdminEventsManagerPage() {
   const [isOnline, setIsOnline] = useState(false);
   const [meetingLink, setMeetingLink] = useState("");
   const [feePkr, setFeePkr] = useState(0);
+  const [paymentInstructions, setPaymentInstructions] = useState("");
   const [seatsLimit, setSeatsLimit] = useState(60);
   const [certificateType, setCertificateType] = useState("Certificate of Participation");
   const [certificateRule, setCertificateRule] = useState("Minimum 80% physical attendance verified via digital check-in");
@@ -147,6 +148,9 @@ export default function AdminEventsManagerPage() {
     setIsOnline(false);
     setMeetingLink("");
     setFeePkr(0);
+    setPaymentInstructions(
+      "Bank: Bank Alfalah / Meezan Bank\nAccount Title: IEEE CS UCET-IUB\nAccount / IBAN: 0123-456789012345\nRaast ID: 0300-1234567\nPayment Note: Please enter your Student Name & Roll No in transfer remarks."
+    );
     setSeatsLimit(60);
     setCertificateType("Certificate of Participation");
     setCertificateRule("Minimum 80% physical attendance verified via digital check-in");
@@ -172,6 +176,10 @@ export default function AdminEventsManagerPage() {
     setIsOnline(Boolean(event.isOnline));
     setMeetingLink(event.meetingLink || "");
     setFeePkr(Number(event.feePkr) || 0);
+    setPaymentInstructions(
+      event.paymentInstructions ||
+        "Bank: Bank Alfalah / Meezan Bank\nAccount Title: IEEE CS UCET-IUB\nAccount / IBAN: 0123-456789012345\nRaast ID: 0300-1234567\nPayment Note: Please enter your Student Name & Roll No in transfer remarks."
+    );
     setSeatsLimit(Number(event.seatsLimit) || 60);
     setCertificateType(event.certificateType || "Certificate of Participation");
     setCertificateRule(event.certificateRule || "Minimum 80% physical attendance verified via digital check-in");
@@ -234,6 +242,8 @@ export default function AdminEventsManagerPage() {
       const cleanFeaturedImage = (featuredImage || "").trim() || "/ieee-cs-logo.png";
       const cleanEventReport = (eventReport || "").trim();
 
+      const cleanPaymentInstructions = (paymentInstructions || "").trim();
+
       const eventPayload: EventItem = {
         id: editingEventId || `evt-${Date.now()}`,
         slug: cleanSlug,
@@ -250,7 +260,7 @@ export default function AdminEventsManagerPage() {
         isRegistrationOpen: Boolean(isRegistrationOpen),
         seatsLimit: Number(seatsLimit) || 60,
         feePkr: Number(feePkr) || 0,
-        paymentInstructions: feePkr > 0 ? "Transfer fee via Raast (ID: 0300-1234567) or Bank Alfalah and upload receipt." : undefined,
+        paymentInstructions: Number(feePkr) > 0 ? (cleanPaymentInstructions || "Transfer fee via Raast (ID: 0300-1234567) or Bank Alfalah and upload receipt.") : undefined,
         certificateType: cleanCertType,
         certificateRule: cleanCertRule,
         featuredImage: cleanFeaturedImage,
@@ -273,6 +283,7 @@ export default function AdminEventsManagerPage() {
         certificate_rule: cleanCertRule,
         learning_objectives: objectives,
         fee_pkr: Number(feePkr) || 0,
+        payment_instructions: Number(feePkr) > 0 ? (cleanPaymentInstructions || undefined) : undefined,
         seats_limit: Number(seatsLimit) || 60,
         is_online: Boolean(isOnline),
       };
@@ -818,6 +829,30 @@ export default function AdminEventsManagerPage() {
                     />
                   </div>
                 </div>
+
+                {/* Bank & Payment Instructions (Visible when fee > 0) */}
+                {Number(feePkr) > 0 && (
+                  <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 animate-fadeIn">
+                    <div className="flex items-center justify-between">
+                      <label className="block font-semibold text-xs text-ieee-navy">
+                        Bank Account & Raast Payment Details (Shown to Attendees) *
+                      </label>
+                      <span className="text-[10px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-full">
+                        Paid Event (PKR {feePkr})
+                      </span>
+                    </div>
+                    <textarea
+                      rows={4}
+                      value={paymentInstructions}
+                      onChange={(e) => setPaymentInstructions(e.target.value)}
+                      placeholder="Bank: Bank Alfalah / Meezan Bank&#10;Account Title: IEEE CS UCET-IUB&#10;Account / IBAN: 0123-456789012345&#10;Raast ID: 0300-1234567&#10;Payment Note: Please enter your Student Name & Roll No in transfer remarks."
+                      className="w-full p-2.5 bg-white border border-blue-200 rounded-lg text-xs font-mono focus:ring-1 focus:ring-ieee-blue outline-none text-gray-800"
+                    />
+                    <p className="text-[11px] text-gray-500">
+                      Specify the Bank Name, Account Title, IBAN / Account Number, and Raast ID. These details will be clearly presented in the payment section on the public event page.
+                    </p>
+                  </div>
+                )}
 
                 {/* Certificate Type & Rule */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

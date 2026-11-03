@@ -933,6 +933,7 @@ class ChapterDatabase {
         if (updates.endDate) payload.end_date = updates.endDate;
         if (updates.venue) payload.venue = updates.venue;
         if (updates.feePkr !== undefined) payload.fee_pkr = updates.feePkr;
+        if (updates.paymentInstructions !== undefined) payload.payment_instructions = updates.paymentInstructions || null;
         if (updates.seatsLimit !== undefined) payload.seats_limit = updates.seatsLimit;
         if (updates.isOnline !== undefined) payload.is_online = updates.isOnline;
         if (updates.meetingLink !== undefined) payload.meeting_link = updates.meetingLink;

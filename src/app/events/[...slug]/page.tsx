@@ -30,6 +30,8 @@ import {
   ChevronRight,
   Image as ImageIcon,
   Search,
+  CreditCard,
+  Building2,
 } from "lucide-react";
 
 export default function EventDetailPage() {
@@ -663,42 +665,60 @@ export default function EventDetailPage() {
 
                       {/* Payment Section if fee > 0 */}
                       {event.feePkr > 0 && (
-                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-xl space-y-3">
-                          <div className="font-bold text-gray-900 flex justify-between">
-                            <span>Workshop Fee:</span>
-                            <span className="text-ieee-blue">PKR {event.feePkr}</span>
+                        <div className="p-4 bg-gradient-to-br from-blue-50/70 to-slate-50 border-2 border-blue-200 rounded-xl space-y-3">
+                          <div className="flex items-center justify-between pb-2 border-b border-blue-200">
+                            <span className="font-montserrat font-bold text-xs uppercase tracking-wider text-ieee-navy flex items-center gap-1.5">
+                              <CreditCard size={15} className="text-ieee-blue" /> Registration Fee
+                            </span>
+                            <span className="text-base font-extrabold text-ieee-blue font-mono">
+                              PKR {event.feePkr}
+                            </span>
                           </div>
-                          <p className="text-[11px] text-gray-600">
-                            {event.paymentInstructions}
-                          </p>
+
+                          {/* Official Bank Account & Raast Details */}
+                          <div className="bg-white p-3 rounded-lg border border-blue-200 shadow-xs space-y-1.5">
+                            <div className="flex items-center gap-1.5 text-xs font-bold text-gray-800">
+                              <Building2 size={14} className="text-ieee-blue" />
+                              <span>Official Bank & Raast Details</span>
+                            </div>
+                            <div className="text-xs text-gray-800 whitespace-pre-wrap font-mono leading-relaxed bg-blue-50/40 p-2.5 rounded border border-blue-100 select-all">
+                              {event.paymentInstructions || "Bank: Bank Alfalah / Meezan Bank\nAccount Title: IEEE CS UCET-IUB\nRaast ID: 0300-1234567\nPayment Note: Mention your Name or Roll No in remarks."}
+                            </div>
+                            <p className="text-[10px] text-gray-500">
+                              Transfer fee via your bank mobile app or Raast, then enter the transaction reference ID below.
+                            </p>
+                          </div>
 
                           <div>
-                            <label className="block font-semibold text-gray-700 mb-1">
-                              Payment Method *
+                            <label className="block font-semibold text-gray-700 mb-1 text-xs">
+                              Payment Method Used *
                             </label>
                             <select
                               value={paymentMethod}
                               onChange={(e) => setPaymentMethod(e.target.value as any)}
-                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white text-xs"
                             >
-                              <option value="Raast">Raast (0% fee)</option>
-                              <option value="Bank Transfer">Bank Transfer (Bank Alfalah)</option>
+                              <option value="Raast">Raast (Instant / 0% fee)</option>
+                              <option value="Bank Transfer">Bank Transfer (Bank Alfalah / Any Bank)</option>
                               <option value="EasyPaisa / JazzCash">EasyPaisa / JazzCash</option>
                             </select>
                           </div>
 
                           <div>
-                            <label className="block font-semibold text-gray-700 mb-1">
-                              Transaction Reference ID *
+                            <label className="block font-semibold text-gray-700 mb-1 text-xs">
+                              Transaction Reference ID / UTR *
                             </label>
                             <input
                               type="text"
                               required
                               value={txId}
                               onChange={(e) => setTxId(e.target.value)}
-                              placeholder="e.g. RAAST-TX-883921"
-                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono"
+                              placeholder="e.g. RAAST-TX-883921 or Alfalah Ref #"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-xs"
                             />
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              Keep your bank transaction receipt or screenshot for physical entrance verification.
+                            </p>
                           </div>
                         </div>
                       )}
