@@ -588,6 +588,8 @@ class ChapterDatabase {
   async updateCertificate(code: string, updates: Partial<CertificateRecord>): Promise<boolean> {
     const list = this.getCertificates();
     const clean = code.trim().toUpperCase();
+    const targetCode = updates.code ? updates.code.trim().toUpperCase() : clean;
+
     const index = list.findIndex((c) => c.code.toUpperCase() === clean);
     if (index === -1) {
       if (updates.code) {
@@ -597,7 +599,11 @@ class ChapterDatabase {
         return false;
       }
     } else {
-      list[index] = { ...list[index], ...updates };
+      list[index] = { ...list[index], ...updates, code: targetCode };
+      if (updates.status === "ACTIVE") {
+        delete (list[index] as any).replacedByCode;
+        delete (list[index] as any).replacementReason;
+      }
       this.setItem("certificates", list);
     }
 
@@ -608,6 +614,7 @@ class ChapterDatabase {
       if (Array.isArray(recs)) {
         recs.forEach((r) => {
           if (r.certificateCode && r.certificateCode.trim().toUpperCase() === clean) {
+            r.certificateCode = targetCode;
             if (updates.recipientName) r.name = updates.recipientName;
             if (updates.recipientRollNumber !== undefined) r.rollNumber = updates.recipientRollNumber;
             if (updates.recipientEmail !== undefined) r.email = updates.recipientEmail;
@@ -623,16 +630,27 @@ class ChapterDatabase {
     const client = getSupabase();
     if (client) {
       const payload: Record<string, any> = {};
+      if (targetCode !== clean) payload.code = targetCode;
       if (updates.status) payload.status = updates.status;
       if (updates.recipientName) payload.recipient_name = updates.recipientName;
       if (updates.recipientRollNumber !== undefined) payload.recipient_roll_number = updates.recipientRollNumber;
       if (updates.recipientEmail !== undefined) payload.recipient_email = updates.recipientEmail;
       if (updates.eventTitle) payload.event_title = updates.eventTitle;
       if (updates.certificateType) payload.certificate_type = updates.certificateType;
-      if (updates.replacedByCode) payload.replaced_by_code = updates.replacedByCode;
-      if (updates.replacementReason) payload.replacement_reason = updates.replacementReason;
-      if (updates.revocationDate) payload.revocation_date = updates.revocationDate;
-      if (updates.revocationReason) payload.revocation_reason = updates.revocationReason;
+      if (updates.recognitionLevel) payload.recognition_level = updates.recognitionLevel;
+      if (updates.activityDate) payload.activity_date = updates.activityDate;
+      if (updates.issueDate) payload.issue_date = updates.issueDate;
+      if (updates.approverName) payload.approver_name = updates.approverName;
+      if (updates.approverRole) payload.approver_role = updates.approverRole;
+      if (updates.status === "ACTIVE") {
+        payload.replaced_by_code = null;
+        payload.replacement_reason = null;
+      } else {
+        if (updates.replacedByCode !== undefined) payload.replaced_by_code = updates.replacedByCode;
+        if (updates.replacementReason !== undefined) payload.replacement_reason = updates.replacementReason;
+      }
+      if (updates.revocationDate !== undefined) payload.revocation_date = updates.revocationDate;
+      if (updates.revocationReason !== undefined) payload.revocation_reason = updates.revocationReason;
       if (updates.sha256Fingerprint) payload.sha256_fingerprint = updates.sha256Fingerprint;
 
       if (Object.keys(payload).length > 0) {

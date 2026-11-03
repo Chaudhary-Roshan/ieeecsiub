@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
-import { revokeCertificateAction, replaceCertificateAction } from "@/app/actions/certificates";
+import { revokeCertificateAction } from "@/app/actions/certificates";
 import { CertificateRecord, StaffUser, CertificateTemplate } from "@/types";
 import { generateCertificateCode } from "@/lib/codeGenerator";
 import QRCode from "qrcode";
@@ -33,26 +33,28 @@ export default function AdminCertificatesPage() {
   const [search, setSearch] = useState("");
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
 
-  // Edit Credential Modal State
+  // Edit Credential Modal State (In-place editing & QR/Code generation)
   const [editingCert, setEditingCert] = useState<CertificateRecord | null>(null);
+  const [editCode, setEditCode] = useState("");
   const [editName, setEditName] = useState("");
   const [editRoll, setEditRoll] = useState("");
   const [editEmail, setEditEmail] = useState("");
   const [editEventTitle, setEditEventTitle] = useState("");
   const [editCertType, setEditCertType] = useState("");
+  const [editRecognitionLevel, setEditRecognitionLevel] = useState<"CHAPTER_RECOGNITION" | "JOINT_RECOGNITION">("CHAPTER_RECOGNITION");
+  const [editIssueDate, setEditIssueDate] = useState("");
+  const [editActivityDate, setEditActivityDate] = useState("");
+  const [editApproverName, setEditApproverName] = useState("");
+  const [editApproverRole, setEditApproverRole] = useState("");
   const [editStatus, setEditStatus] = useState<"ACTIVE" | "REVOKED">("ACTIVE");
+  const [codeRegenerated, setCodeRegenerated] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // Revocation Modal State
   const [revokingCert, setRevokingCert] = useState<CertificateRecord | null>(null);
   const [revokeReason, setRevokeReason] = useState("");
 
-  // Replacement Modal State
-  const [replacingCert, setReplacingCert] = useState<CertificateRecord | null>(null);
-  const [correctedName, setCorrectedName] = useState("");
-  const [replaceReason, setReplaceReason] = useState("Name spelling correction per verified participant request.");
   const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   // Legacy Import State
   const [showLegacyModal, setShowLegacyModal] = useState(false);
@@ -94,12 +96,25 @@ export default function AdminCertificatesPage() {
 
   const handleOpenEdit = (cert: CertificateRecord) => {
     setEditingCert(cert);
+    setEditCode(cert.code || "");
     setEditName(cert.recipientName || "");
     setEditRoll(cert.recipientRollNumber || "");
     setEditEmail(cert.recipientEmail || "");
     setEditEventTitle(cert.eventTitle || "");
     setEditCertType(cert.certificateType || "Certificate of Participation");
+    setEditRecognitionLevel(cert.recognitionLevel || "CHAPTER_RECOGNITION");
+    setEditIssueDate(cert.issueDate || new Date().toISOString().split("T")[0]);
+    setEditActivityDate(cert.activityDate || "");
+    setEditApproverName(cert.approverName || "Muhammad Roshan Ashraf");
+    setEditApproverRole(cert.approverRole || "Chapter Chair");
     setEditStatus(cert.status === "REVOKED" ? "REVOKED" : "ACTIVE");
+    setCodeRegenerated(false);
+  };
+
+  const handleRegenerateCode = () => {
+    const freshCode = generateCertificateCode("26");
+    setEditCode(freshCode);
+    setCodeRegenerated(true);
   };
 
   const handleSaveEdit = async (e: React.FormEvent) => {
@@ -108,13 +123,24 @@ export default function AdminCertificatesPage() {
 
     setIsSavingEdit(true);
     try {
+      const cleanNewCode = editCode.trim().toUpperCase();
+      const codeChanged = cleanNewCode !== editingCert.code.trim().toUpperCase();
+
       await db.updateCertificate(editingCert.code, {
+        code: codeChanged ? cleanNewCode : undefined,
         recipientName: editName.trim(),
         recipientRollNumber: editRoll.trim() || undefined,
         recipientEmail: editEmail.trim() || undefined,
         eventTitle: editEventTitle.trim() || editingCert.eventTitle,
         certificateType: editCertType.trim() || editingCert.certificateType,
+        recognitionLevel: editRecognitionLevel,
+        issueDate: editIssueDate.trim() || editingCert.issueDate,
+        activityDate: editActivityDate.trim() || editingCert.activityDate,
+        approverName: editApproverName.trim() || editingCert.approverName,
+        approverRole: editApproverRole.trim() || editingCert.approverRole,
         status: editStatus,
+        replacedByCode: editStatus === "ACTIVE" ? undefined : editingCert.replacedByCode,
+        replacementReason: editStatus === "ACTIVE" ? undefined : editingCert.replacementReason,
       });
 
       db.addAuditLog(
@@ -122,7 +148,7 @@ export default function AdminCertificatesPage() {
         "CERTIFICATE_UPDATED",
         "certificates",
         editingCert.id,
-        `Updated details for ${editingCert.code} (${editName.trim()}).`
+        `Updated details for ${editingCert.code}${codeChanged ? ` (Code regenerated to ${cleanNewCode})` : ""} (${editName.trim()}).`
       );
 
       await refreshList();
@@ -207,69 +233,6 @@ export default function AdminCertificatesPage() {
     setRevokeReason("");
     await refreshList();
     alert(`Certificate ${revokingCert.code} has been marked as REVOKED.`);
-  };
-
-  const handleReplaceSubmit = async () => {
-    if (!replacingCert || !correctedName.trim() || !currentUser) return;
-
-    let newCode = "";
-    try {
-      const res = await replaceCertificateAction(
-        replacingCert.code,
-        correctedName.trim(),
-        replaceReason.trim()
-      );
-      newCode = res.newCode;
-    } catch (err: any) {
-      console.warn("Replace server action warning:", err);
-      newCode = generateCertificateCode("26");
-    }
-
-    const today = new Date().toISOString().split("T")[0];
-
-    // 1. Mark old certificate as REPLACED
-    db.updateCertificate(replacingCert.code, {
-      status: "REPLACED",
-      replacedByCode: newCode,
-      replacementReason: replaceReason.trim(),
-    });
-
-    // 2. Insert new ACTIVE certificate
-    const newCert: CertificateRecord = {
-      id: `cert-${Date.now()}`,
-      code: newCode,
-      recipientName: correctedName.trim(),
-      publicNameFormat: "FULL_NAME",
-      eventId: replacingCert.eventId,
-      eventTitle: replacingCert.eventTitle,
-      certificateType: replacingCert.certificateType,
-      recognitionLevel: replacingCert.recognitionLevel,
-      issuerStatement: replacingCert.issuerStatement,
-      activityDate: replacingCert.activityDate,
-      issueDate: today,
-      approverName: currentUser.name,
-      approverRole: "Administrator",
-      status: "ACTIVE",
-      source: replacingCert.source,
-      templateId: selectedTemplateId || replacingCert.templateId || db.getActiveTemplate().id,
-      teamName: replacingCert.teamName,
-      projectTitle: replacingCert.projectTitle,
-      createdAt: new Date().toISOString(),
-    };
-    db.addCertificate(newCert);
-
-    db.addAuditLog(
-      currentUser.name,
-      "CERTIFICATE_REPLACEMENT",
-      "certificates",
-      replacingCert.id,
-      `Replaced ${replacingCert.code} (${replacingCert.recipientName}) with new code ${newCode} (${correctedName.trim()}).`
-    );
-
-    setReplacingCert(null);
-    setCorrectedName("");
-    await refreshList();
-    alert(`Certificate replaced successfully! New code ${newCode} is now ACTIVE.`);
   };
 
   const handleLegacySubmit = (e: React.FormEvent) => {
@@ -479,43 +442,23 @@ export default function AdminCertificatesPage() {
                         )}
                       </button>
 
-                      {/* Edit Attendee / Credential Button */}
+                      {/* Edit Attendee / Credential Button (Always Available for All Records) */}
                       <button
                         onClick={() => handleOpenEdit(cert)}
-                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-700 hover:text-ieee-navy bg-gray-100 hover:bg-ieee-surfaceTint px-2 py-1 rounded transition-colors"
-                        title="Edit recipient name, roll number, or details"
+                        className="inline-flex items-center gap-1 text-[11px] font-semibold text-ieee-navy hover:text-white bg-ieee-surfaceTint hover:bg-ieee-blue px-2.5 py-1 rounded transition-colors"
+                        title="Edit recipient name, roll number, event, or regenerate QR code"
                       >
-                        <Edit2 size={11} className="text-ieee-blue" /> Edit
+                        <Edit2 size={11} /> Edit
                       </button>
 
                       {cert.status === "ACTIVE" && (
-                        <>
-                          <button
-                            onClick={() => {
-                              setReplacingCert(cert);
-                              setCorrectedName(cert.recipientName);
-                              setSelectedTemplateId(cert.templateId || db.getActiveTemplate().id);
-                            }}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-ieee-blue hover:underline bg-ieee-surfaceTint/50 px-2 py-1 rounded"
-                            title="Re-issue with a new code and replace old"
-                          >
-                            <RefreshCw size={11} /> Replace
-                          </button>
-
-                          <button
-                            onClick={() => setRevokingCert(cert)}
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#BA0C2F] hover:underline bg-[#FCE8E6] px-2 py-1 rounded"
-                            title="Mark certificate as revoked"
-                          >
-                            <AlertTriangle size={11} /> Revoke
-                          </button>
-                        </>
-                      )}
-
-                      {cert.status !== "ACTIVE" && (
-                        <span className="text-[11px] text-gray-400 italic">
-                          Locked ({cert.status.toLowerCase()})
-                        </span>
+                        <button
+                          onClick={() => setRevokingCert(cert)}
+                          className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#BA0C2F] hover:underline bg-[#FCE8E6] px-2 py-1 rounded"
+                          title="Mark certificate as revoked"
+                        >
+                          <AlertTriangle size={11} /> Revoke
+                        </button>
                       )}
 
                       {/* Delete / Remove Single Row Button */}
@@ -603,16 +546,18 @@ export default function AdminCertificatesPage() {
           </div>
         )}
 
-        {/* Modal: Edit Credential (Name, Roll, Email, Details) */}
+        {/* Modal: Edit Credential (Full Information & In-Place Code/QR Regeneration) */}
         {editingCert && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-card max-w-md w-full p-6 space-y-4 border border-gray-200 shadow-2xl">
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-card max-w-lg w-full p-6 space-y-4 border border-gray-200 shadow-2xl my-8">
               <div className="flex items-center justify-between border-b pb-3">
                 <div>
                   <h3 className="font-montserrat font-bold text-base text-ieee-navy flex items-center gap-2">
-                    <Edit2 size={16} className="text-ieee-blue" /> Edit Credential Details
+                    <Edit2 size={16} className="text-ieee-blue" /> Edit Certificate Information
                   </h3>
-                  <span className="font-mono text-xs text-ieee-blue font-bold">{editingCert.code}</span>
+                  <p className="text-[11px] text-gray-500">
+                    Modifications update this credential directly without generating a new certificate row.
+                  </p>
                 </div>
                 <button onClick={() => !isSavingEdit && setEditingCert(null)} className="text-gray-400 hover:text-gray-600">
                   <X size={18} />
@@ -620,6 +565,38 @@ export default function AdminCertificatesPage() {
               </div>
 
               <form onSubmit={handleSaveEdit} className="space-y-3.5 text-xs">
+                {/* Code & QR Regeneration Box */}
+                <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="text-[10px] uppercase font-bold text-gray-600 tracking-wider block">
+                        Verification Code & QR
+                      </span>
+                      <span className="font-mono font-bold text-xs text-ieee-navy">
+                        {editCode}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRegenerateCode}
+                      className="px-2.5 py-1 bg-white hover:bg-ieee-blue hover:text-white border border-ieee-blue text-ieee-blue rounded-md font-semibold text-[11px] transition-colors flex items-center gap-1 shadow-xs"
+                      title="Generate a fresh code and QR for this attendee in-place"
+                    >
+                      <RefreshCw size={11} className={codeRegenerated ? "text-green-600 animate-spin" : ""} />
+                      {codeRegenerated ? "Regenerated!" : "⚡ Regenerate Code & QR"}
+                    </button>
+                  </div>
+                  {codeRegenerated ? (
+                    <p className="text-[10px] text-green-700 font-medium">
+                      ✓ A new verification code & QR will replace the older one on this certificate upon saving.
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-500">
+                      Click Regenerate only if you wish to mint a fresh code and QR to replace the existing code.
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <label className="font-semibold text-gray-700 block mb-1">Recipient Full Name *</label>
                   <input
@@ -630,7 +607,7 @@ export default function AdminCertificatesPage() {
                     placeholder="e.g. Muhammad Roshan Ashraf"
                     className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-medium"
                   />
-                  <p className="text-[10px] text-gray-400 mt-0.5">This name appears on the public verification page and QR records.</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Appears on public verification page and certificate badge.</p>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
@@ -668,15 +645,75 @@ export default function AdminCertificatesPage() {
                   />
                 </div>
 
-                <div>
-                  <label className="font-semibold text-gray-700 block mb-1">Credential Type</label>
-                  <input
-                    type="text"
-                    value={editCertType}
-                    onChange={(e) => setEditCertType(e.target.value)}
-                    placeholder="e.g. Certificate of Participation"
-                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Credential Type</label>
+                    <input
+                      type="text"
+                      value={editCertType}
+                      onChange={(e) => setEditCertType(e.target.value)}
+                      placeholder="e.g. Certificate of Participation"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Recognition Level</label>
+                    <select
+                      value={editRecognitionLevel}
+                      onChange={(e) => setEditRecognitionLevel(e.target.value as any)}
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue bg-white"
+                    >
+                      <option value="CHAPTER_RECOGNITION">Chapter Recognition</option>
+                      <option value="JOINT_RECOGNITION">Joint Recognition</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Issue Date</label>
+                    <input
+                      type="date"
+                      value={editIssueDate}
+                      onChange={(e) => setEditIssueDate(e.target.value)}
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Event / Activity Date</label>
+                    <input
+                      type="date"
+                      value={editActivityDate}
+                      onChange={(e) => setEditActivityDate(e.target.value)}
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Approver Name</label>
+                    <input
+                      type="text"
+                      value={editApproverName}
+                      onChange={(e) => setEditApproverName(e.target.value)}
+                      placeholder="e.g. Muhammad Roshan Ashraf"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="font-semibold text-gray-700 block mb-1">Approver Role</label>
+                    <input
+                      type="text"
+                      value={editApproverRole}
+                      onChange={(e) => setEditApproverRole(e.target.value)}
+                      placeholder="e.g. Chapter Chair"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+                    />
+                  </div>
                 </div>
 
                 <div>
@@ -684,7 +721,7 @@ export default function AdminCertificatesPage() {
                   <select
                     value={editStatus}
                     onChange={(e) => setEditStatus(e.target.value as any)}
-                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-semibold"
+                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-semibold bg-white"
                   >
                     <option value="ACTIVE">ACTIVE (Valid & Verified)</option>
                     <option value="REVOKED">REVOKED (Invalidated)</option>
@@ -713,136 +750,12 @@ export default function AdminCertificatesPage() {
                     ) : (
                       <>
                         <Check size={14} />
-                        <span>Save Changes</span>
+                        <span>Save Changes (In-Place)</span>
                       </>
                     )}
                   </button>
                 </div>
               </form>
-            </div>
-          </div>
-        )}
-
-        {/* Modal: Revoke Certificate */}
-        {revokingCert && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-card max-w-md w-full p-6 space-y-4 border border-gray-200 shadow-2xl">
-              <div className="flex items-center justify-between border-b pb-2">
-                <h3 className="font-montserrat font-bold text-base text-[#BA0C2F] flex items-center gap-1.5">
-                  <AlertTriangle size={18} /> Revoke Certificate
-                </h3>
-                <button onClick={() => setRevokingCert(null)}>
-                  <X size={18} />
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Revoking certificate <strong>{revokingCert.code}</strong> (issued to{" "}
-                <strong>{revokingCert.recipientName}</strong>). The certificate will
-                permanently show as <strong>REVOKED</strong> on the public Verify page.
-              </p>
-
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 mb-1">
-                  Documented Reason for Revocation *
-                </label>
-                <textarea
-                  required
-                  rows={3}
-                  value={revokeReason}
-                  onChange={(e) => setRevokeReason(e.target.value)}
-                  placeholder="e.g. Issued in error; attendance criteria unmet."
-                  className="w-full text-xs p-2.5 border rounded-lg focus:ring-1 focus:ring-red-500 outline-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button onClick={() => setRevokingCert(null)} variant="secondary" size="sm">
-                  Cancel
-                </Button>
-                <Button onClick={handleRevokeSubmit} variant="danger" size="sm">
-                  Confirm Permanent Revocation
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Modal: Replace Certificate (Spelling / Name Correction) */}
-        {replacingCert && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white rounded-card max-w-md w-full p-6 space-y-4 border border-gray-200 shadow-2xl">
-              <div className="flex items-center justify-between border-b pb-2">
-                <h3 className="font-montserrat font-bold text-base text-[#E87722] flex items-center gap-1.5">
-                  <RefreshCw size={18} /> Replace Certificate (Correction)
-                </h3>
-                <button onClick={() => setReplacingCert(null)}>
-                  <X size={18} />
-                </button>
-              </div>
-
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Issuing a replacement for <strong>{replacingCert.code}</strong>. The original
-                record will show as <strong>REPLACED</strong> and link to the new code.
-              </p>
-
-              <div className="space-y-3 text-xs">
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Corrected Recipient Full Name *
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={correctedName}
-                    onChange={(e) => setCorrectedName(e.target.value)}
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Certificate Design Template *
-                  </label>
-                  <select
-                    value={selectedTemplateId}
-                    onChange={(e) => setSelectedTemplateId(e.target.value)}
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white text-xs font-semibold"
-                  >
-                    {templates.map((t) => (
-                      <option key={t.id} value={t.id}>
-                        {t.name} {t.isDefault ? "★ (Active Default)" : ""}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Correction Justification *
-                  </label>
-                  <input
-                    type="text"
-                    value={replaceReason}
-                    onChange={(e) => setReplaceReason(e.target.value)}
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button onClick={() => setReplacingCert(null)} variant="secondary" size="sm">
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleReplaceSubmit}
-                  variant="primary"
-                  size="sm"
-                  className="bg-[#E87722] hover:bg-[#c96316]"
-                >
-                  Issue Corrected Replacement
-                </Button>
-              </div>
             </div>
           </div>
         )}
