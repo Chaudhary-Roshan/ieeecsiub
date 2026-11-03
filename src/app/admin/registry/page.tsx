@@ -37,6 +37,8 @@ export default function Option1RegistryPage() {
   >([]);
   const [generating, setGenerating] = useState(false);
   const [zipping, setZipping] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const [approvingBatchId, setApprovingBatchId] = useState<string | null>(null);
 
   // Staged Upload State
   const [stagedMessage, setStagedMessage] = useState("");
@@ -179,7 +181,7 @@ export default function Option1RegistryPage() {
   };
 
   // Single-Click Direct Publish to Active Registry
-  const handleDirectPublishActive = () => {
+  const handleDirectPublishActive = async () => {
     if (generatedList.length === 0 || !selectedEventId) {
       alert("Please select an event and generate codes first.");
       return;
@@ -187,28 +189,29 @@ export default function Option1RegistryPage() {
 
     const event = events.find((e) => e.id === selectedEventId);
     const today = new Date().toISOString().split("T")[0];
+    setPublishing(true);
 
-    generatedList.forEach((item) => {
-      const newCert: CertificateRecord = {
-        id: `cert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        code: item.code,
-        recipientName: item.name,
-        publicNameFormat: "FULL_NAME",
-        eventId: selectedEventId,
-        eventTitle: event?.title || "Chapter Technical Event",
-        certificateType: certType,
-        recognitionLevel: "CHAPTER_RECOGNITION",
-        issuerStatement: CHAPTER_INFO.issuerStatementDefault,
-        activityDate: event?.startDate.split("T")[0] || today,
-        issueDate: today,
-        approverName: currentUser?.name || "Muhammad Roshan Ashraf",
-        approverRole: "Administrator",
-        status: "ACTIVE",
-        source: "UPLOAD_REGISTRY",
-        createdAt: new Date().toISOString(),
-      };
-      db.addCertificate(newCert);
-    });
+    const newCerts: CertificateRecord[] = generatedList.map((item) => ({
+      id: `cert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      code: item.code,
+      recipientName: item.name,
+      publicNameFormat: "FULL_NAME",
+      eventId: selectedEventId,
+      eventTitle: event?.title || "Chapter Technical Event",
+      certificateType: certType,
+      recognitionLevel: "CHAPTER_RECOGNITION",
+      issuerStatement: CHAPTER_INFO.issuerStatementDefault,
+      activityDate: event?.startDate ? event.startDate.split("T")[0] : today,
+      issueDate: today,
+      approverName: currentUser?.name || "Muhammad Roshan Ashraf",
+      approverRole: "Administrator",
+      status: "ACTIVE",
+      source: "UPLOAD_REGISTRY",
+      createdAt: new Date().toISOString(),
+    }));
+
+    const result = await db.addCertificatesBulk(newCerts);
+    setPublishing(false);
 
     db.addAuditLog(
       currentUser?.name || "Muhammad Roshan Ashraf",
@@ -218,7 +221,12 @@ export default function Option1RegistryPage() {
       `Directly published ${generatedList.length} active certificates for event "${event?.title}".`
     );
 
-    alert(`Success! All ${generatedList.length} certificates are now ACTIVE and immediately verifiable on /verify!`);
+    if (result.cloudSaved) {
+      alert(`Success! All ${generatedList.length} certificates are now ACTIVE and immediately verifiable on /verify!`);
+    } else {
+      alert(`Saved ${generatedList.length} certificates! Note: Cloud database sync reported: "${result.error || 'permission denied'}". If you have not executed supabase/APPLY_MIGRATIONS_NOW.sql in your Supabase SQL Editor, run it once to enable public cloud verification.`);
+    }
+
     setGeneratedList([]);
   };
 
@@ -263,12 +271,21 @@ export default function Option1RegistryPage() {
     setGeneratedList([]);
   };
 
-  const handleApproveBatch = (batchId: string) => {
+  const handleApproveBatch = async (batchId: string) => {
     if (!currentUser) return;
-    const success = db.approveBatch(batchId, currentUser.name);
-    if (success) {
+    setApprovingBatchId(batchId);
+    const result = await db.approveBatch(batchId, currentUser.name);
+    setApprovingBatchId(null);
+
+    if (result.success) {
       setBatches(db.getBatches());
-      alert("Batch successfully approved! All certificates are now live on /verify.");
+      if (result.cloudSaved) {
+        alert(`Batch successfully approved! All ${result.count} certificates are now live in the cloud database and verifiable on /verify.`);
+      } else {
+        alert(`Batch approved! Note: Cloud database sync reported: "${result.error || 'permissions required'}". Run supabase/APPLY_MIGRATIONS_NOW.sql in Supabase SQL editor to ensure public cloud verification.`);
+      }
+    } else {
+      alert(result.error || "Failed to approve batch.");
     }
   };
 
@@ -443,10 +460,11 @@ export default function Option1RegistryPage() {
                     onClick={handleDirectPublishActive}
                     variant="accent"
                     size="sm"
+                    disabled={publishing}
                     className="w-full flex items-center justify-center gap-1.5 shadow-sm"
                   >
                     <CheckCircle size={14} />
-                    Approve & Publish Directly to Live Registry (1-Click)
+                    {publishing ? "Publishing to Registry..." : "Approve & Publish Directly to Live Registry (1-Click)"}
                   </Button>
                   <button
                     onClick={handleStageGeneratedBatch}
@@ -560,10 +578,11 @@ export default function Option1RegistryPage() {
                           onClick={() => handleApproveBatch(batch.id)}
                           variant="primary"
                           size="sm"
+                          disabled={approvingBatchId === batch.id}
                           className="bg-[#00843D] hover:bg-[#006e33]"
                         >
                           <CheckCircle size={14} className="mr-1.5" />
-                          Approve Batch & Publish to Verify Registry
+                          {approvingBatchId === batch.id ? "Approving & Publishing..." : "Approve Batch & Publish to Verify Registry"}
                         </Button>
                       </div>
                     )}

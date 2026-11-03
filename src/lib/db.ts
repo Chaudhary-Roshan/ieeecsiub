@@ -283,12 +283,12 @@ class ChapterDatabase {
     return this.getCertificates();
   }
 
-  async addCertificate(cert: CertificateRecord): Promise<boolean> {
+  async addCertificate(cert: CertificateRecord): Promise<{ success: boolean; cloudSaved: boolean; count: number; error?: string }> {
     return this.addCertificatesBulk([cert]);
   }
 
-  async addCertificatesBulk(certs: CertificateRecord[]): Promise<boolean> {
-    if (!certs || certs.length === 0) return true;
+  async addCertificatesBulk(certs: CertificateRecord[]): Promise<{ success: boolean; cloudSaved: boolean; count: number; error?: string }> {
+    if (!certs || certs.length === 0) return { success: true, cloudSaved: true, count: 0 };
     const list = this.getCertificates();
     const map = new Map<string, CertificateRecord>();
     certs.forEach((c) => {
@@ -298,6 +298,9 @@ class ChapterDatabase {
     const remaining = list.filter((c) => !map.has(c.code.trim().toUpperCase()));
     const combined = [...Array.from(map.values()), ...remaining];
     this.setItem("certificates", combined);
+
+    let cloudSaved = false;
+    let cloudError: string | undefined;
 
     const client = getSupabase();
     if (client) {
@@ -333,31 +336,42 @@ class ChapterDatabase {
 
         // 1. Try high-performance bulk RPC first
         const rpcPromise = client.rpc("bulk_save_certificates", { p_certs: payload });
-        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("RPC Timeout")), 6000));
+        const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("RPC Timeout")), 8000));
         
-        let rpcSuccess = false;
         try {
           const { data: rpcRes, error: rpcErr } = await (Promise.race([rpcPromise, timeoutPromise]) as Promise<any>);
           if (!rpcErr && rpcRes && rpcRes.success) {
-            rpcSuccess = true;
+            cloudSaved = true;
+          } else if (rpcErr) {
+            cloudError = rpcErr.message;
           }
-        } catch {}
+        } catch (e: any) {
+          cloudError = e?.message;
+        }
 
-        // 2. Direct upsert fallback in batches of 50
-        if (!rpcSuccess) {
+        // 2. Direct upsert fallback in batches of 50 if RPC not yet installed or failed
+        if (!cloudSaved) {
+          let batchFails = 0;
           for (let i = 0; i < payload.length; i += 50) {
             const chunk = payload.slice(i, i + 50);
-            await Promise.race([
-              client.from("certificates").upsert(chunk, { onConflict: "code" }),
-              new Promise((_, reject) => setTimeout(() => reject(new Error("Upsert Timeout")), 6000))
-            ]).catch((err) => console.warn("Supabase certificate sync batch notice:", err?.message));
+            const { error: upsertErr } = await client.from("certificates").upsert(chunk, { onConflict: "code" });
+            if (upsertErr) {
+              batchFails++;
+              cloudError = upsertErr.message;
+              console.warn("Supabase certificate sync batch notice:", upsertErr.message);
+            }
+          }
+          if (batchFails === 0 && payload.length > 0) {
+            cloudSaved = true;
+            cloudError = undefined;
           }
         }
-      } catch (err) {
+      } catch (err: any) {
+        cloudError = err?.message || String(err);
         console.warn("Supabase addCertificatesBulk notice:", err);
       }
     }
-    return true;
+    return { success: true, cloudSaved, count: certs.length, error: cloudError };
   }
 
   async updateCertificate(code: string, updates: Partial<CertificateRecord>): Promise<boolean> {
@@ -1405,12 +1419,15 @@ class ChapterDatabase {
         };
 
         this.addRegistration(reg);
-        this.addCertificate(cert);
         newRegs.push(reg);
         newCerts.push(cert);
       });
 
       currentSr++;
+    }
+
+    if (newCerts.length > 0) {
+      await this.addCertificatesBulk(newCerts);
     }
 
     if (event) {
@@ -1434,10 +1451,12 @@ class ChapterDatabase {
     this.setItem("batches", list);
   }
 
-  approveBatch(batchId: string, approverName: string): boolean {
+  async approveBatch(batchId: string, approverName: string): Promise<{ success: boolean; cloudSaved: boolean; count: number; error?: string }> {
     const batches = this.getBatches();
     const batch = batches.find((b) => b.id === batchId);
-    if (!batch || batch.status !== "STAGED") return false;
+    if (!batch || batch.status !== "STAGED") {
+      return { success: false, cloudSaved: false, count: 0, error: "Batch not found or not in staged status." };
+    }
 
     batch.status = "APPROVED";
     batch.approvedBy = approverName;
@@ -1445,30 +1464,27 @@ class ChapterDatabase {
     this.setItem("batches", batches);
 
     // Convert staged rows to active certificates
-    const currentCerts = this.getCertificates();
-    batch.stagedRows.forEach((row) => {
-      const newCert: CertificateRecord = {
-        id: `cert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        code: row.code,
-        recipientName: row.recipientName,
-        publicNameFormat: "FULL_NAME",
-        eventId: batch.eventId,
-        eventTitle: batch.eventTitle,
-        certificateType: row.certificateType,
-        recognitionLevel: "CHAPTER_RECOGNITION",
-        issuerStatement: CHAPTER_INFO.issuerStatementDefault,
-        activityDate: new Date().toISOString().split("T")[0],
-        issueDate: new Date().toISOString().split("T")[0],
-        approverName: approverName,
-        approverRole: "Administrator",
-        status: "ACTIVE",
-        source: "UPLOAD_REGISTRY",
-        batchId: batch.id,
-        createdAt: new Date().toISOString(),
-      };
-      currentCerts.unshift(newCert);
-    });
-    this.setItem("certificates", currentCerts);
+    const newCerts: CertificateRecord[] = batch.stagedRows.map((row) => ({
+      id: `cert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      code: row.code,
+      recipientName: row.recipientName,
+      publicNameFormat: "FULL_NAME",
+      eventId: batch.eventId,
+      eventTitle: batch.eventTitle,
+      certificateType: row.certificateType,
+      recognitionLevel: "CHAPTER_RECOGNITION",
+      issuerStatement: CHAPTER_INFO.issuerStatementDefault,
+      activityDate: new Date().toISOString().split("T")[0],
+      issueDate: new Date().toISOString().split("T")[0],
+      approverName: approverName,
+      approverRole: "Administrator",
+      status: "ACTIVE",
+      source: "UPLOAD_REGISTRY",
+      batchId: batch.id,
+      createdAt: new Date().toISOString(),
+    }));
+
+    const bulkResult = await this.addCertificatesBulk(newCerts);
 
     // Log to Audit
     this.addAuditLog(
@@ -1479,7 +1495,12 @@ class ChapterDatabase {
       `Approved batch ${batch.filename}: published ${batch.rowCount} active certificates.`
     );
 
-    return true;
+    return {
+      success: true,
+      cloudSaved: bulkResult.cloudSaved,
+      count: newCerts.length,
+      error: bulkResult.error,
+    };
   }
 
   // --- Option 2: Registrations & Payments ---
