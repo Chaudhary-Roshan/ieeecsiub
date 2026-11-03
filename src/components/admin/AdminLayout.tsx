@@ -26,6 +26,7 @@ import {
   UserCheck,
   RefreshCw,
   Database,
+  ClipboardList,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -60,8 +61,9 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { label: "Manage All Events", href: "/admin/events", icon: CalendarPlus },
-    { label: "Officers & Faculty Advisors", href: "/admin/team", icon: UserCheck },
+    { label: "Event Registrations", href: "/admin/registrations", icon: ClipboardList },
     { label: "Attendance & QR Generator", href: "/admin/attendance", icon: Users },
+    { label: "Officers & Faculty Advisors", href: "/admin/team", icon: UserCheck },
     { label: "Verified Credentials Registry", href: "/admin/certificates", icon: Award },
     { label: "Payment Verification Queue", href: "/admin/payments", icon: CreditCard },
     { label: "Mobile Check-in Scanner", href: "/admin/checkin", icon: QrCode },

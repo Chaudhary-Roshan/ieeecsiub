@@ -1833,7 +1833,10 @@ class ChapterDatabase {
     const client = getSupabase();
     if (client) {
       try {
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(reg.eventId);
         const { error } = await client.from("registrations").insert({
+          id: reg.id,
+          event_id: isUuid ? reg.eventId : null,
           full_name: reg.fullName,
           name_display_preference: reg.namePreference || "FULL_NAME",
           email: reg.email,
@@ -1844,12 +1847,65 @@ class ChapterDatabase {
           department: reg.department,
           photo_consent: reg.photoConsent,
           status: reg.status,
+          ticket_code: reg.ticketCode,
+          private_token: reg.privateToken,
         });
         if (error) console.warn("Supabase addRegistration sync error:", error);
       } catch (err) {
         console.warn("Supabase addRegistration error:", err);
       }
     }
+  }
+
+  async updateRegistration(id: string, updates: Partial<Registration>): Promise<boolean> {
+    const list = this.getRegistrations();
+    const index = list.findIndex((r) => r.id === id);
+    if (index === -1) return false;
+
+    list[index] = { ...list[index], ...updates };
+    this.setItem("registrations", list);
+
+    const client = getSupabase();
+    if (client) {
+      try {
+        const payload: Record<string, any> = {};
+        if (updates.fullName) payload.full_name = updates.fullName;
+        if (updates.email) payload.email = updates.email;
+        if (updates.phone !== undefined) payload.phone = updates.phone;
+        if (updates.rollNumber !== undefined) payload.roll_number = updates.rollNumber;
+        if (updates.department) payload.department = updates.department;
+        if (updates.isIeeeMember !== undefined) payload.is_ieee_member = updates.isIeeeMember;
+        if (updates.ieeeMembershipNumber !== undefined) payload.ieee_membership_number = updates.ieeeMembershipNumber;
+        if (updates.status) payload.status = updates.status;
+
+        if (Object.keys(payload).length > 0) {
+          const { error } = await client.from("registrations").update(payload).eq("id", id);
+          if (error) console.warn("Supabase updateRegistration error:", error);
+        }
+      } catch (err) {
+        console.warn("Supabase updateRegistration exception:", err);
+      }
+    }
+
+    return true;
+  }
+
+  async deleteRegistration(id: string): Promise<boolean> {
+    const list = this.getRegistrations();
+    const filtered = list.filter((r) => r.id !== id);
+    this.setItem("registrations", filtered);
+
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { error } = await client.from("registrations").delete().eq("id", id);
+        if (error) console.warn("Supabase deleteRegistration error:", error);
+      } catch (err) {
+        console.warn("Supabase deleteRegistration exception:", err);
+      }
+    }
+
+    return true;
   }
 
   getPayments(): PaymentProof[] {

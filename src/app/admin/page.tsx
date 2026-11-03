@@ -21,11 +21,13 @@ import {
   Database,
   Trash2,
   RefreshCw,
+  ClipboardList,
 } from "lucide-react";
 import { EventItem } from "@/types";
 
 export default function AdminDashboardPage() {
   const [certsCount, setCertsCount] = useState(0);
+  const [registrationsCount, setRegistrationsCount] = useState(0);
   const [pendingPayments, setPendingPayments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null);
@@ -42,6 +44,8 @@ export default function AdminDashboardPage() {
 
       const liveCerts = await db.fetchCertificates();
       setCertsCount(liveCerts.length);
+      const liveRegs = await db.fetchRegistrations();
+      setRegistrationsCount(liveRegs.length);
       const livePayments = await db.fetchPayments();
       setPendingPayments(livePayments.filter((p) => p.status === "PENDING"));
       const liveAudit = await db.fetchAuditLogs();
@@ -160,13 +164,28 @@ export default function AdminDashboardPage() {
           </p>
         </div>
 
-        {/* 4 Summary Stat Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm">
+        {/* 5 Summary Stat Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+          <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm">
             <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
-              Verified QR Credentials
+              Registered Attendees
             </span>
             <div className="text-3xl font-montserrat font-extrabold text-ieee-navy">
+              {registrationsCount}
+            </div>
+            <Link
+              href="/admin/registrations"
+              className="text-[11px] text-ieee-blue hover:underline font-semibold mt-2 block"
+            >
+              View Registrations &rarr;
+            </Link>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm">
+            <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
+              Verified Credentials
+            </span>
+            <div className="text-3xl font-montserrat font-extrabold text-[#00843D]">
               {certsCount}
             </div>
             <span className="text-[11px] text-status-active font-medium mt-2 block">
@@ -174,39 +193,39 @@ export default function AdminDashboardPage() {
             </span>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm">
+          <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm">
             <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
-              Active Chapter Events
+              Active Events
             </span>
             <div className="text-3xl font-montserrat font-extrabold text-ieee-orange">
               {events.length}
             </div>
             <span className="text-[11px] text-gray-500 mt-2 block">
-              Workshops & Technical Sessions
+              Workshops & Seminars
             </span>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm">
+          <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm">
             <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
-              Payment Verification Queue
+              Payment Queue
             </span>
             <div className="text-3xl font-montserrat font-extrabold text-ieee-blue">
               {pendingPayments.length}
             </div>
             <span className="text-[11px] text-gray-500 mt-2 block">
-              Pending Treasurer Verification
+              Treasurer Verification
             </span>
           </div>
 
-          <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm">
+          <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm">
             <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
-              Audit Trail Entries
+              Audit Logs
             </span>
             <div className="text-3xl font-montserrat font-extrabold text-gray-800">
               {db.getAuditLogs().length}
             </div>
             <span className="text-[11px] text-gray-500 mt-2 block">
-              Immutable Log Integrity
+              Immutable Trail
             </span>
           </div>
         </div>
@@ -220,6 +239,29 @@ export default function AdminDashboardPage() {
             </h3>
 
             <div className="space-y-3 text-xs">
+              <Link
+                href="/admin/registrations"
+                className="p-4 bg-gray-50 hover:bg-ieee-surfaceTint/30 rounded-xl border border-gray-200 flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-ieee-navy text-white flex items-center justify-center">
+                    <ClipboardList size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-montserrat font-bold text-gray-900 group-hover:text-ieee-blue flex items-center gap-2">
+                      Event Registrations Hub
+                      <span className="text-[10px] bg-ieee-surfaceTint text-ieee-navy px-2 py-0.5 rounded-full font-bold">
+                        {registrationsCount} Registered
+                      </span>
+                    </h4>
+                    <p className="text-gray-500 text-[11px]">
+                      View, search, filter, and export all student registrations from public event pages with ticket codes and payment proofs.
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+
               <Link
                 href="/admin/attendance"
                 className="p-4 bg-gray-50 hover:bg-ieee-surfaceTint/30 rounded-xl border border-gray-200 flex items-center justify-between transition-colors group"
