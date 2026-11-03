@@ -83,6 +83,8 @@ export interface CertificateRecord {
   id: string;
   code: string; // e.g. "CSIUB-26-7K3M-Q9TD"
   recipientName: string;
+  recipientRollNumber?: string;
+  recipientEmail?: string;
   publicNameFormat: "FULL_NAME" | "FIRST_INITIAL";
   eventId: string;
   eventTitle: string;
@@ -124,6 +126,8 @@ export interface UploadBatch {
     recipientName: string;
     certificateType: string;
     code: string;
+    rollNumber?: string;
+    email?: string;
   }[];
 }
 

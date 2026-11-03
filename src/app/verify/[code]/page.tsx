@@ -6,8 +6,6 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { CertificateRecord } from "@/types";
 import { CertificateCard } from "@/components/certificates/CertificateCard";
-import { PdfVerifyModal } from "@/components/certificates/PdfVerifyModal";
-import { generateCertificatePdf } from "@/lib/certificatePdf";
 import { Button } from "@/components/ui/Button";
 import { CHAPTER_INFO } from "@/lib/constants";
 import {
@@ -25,7 +23,6 @@ export default function CertificateVerificationResultPage() {
 
   const [cert, setCert] = useState<CertificateRecord | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pdfModalOpen, setPdfModalOpen] = useState(false);
   const [searchInput, setSearchInput] = useState(rawCode);
 
   useEffect(() => {
@@ -51,11 +48,6 @@ export default function CertificateVerificationResultPage() {
     if (searchInput.trim()) {
       router.push(`/verify/${searchInput.trim().toUpperCase()}`);
     }
-  };
-
-  const handleDownloadPdf = async () => {
-    if (!cert) return;
-    window.open(`/verify/${cert.code}/certificate?print=true`, "_blank");
   };
 
   return (
@@ -102,8 +94,6 @@ export default function CertificateVerificationResultPage() {
           <div className="space-y-6">
             <CertificateCard
               certificate={cert}
-              onOpenPdfVerifier={() => setPdfModalOpen(true)}
-              onDownloadPdf={handleDownloadPdf}
             />
           </div>
         ) : (
@@ -158,16 +148,6 @@ export default function CertificateVerificationResultPage() {
           </div>
         )}
       </div>
-
-      {/* PDF Verification Modal */}
-      {cert && (
-        <PdfVerifyModal
-          isOpen={pdfModalOpen}
-          onClose={() => setPdfModalOpen(false)}
-          targetCertificateCode={cert.code}
-          expectedSha256={cert.sha256Fingerprint}
-        />
-      )}
     </div>
   );
 }

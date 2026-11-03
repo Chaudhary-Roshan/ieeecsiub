@@ -141,6 +141,20 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
           <h2 className="text-2xl md:text-3xl font-montserrat font-extrabold text-ieee-navy">
             {certificate.recipientName}
           </h2>
+          {(certificate.recipientRollNumber || certificate.recipientEmail) && (
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {certificate.recipientRollNumber && (
+                <span className="bg-ieee-blue/10 text-ieee-blue font-mono font-bold text-xs px-2.5 py-1 rounded-md">
+                  Roll No: {certificate.recipientRollNumber}
+                </span>
+              )}
+              {certificate.recipientEmail && (
+                <span className="bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-md">
+                  Email: {certificate.recipientEmail}
+                </span>
+              )}
+            </div>
+          )}
           <div className="mt-2 flex flex-wrap items-center gap-3">
             <div className="inline-flex items-center gap-1.5 bg-gray-100 text-gray-800 text-xs px-3 py-1 rounded-full font-mono font-medium">
               <span>Code: {certificate.code}</span>
@@ -252,28 +266,20 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
         {/* Actions Bar */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-ieee-border">
           <div className="flex items-center gap-3 flex-wrap">
-            {isActive && (
-              <Link
-                href={`/verify/${certificate.code}/certificate`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center font-montserrat font-bold text-xs uppercase tracking-wider rounded-button transition-all duration-200 px-4 py-2 bg-ieee-navy text-white hover:bg-ieee-blue shadow-sm"
-              >
-                <Printer size={14} className="mr-1.5" /> View & Print Certificate
-              </Link>
-            )}
+            <button
+              onClick={handleCopyCode}
+              className="inline-flex items-center justify-center font-montserrat font-bold text-xs uppercase tracking-wider rounded-button transition-all duration-200 px-4 py-2 bg-ieee-navy text-white hover:bg-ieee-blue shadow-sm"
+            >
+              {copied ? <Check size={14} className="mr-1.5 text-green-400" /> : <Copy size={14} className="mr-1.5" />}
+              {copied ? "Verification Code Copied!" : "Copy Verification Code"}
+            </button>
 
-            {onDownloadPdf && isActive && (
-              <Button onClick={onDownloadPdf} variant="outline" size="sm">
-                <FileText size={14} className="mr-1.5" /> Direct PDF
-              </Button>
-            )}
-
-            {onOpenPdfVerifier && (
-              <Button onClick={onOpenPdfVerifier} variant="outline" size="sm">
-                Verify PDF Original (SHA-256)
-              </Button>
-            )}
+            <button
+              onClick={() => window.print()}
+              className="inline-flex items-center justify-center font-montserrat font-semibold text-xs rounded-button transition-all duration-200 px-3.5 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 shadow-2xs"
+            >
+              <Printer size={14} className="mr-1.5 text-gray-500" /> Print Verification Summary
+            </button>
           </div>
 
           <div className="text-xs text-ieee-muted">

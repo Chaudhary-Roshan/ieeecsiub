@@ -33,7 +33,7 @@ export default function Option1RegistryPage() {
   const [certType, setCertType] = useState("Certificate of Participation");
   const [rawNames, setRawNames] = useState("");
   const [generatedList, setGeneratedList] = useState<
-    { name: string; code: string; qrDataUrl: string }[]
+    { name: string; rollNumber: string; email: string; code: string; qrDataUrl: string }[]
   >([]);
   const [generating, setGenerating] = useState(false);
   const [zipping, setZipping] = useState(false);
@@ -60,32 +60,45 @@ export default function Option1RegistryPage() {
   }, []);
 
   const handleGenerateCodes = async () => {
-    const names = rawNames
+    const lines = rawNames
       .split("\n")
       .map((n) => n.trim())
       .filter((n) => n.length > 0);
 
-    if (names.length === 0) {
-      alert("Please enter or upload at least one participant name.");
+    if (lines.length === 0) {
+      alert("Please enter or upload at least one participant.");
       return;
     }
 
     setGenerating(true);
-    const results = [];
+    const results: { name: string; rollNumber: string; email: string; code: string; qrDataUrl: string }[] = [];
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
 
-    for (const name of names) {
+    for (const line of lines) {
+      let name = line;
+      let rollNumber = "";
+      let email = "";
+
+      if (line.includes(",") || line.includes("\t")) {
+        const parts = (line.includes(",") ? line.split(",") : line.split("\t")).map((p) => p.trim());
+        name = parts[0] || "";
+        rollNumber = parts[1] || "";
+        email = parts[2] || "";
+      }
+
+      if (!name) continue;
+
       const code = generateCertificateCode("26");
       const verifyUrl = `${origin}/verify/${code}`;
       const qrDataUrl = await generateQrPngDataUrl(verifyUrl);
-      results.push({ name, code, qrDataUrl });
+      results.push({ name, rollNumber, email, code, qrDataUrl });
     }
 
     setGeneratedList(results);
     setGenerating(false);
   };
 
-  // Upload CSV or Excel file of participant names
+  // Upload CSV or Excel file of participant names, roll numbers, and emails
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -101,21 +114,42 @@ export default function Option1RegistryPage() {
         return;
       }
 
-      const extractedNames: string[] = [];
-      jsonRows.forEach((row, idx) => {
-        const name = row["Name"] || row["name"] || row["Full Name"] || row["Participant Name"] || Object.values(row)[0];
-        if (name && String(name).trim()) {
-          extractedNames.push(String(name).trim());
+      const extractedLines: string[] = [];
+      jsonRows.forEach((row) => {
+        // Find name
+        const nameKey = Object.keys(row).find((k) =>
+          /name|student|participant|attendee|member/i.test(k)
+        );
+        const name = nameKey ? String(row[nameKey]).trim() : String(Object.values(row)[0] || "").trim();
+
+        // Find roll number / reg no
+        const rollKey = Object.keys(row).find((k) =>
+          /roll|reg|registration|seat|id|cnic/i.test(k)
+        );
+        const rollNumber = rollKey ? String(row[rollKey]).trim() : "";
+
+        // Find email / gmail
+        const emailKey = Object.keys(row).find((k) =>
+          /email|gmail|mail/i.test(k)
+        );
+        const email = emailKey ? String(row[emailKey]).trim() : "";
+
+        if (name && name.length > 0) {
+          if (rollNumber || email) {
+            extractedLines.push(`${name}, ${rollNumber}, ${email}`.replace(/,\s*$/, ""));
+          } else {
+            extractedLines.push(name);
+          }
         }
       });
 
-      if (extractedNames.length === 0) {
-        alert("Could not detect any names in the uploaded sheet. Please ensure a 'Name' column exists.");
+      if (extractedLines.length === 0) {
+        alert("Could not detect any participant names in the uploaded sheet. Please ensure a 'Name' column exists.");
         return;
       }
 
-      setRawNames(extractedNames.join("\n"));
-      alert(`Loaded ${extractedNames.length} names from ${file.name}. Click 'Generate Codes & QR Pack' to process!`);
+      setRawNames(extractedLines.join("\n"));
+      alert(`Loaded ${extractedLines.length} participants with roll numbers and emails from ${file.name}. Click 'Generate Codes & QR Pack' to process!`);
     } catch (err) {
       console.error(err);
       alert("Failed to parse file. Please upload a valid CSV or Excel spreadsheet.");
@@ -135,16 +169,18 @@ export default function Option1RegistryPage() {
 
       generatedList.forEach((item) => {
         const base64Data = item.qrDataUrl.replace(/^data:image\/png;base64,/, "");
-        folder?.file(`${item.code}_${item.name.replace(/\s+/g, "_")}.png`, base64Data, {
+        const cleanName = item.name.replace(/[^a-zA-Z0-9]/g, "_");
+        const cleanRoll = item.rollNumber ? "_" + item.rollNumber.replace(/[^a-zA-Z0-9]/g, "_") : "";
+        folder?.file(`${item.code}_${cleanName}${cleanRoll}.png`, base64Data, {
           base64: true,
         });
       });
 
-      // Include CSV in ZIP
-      let csvContent = "Recipient Name,Certificate Type,Certificate Code,Verification URL\n";
+      // Include CSV in ZIP for graphic designers
+      let csvContent = "Recipient Name,Roll Number,Email / Gmail,Certificate Type,Certificate Code,Verification URL\n";
       const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
       generatedList.forEach((item) => {
-        csvContent += `"${item.name}","${certType}","${item.code}","${origin}/verify/${item.code}"\n`;
+        csvContent += `"${item.name}","${item.rollNumber || ''}","${item.email || ''}","${certType}","${item.code}","${origin}/verify/${item.code}"\n`;
       });
       zip.file("Certificate_Codes_List.csv", csvContent);
 
@@ -168,6 +204,8 @@ export default function Option1RegistryPage() {
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
     const data = generatedList.map((item) => ({
       "Recipient Name": item.name,
+      "Roll Number": item.rollNumber || "N/A",
+      "Email / Gmail": item.email || "N/A",
       "Certificate Type": certType,
       "Certificate Code": item.code,
       "Verification URL": `${origin}/verify/${item.code}`,
@@ -195,6 +233,8 @@ export default function Option1RegistryPage() {
       id: `cert-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
       code: item.code,
       recipientName: item.name,
+      recipientRollNumber: item.rollNumber || undefined,
+      recipientEmail: item.email || undefined,
       publicNameFormat: "FULL_NAME",
       eventId: selectedEventId,
       eventTitle: event?.title || "Chapter Technical Event",
@@ -251,6 +291,8 @@ export default function Option1RegistryPage() {
       status: "STAGED",
       stagedRows: generatedList.map((item) => ({
         recipientName: item.name,
+        rollNumber: item.rollNumber || undefined,
+        email: item.email || undefined,
         certificateType: certType,
         code: item.code,
       })),
@@ -352,7 +394,7 @@ export default function Option1RegistryPage() {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <label className="font-semibold text-gray-700">
-                    Participant Names (one per line) *
+                    Participants (Names, Roll Numbers & Emails) *
                   </label>
                   <div>
                     <input
@@ -375,7 +417,7 @@ export default function Option1RegistryPage() {
                   rows={6}
                   value={rawNames}
                   onChange={(e) => setRawNames(e.target.value)}
-                  placeholder="Paste student names or click Upload CSV/Excel above"
+                  placeholder="Paste student names (one per line) or CSV format:&#10;Muhammad Roshan, FA21-BCS-001, roshan@gmail.com&#10;Ahmad Ali, FA21-BCS-002, ahmad@gmail.com&#10;Or click 'Upload CSV/Excel' above to load automatically"
                   className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-xs"
                 />
               </div>
@@ -438,10 +480,22 @@ export default function Option1RegistryPage() {
                           <img
                             src={item.qrDataUrl}
                             alt="QR"
-                            className="w-10 h-10 border border-gray-200 rounded p-0.5 bg-white"
+                            className="w-10 h-10 border border-gray-200 rounded p-0.5 bg-white flex-shrink-0"
                           />
                           <div>
                             <span className="font-bold text-gray-900 block">{item.name}</span>
+                            {(item.rollNumber || item.email) && (
+                              <div className="flex items-center gap-2 text-[10px] text-gray-500 my-0.5 flex-wrap">
+                                {item.rollNumber && (
+                                  <span className="bg-gray-100 text-gray-700 px-1.5 py-0.2 rounded font-mono font-medium">
+                                    {item.rollNumber}
+                                  </span>
+                                )}
+                                {item.email && (
+                                  <span>{item.email}</span>
+                                )}
+                              </div>
+                            )}
                             <span className="font-mono text-[11px] text-ieee-blue font-bold">
                               {item.code}
                             </span>
@@ -557,8 +611,15 @@ export default function Option1RegistryPage() {
                     {/* Preview Staged Rows */}
                     <div className="bg-white p-3 rounded-lg border border-gray-200 text-xs max-h-36 overflow-y-auto space-y-1 font-mono">
                       {batch.stagedRows.map((r, i) => (
-                        <div key={i} className="flex justify-between text-[11px] text-gray-700">
-                          <span>{r.recipientName}</span>
+                        <div key={i} className="flex justify-between items-center text-[11px] text-gray-700">
+                          <div>
+                            <span className="font-semibold text-gray-900">{r.recipientName}</span>
+                            {(r.rollNumber || r.email) && (
+                              <span className="text-gray-500 text-[10px] ml-2">
+                                ({[r.rollNumber, r.email].filter(Boolean).join(" · ")})
+                              </span>
+                            )}
+                          </div>
                           <span className="text-ieee-blue font-bold">{r.code}</span>
                         </div>
                       ))}

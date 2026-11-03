@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS public.upload_batches (
 );
 
 -- 2. Open up Table Permissions for anon and authenticated
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS recipient_email TEXT;
+ALTER TABLE public.certificates ADD COLUMN IF NOT EXISTS recipient_roll_number TEXT;
+
 GRANT ALL ON public.certificates TO anon, authenticated, service_role;
 GRANT ALL ON public.upload_batches TO anon, authenticated, service_role;
 GRANT ALL ON public.events TO anon, authenticated, service_role;
@@ -73,6 +76,8 @@ BEGIN
       INSERT INTO public.certificates (
         code,
         recipient_name,
+        recipient_email,
+        recipient_roll_number,
         public_name_format,
         event_id,
         event_title,
@@ -93,6 +98,8 @@ BEGIN
       ) VALUES (
         v_code,
         COALESCE(v_item->>'recipient_name', 'Participant'),
+        NULLIF(v_item->>'recipient_email', ''),
+        NULLIF(v_item->>'recipient_roll_number', ''),
         COALESCE(v_item->>'public_name_format', 'FULL_NAME'),
         NULLIF(v_item->>'event_id', ''),
         COALESCE(v_item->>'event_title', 'UCET IUB Technical Session'),
@@ -114,6 +121,8 @@ BEGIN
       ON CONFLICT (code) DO UPDATE
       SET
         recipient_name = EXCLUDED.recipient_name,
+        recipient_email = COALESCE(EXCLUDED.recipient_email, certificates.recipient_email),
+        recipient_roll_number = COALESCE(EXCLUDED.recipient_roll_number, certificates.recipient_roll_number),
         event_id = COALESCE(EXCLUDED.event_id, certificates.event_id),
         event_title = COALESCE(EXCLUDED.event_title, certificates.event_title),
         certificate_type = EXCLUDED.certificate_type,
@@ -236,3 +245,4 @@ CREATE INDEX IF NOT EXISTS idx_certificates_event_id ON public.certificates(even
 CREATE INDEX IF NOT EXISTS idx_certificates_code_upper ON public.certificates(UPPER(code));
 CREATE INDEX IF NOT EXISTS idx_certificates_status ON public.certificates(status);
 CREATE INDEX IF NOT EXISTS idx_registrations_event_id ON public.registrations(event_id);
+

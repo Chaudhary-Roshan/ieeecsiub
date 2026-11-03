@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
-import { EventItem, AttendanceRecord, CertificateRecord, CertificateTemplate } from "@/types";
-import { generateCertificatePdf } from "@/lib/certificatePdf";
-import { generateCertificateCode } from "@/lib/codeGenerator";
+import { EventItem, AttendanceRecord, CertificateRecord } from "@/types";
+import { generateCertificateCode, generateQrPngDataUrl } from "@/lib/codeGenerator";
 import { Button } from "@/components/ui/Button";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
@@ -33,8 +32,6 @@ export default function AdminAttendancePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isGeneratingPdfs, setIsGeneratingPdfs] = useState(false);
   const [generationProgress, setGenerationProgress] = useState("");
-  const [templates, setTemplates] = useState<CertificateTemplate[]>([]);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -46,10 +43,6 @@ export default function AdminAttendancePage() {
         setSelectedEventId(defaultId);
         loadAttendance(defaultId);
       }
-      const allTpls = await db.fetchTemplates();
-      setTemplates(allTpls);
-      const activeTpl = await db.fetchActiveTemplate();
-      if (activeTpl) setSelectedTemplateId(activeTpl.id);
     }
     init();
   }, []);
@@ -174,7 +167,6 @@ export default function AdminAttendancePage() {
             approverRole: "Chapter Chair",
             status: "ACTIVE",
             source: "IN_SITE_GENERATED",
-            templateId: selectedTemplateId || undefined,
             createdAt: new Date().toISOString(),
           };
           newCertificates.push(certRecord);
@@ -310,60 +302,32 @@ export default function AdminAttendancePage() {
     a.click();
   };
 
-  // Download Single PDF
-  const handleDownloadSinglePdf = async (rec: AttendanceRecord) => {
-    const currentEvent = events.find((e) => e.id === selectedEventId);
-    if (!currentEvent) return;
-
-    const certCode = rec.certificateCode || generateCertificateCode("26");
-    const certRecord: CertificateRecord = {
-      id: `cert-${Date.now()}`,
-      code: certCode,
-      recipientName: rec.name,
-      publicNameFormat: "FULL_NAME",
-      eventId: currentEvent.id,
-      eventTitle: currentEvent.title,
-      certificateType: currentEvent.certificateType || "Certificate of Participation",
-      recognitionLevel: "CHAPTER_RECOGNITION",
-      issuerStatement: "This is an official chapter recognition issued by IEEE CS UCET-IUB Student Branch Chapter.",
-      activityDate: currentEvent.startDate.split("T")[0],
-      issueDate: new Date().toISOString().split("T")[0],
-      approverName: "Muhammad Roshan Ashraf",
-      approverRole: "Chapter Administrator",
-      status: "ACTIVE",
-      source: "IN_SITE_GENERATED",
-      templateId: selectedTemplateId || undefined,
-      createdAt: new Date().toISOString(),
-    };
-
-    // Save to database
-    db.addCertificate(certRecord);
-
-    window.open(`/verify/${certCode}/certificate?print=true`, "_blank");
-  };
-
-  // Bulk Generate All Attended Certificates as ZIP
+  // Bulk Generate All Attended Verification QRs & Codes as ZIP
   const handleBulkGenerateZip = async () => {
     const currentEvent = events.find((e) => e.id === selectedEventId);
     if (!currentEvent) return;
 
     const attendedRecords = attendanceList.filter((r) => r.attended);
     if (attendedRecords.length === 0) {
-      alert("No participants are marked as 'Attended'. Please mark attendees before generating certificates.");
+      alert("No participants are marked as 'Attended'. Please mark attendees before generating the QR pack.");
       return;
     }
 
     setIsGeneratingPdfs(true);
-    setGenerationProgress(`Starting PDF generation for ${attendedRecords.length} attendees...`);
+    setGenerationProgress(`Generating QR codes for ${attendedRecords.length} attendees...`);
 
     try {
       const zip = new JSZip();
+      const qrFolder = zip.folder("Participant_QR_Codes");
       const today = new Date().toISOString().split("T")[0];
       const bulkCerts: CertificateRecord[] = [];
+      const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
+
+      let csvContent = "Full Name,Roll Number,Email,Certificate Code,Verification URL,Status\n";
 
       for (let i = 0; i < attendedRecords.length; i++) {
         const rec = attendedRecords[i];
-        setGenerationProgress(`Rendering PDF (${i + 1}/${attendedRecords.length}): ${rec.name}`);
+        setGenerationProgress(`Creating QR code (${i + 1}/${attendedRecords.length}): ${rec.name}`);
 
         const code = rec.certificateCode || generateCertificateCode("26");
         rec.certificateCode = code;
@@ -372,6 +336,8 @@ export default function AdminAttendancePage() {
           id: `cert-${Date.now()}-${i}`,
           code,
           recipientName: rec.name,
+          recipientRollNumber: rec.rollNumber || undefined,
+          recipientEmail: rec.email || undefined,
           publicNameFormat: "FULL_NAME",
           eventId: currentEvent.id,
           eventTitle: currentEvent.title,
@@ -384,18 +350,24 @@ export default function AdminAttendancePage() {
           approverRole: "Chapter Administrator",
           status: "ACTIVE",
           source: "IN_SITE_GENERATED",
-          templateId: selectedTemplateId || undefined,
           createdAt: new Date().toISOString(),
         };
 
         bulkCerts.push(certRecord);
 
-        // Render PDF
-        const pdfDoc = await generateCertificatePdf(certRecord);
-        const pdfBlob = pdfDoc.output("blob");
-        const filename = `${code}_${rec.name.replace(/[^a-zA-Z0-9]/g, "_")}.pdf`;
-        zip.file(filename, pdfBlob);
+        // Generate QR code PNG
+        const verifyUrl = `${origin}/verify/${code}`;
+        const qrDataUrl = await generateQrPngDataUrl(verifyUrl);
+        const base64Data = qrDataUrl.replace(/^data:image\/png;base64,/, "");
+        const cleanName = rec.name.replace(/[^a-zA-Z0-9]/g, "_");
+        const cleanRoll = rec.rollNumber ? "_" + rec.rollNumber.replace(/[^a-zA-Z0-9]/g, "_") : "";
+        const filename = `${code}_${cleanName}${cleanRoll}.png`;
+        qrFolder?.file(filename, base64Data, { base64: true });
+
+        csvContent += `"${rec.name}","${rec.rollNumber || ''}","${rec.email || ''}","${code}","${verifyUrl}","ACTIVE"\n`;
       }
+
+      zip.file("Attendee_Verification_Codes.csv", csvContent);
 
       if (bulkCerts.length > 0) {
         await db.addCertificatesBulk(bulkCerts);
@@ -406,8 +378,9 @@ export default function AdminAttendancePage() {
       const downloadUrl = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = downloadUrl;
-      a.download = `IEEE_CS_Certificates_${currentEvent.slug.replace(/\//g, "_")}.zip`;
+      a.download = `IEEE_CS_QR_Codes_${currentEvent.slug.replace(/\//g, "_")}.zip`;
       a.click();
+      URL.revokeObjectURL(downloadUrl);
 
       // Update stored codes in attendance
       db.saveAttendance(selectedEventId, attendanceList);
@@ -415,16 +388,16 @@ export default function AdminAttendancePage() {
 
       db.addAuditLog(
         "Muhammad Roshan Ashraf",
-        "BULK_CERTIFICATES_GENERATED",
+        "BULK_QR_CODES_GENERATED",
         "events",
         selectedEventId,
-        `Generated and exported ${attendedRecords.length} PDF certificates in ZIP archive for "${currentEvent.title}".`
+        `Generated QR code pack and published ${attendedRecords.length} verification records for "${currentEvent.title}".`
       );
 
-      alert(`Success! Generated and downloaded ${attendedRecords.length} certificates in ZIP pack.`);
-    } catch (err) {
+      alert(`Success! Generated QR code package and published all ${attendedRecords.length} records to the live verification registry.`);
+    } catch (err: any) {
       console.error(err);
-      alert("An error occurred during bulk generation.");
+      alert("An error occurred during QR pack generation: " + (err?.message || ""));
     } finally {
       setIsGeneratingPdfs(false);
       setGenerationProgress("");
@@ -504,7 +477,7 @@ export default function AdminAttendancePage() {
               className="flex items-center gap-1.5 shadow-md"
             >
               <Sparkles size={15} />
-              {isGeneratingPdfs ? "Generating ZIP..." : `Generate ${attendedCount} PDFs (.zip)`}
+              {isGeneratingPdfs ? "Generating QR Pack..." : `Generate ${attendedCount} QR Codes & Pack (.zip)`}
             </Button>
           </div>
         </div>
@@ -544,29 +517,13 @@ export default function AdminAttendancePage() {
               </div>
 
               <div>
-                <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-montserrat font-bold text-gray-700 uppercase tracking-wider block">
-                    Certificate Template:
-                  </label>
-                  <a
-                    href="/admin/templates"
-                    target="_blank"
-                    className="text-[11px] font-bold text-ieee-blue hover:underline"
-                  >
-                    Edit Studio ↗
-                  </a>
+                <label className="text-xs font-montserrat font-bold text-gray-700 uppercase tracking-wider block mb-1">
+                  Verification Credential Type:
+                </label>
+                <div className="w-full p-2.5 border rounded-lg text-xs font-montserrat font-bold text-ieee-navy bg-gray-50 flex items-center justify-between">
+                  <span>{currentEvent?.certificateType || "Certificate of Participation"}</span>
+                  <span className="text-[10px] text-ieee-blue uppercase bg-ieee-surfaceTint px-2 py-0.5 rounded">QR Auto</span>
                 </div>
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full p-2.5 border rounded-lg text-xs font-montserrat font-bold text-ieee-navy bg-white focus:outline-none focus:ring-1 focus:ring-ieee-blue"
-                >
-                  {templates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.name} {tpl.isDefault ? "★ (Active Default)" : ""}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
 
@@ -687,18 +644,18 @@ export default function AdminAttendancePage() {
                       </td>
 
                       <td className="p-4 text-right">
-                        <button
-                          onClick={() => handleDownloadSinglePdf(rec)}
-                          disabled={!rec.attended}
-                          className={`px-3 py-1.5 rounded text-xs font-semibold inline-flex items-center gap-1.5 ${
-                            rec.attended
-                              ? "bg-ieee-navy text-white hover:bg-ieee-blue shadow-sm"
-                              : "bg-gray-100 text-gray-400 cursor-not-allowed"
-                          }`}
-                        >
-                          <FileText size={13} />
-                          <span>PDF Certificate</span>
-                        </button>
+                        {rec.certificateCode ? (
+                          <a
+                            href={`/verify/${rec.certificateCode}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 rounded text-xs font-semibold inline-flex items-center gap-1.5 bg-ieee-navy text-white hover:bg-ieee-blue shadow-sm"
+                          >
+                            <span>Verify Online ↗</span>
+                          </a>
+                        ) : (
+                          <span className="text-gray-400 text-xs">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}
