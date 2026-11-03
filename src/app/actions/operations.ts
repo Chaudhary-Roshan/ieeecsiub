@@ -132,7 +132,6 @@ export async function wipeEventCredentialsOnlyAction(params: { eventId: string; 
   }
 
   revalidatePath("/admin/attendance");
-  revalidatePath("/admin/registry");
   revalidatePath("/admin/certificates");
   revalidatePath("/verify");
   return { success: true };
@@ -174,7 +173,6 @@ export async function clearEventDataAction(params: { eventId: string; eventTitle
   }
 
   revalidatePath("/admin/attendance");
-  revalidatePath("/admin/registry");
   revalidatePath("/admin/certificates");
   revalidatePath("/verify");
   return { success: true };
@@ -188,7 +186,6 @@ export async function wipeAllCertificatesAction() {
   try {
     await supabase.from("upload_batches").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   } catch {}
-  revalidatePath("/admin/registry");
   revalidatePath("/admin/attendance");
   revalidatePath("/admin/certificates");
   revalidatePath("/verify");

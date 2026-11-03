@@ -26,7 +26,6 @@ import { EventItem } from "@/types";
 
 export default function AdminDashboardPage() {
   const [certsCount, setCertsCount] = useState(0);
-  const [stagedBatches, setStagedBatches] = useState<any[]>([]);
   const [pendingPayments, setPendingPayments] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null);
@@ -47,7 +46,6 @@ export default function AdminDashboardPage() {
       setPendingPayments(livePayments.filter((p) => p.status === "PENDING"));
       const liveAudit = await db.fetchAuditLogs();
       setAuditLogs(liveAudit.slice(0, 5));
-      setStagedBatches(db.getBatches().filter((b) => b.status === "STAGED"));
 
       const allEvts = await db.fetchEvents();
       setEvents(allEvts);
@@ -158,8 +156,7 @@ export default function AdminDashboardPage() {
             Executive Operations Dashboard
           </h1>
           <p className="text-xs sm:text-sm text-gray-600 mt-1">
-            Overview of Chapter Certificate Registry, Option 1 staging queue, and Option 2
-            event check-ins.
+            Executive management portal for attendance tracking, tamper-proof QR verification codes, event check-ins, and verified registries.
           </p>
         </div>
 
@@ -167,7 +164,7 @@ export default function AdminDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm">
             <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
-              Total Certificates
+              Verified QR Credentials
             </span>
             <div className="text-3xl font-montserrat font-extrabold text-ieee-navy">
               {certsCount}
@@ -179,19 +176,19 @@ export default function AdminDashboardPage() {
 
           <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm">
             <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
-              Option 1 Staging Batches
+              Active Chapter Events
             </span>
             <div className="text-3xl font-montserrat font-extrabold text-ieee-orange">
-              {stagedBatches.length}
+              {events.length}
             </div>
             <span className="text-[11px] text-gray-500 mt-2 block">
-              Awaiting 2nd Officer Approval
+              Workshops & Technical Sessions
             </span>
           </div>
 
           <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm">
             <span className="text-xs uppercase font-bold text-gray-500 block mb-1">
-              Option 2 Payment Queue
+              Payment Verification Queue
             </span>
             <div className="text-3xl font-montserrat font-extrabold text-ieee-blue">
               {pendingPayments.length}
@@ -214,28 +211,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
 
-        {/* Alert Queue: Staged Batches Awaiting Second-Officer Approval */}
-        {stagedBatches.length > 0 && (
-          <div className="bg-[#FEF3D6] border border-[#FAD79A] rounded-card p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-[#B45309]">
-                <AlertTriangle size={20} />
-                <h3 className="font-montserrat font-bold text-sm sm:text-base">
-                  Action Required: {stagedBatches.length} Staged Batch Ready for Approver Sign-off
-                </h3>
-              </div>
-              <Button href="/admin/registry" variant="primary" size="sm">
-                Review Staging Queue
-              </Button>
-            </div>
-            <p className="text-xs text-[#B45309] leading-relaxed">
-              In adherence with the chapter governance policy, staged CSV participant lists
-              remain hidden from the public verification page until explicitly authorized by a
-              Certificate Approver (Faculty Advisor or Chapter Chair).
-            </p>
-          </div>
-        )}
-
         {/* Two-Column Workstation Panels */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Quick Action Workstations */}
@@ -246,7 +221,7 @@ export default function AdminDashboardPage() {
 
             <div className="space-y-3 text-xs">
               <Link
-                href="/admin/registry"
+                href="/admin/attendance"
                 className="p-4 bg-gray-50 hover:bg-ieee-surfaceTint/30 rounded-xl border border-gray-200 flex items-center justify-between transition-colors group"
               >
                 <div className="flex items-center gap-3">
@@ -255,10 +230,10 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <h4 className="font-montserrat font-bold text-gray-900 group-hover:text-ieee-blue">
-                      Option 1: Code Generator & Batch Upload
+                      Attendance & QR Verification Code Hub
                     </h4>
                     <p className="text-gray-500 text-[11px]">
-                      Generate CSIUB-26 codes, export QR packages, upload participant CSVs.
+                      Upload sheets, mark attendance, generate in-app QR codes, export links, and download ZIP packages.
                     </p>
                   </div>
                 </div>
@@ -275,10 +250,10 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <h4 className="font-montserrat font-bold text-gray-900 group-hover:text-ieee-blue">
-                      Certificate Lifecycle Records
+                      Verified Credentials & QR Registry
                     </h4>
                     <p className="text-gray-500 text-[11px]">
-                      Revoke, replace misspelled names, and audit existing certificates.
+                      Search, audit, download single QR cards, replace misspelled names, and manage lifecycle.
                     </p>
                   </div>
                 </div>
@@ -295,10 +270,10 @@ export default function AdminDashboardPage() {
                   </div>
                   <div>
                     <h4 className="font-montserrat font-bold text-gray-900 group-hover:text-ieee-blue">
-                      Option 2: Mobile Check-in Scanner
+                      Mobile Check-in Scanner
                     </h4>
                     <p className="text-gray-500 text-[11px]">
-                      Rapid attendance recorder for workshop check-in staff with duplicate detection.
+                      Rapid on-site digital check-in scanner for workshop staff with duplicate detection.
                     </p>
                   </div>
                 </div>
