@@ -115,3 +115,54 @@ export async function checkInTicketAction(ticketCode: string, reason?: string) {
   return data;
 }
 
+export async function clearEventDataAction(params: { eventId: string; eventTitle?: string }) {
+  const supabase = await createClient();
+  const cleanId = (params.eventId || "").trim();
+  const cleanTitle = (params.eventTitle || "").trim();
+
+  // 1. Try atomic clear_event_data RPC
+  try {
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc("clear_event_data", {
+      p_event_id: cleanId,
+      p_event_title: cleanTitle || null,
+    });
+    if (!rpcErr && rpcRes?.success) {
+      revalidatePath("/admin/attendance");
+      revalidatePath("/admin/registry");
+      revalidatePath("/verify");
+      return { success: true, count: rpcRes.certificates_deleted || 0 };
+    }
+  } catch {}
+
+  // 2. Direct table deletes
+  if (cleanId) {
+    try {
+      await supabase.from("certificates").delete().eq("event_id", cleanId);
+    } catch {}
+    try {
+      await supabase.from("registrations").delete().eq("event_id", cleanId);
+    } catch {}
+  }
+  if (cleanTitle) {
+    try {
+      await supabase.from("certificates").delete().ilike("event_title", cleanTitle);
+    } catch {}
+  }
+
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/registry");
+  revalidatePath("/verify");
+  return { success: true };
+}
+
+export async function wipeAllCertificatesAction() {
+  const supabase = await createClient();
+  try {
+    await supabase.from("certificates").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  } catch {}
+  revalidatePath("/admin/registry");
+  revalidatePath("/admin/attendance");
+  revalidatePath("/verify");
+  return { success: true };
+}
+

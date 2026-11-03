@@ -12,9 +12,11 @@ export async function computeFileSha256(file: File | ArrayBuffer): Promise<strin
 /**
  * Format PKT (Pakistan Standard Time, UTC+5) timestamp cleanly
  */
-export function formatPKTDateTime(isoString: string): string {
+export function formatPKTDateTime(isoString?: string | null): string {
+  if (!isoString) return "Date TBD";
   try {
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "Date TBD";
     return new Intl.DateTimeFormat("en-PK", {
       timeZone: "Asia/Karachi",
       year: "numeric",
@@ -25,13 +27,15 @@ export function formatPKTDateTime(isoString: string): string {
       hour12: true,
     }).format(date) + " PKT";
   } catch {
-    return isoString;
+    return typeof isoString === "string" ? isoString : "Date TBD";
   }
 }
 
-export function formatPKTDateOnly(isoString: string): string {
+export function formatPKTDateOnly(isoString?: string | null): string {
+  if (!isoString) return "Date TBD";
   try {
     const date = new Date(isoString);
+    if (isNaN(date.getTime())) return "Date TBD";
     return new Intl.DateTimeFormat("en-PK", {
       timeZone: "Asia/Karachi",
       year: "numeric",
@@ -39,7 +43,7 @@ export function formatPKTDateOnly(isoString: string): string {
       day: "numeric",
     }).format(date);
   } catch {
-    return isoString;
+    return typeof isoString === "string" ? isoString : "Date TBD";
   }
 }
 

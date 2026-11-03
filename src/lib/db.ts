@@ -13,6 +13,7 @@ import {
 } from "@/types";
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
 import { getSupabase } from "./supabase";
+import { clearEventDataAction, wipeAllCertificatesAction } from "@/app/actions/operations";
 import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
 import {
   TEMPLATE_DESIGN1_SIMPLE,
@@ -965,25 +966,10 @@ class ChapterDatabase {
   // --- Attendance Records ---
   getAttendance(eventId: string): AttendanceRecord[] {
     const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
-    if (stored[eventId] && stored[eventId].length > 0) {
+    if (stored[eventId] !== undefined) {
       return stored[eventId];
     }
-    // Auto-generate initial attendance list from registrations if empty
-    const regs = this.getRegistrations().filter((r) => r.eventId === eventId);
-    const certs = this.getCertificates().filter((c) => c.eventId === eventId);
-    return regs.map((r) => {
-      const matchCert = certs.find((c) => c.recipientName.trim().toLowerCase() === r.fullName.trim().toLowerCase());
-      return {
-        id: r.id,
-        eventId: r.eventId,
-        name: r.fullName,
-        rollNumber: r.rollNumber,
-        email: r.email,
-        attended: r.status === "ATTENDED",
-        certificateCode: matchCert?.code || (r.ticketCode ? `CSIUB-26-${r.ticketCode.slice(-4)}` : undefined),
-        checkedInAt: r.checkedInAt,
-      };
-    });
+    return [];
   }
 
   saveAttendance(eventId: string, records: AttendanceRecord[]): void {
@@ -994,7 +980,7 @@ class ChapterDatabase {
 
   clearAttendance(eventId: string): void {
     const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
-    delete stored[eventId];
+    stored[eventId] = [];
     this.setItem("attendance_records", stored);
   }
 
@@ -1016,36 +1002,11 @@ class ChapterDatabase {
     const deletedCount = list.length - remaining.length;
     this.setItem("certificates", remaining);
 
-    const client = getSupabase();
-    if (client) {
-      try {
-        if (cleanId) {
-          // 1. Try atomic clear_event_data RPC
-          const rpcPromise = client.rpc("clear_event_data", { p_event_id: cleanId });
-          const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000));
-          try {
-            await Promise.race([rpcPromise, timeoutPromise]);
-          } catch {}
-
-          // 2. Direct delete fallback
-          try {
-            await Promise.race([
-              client.from("certificates").delete().eq("event_id", cleanId),
-              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
-            ]);
-          } catch {}
-        }
-        if (cleanTitle) {
-          try {
-            await Promise.race([
-              client.from("certificates").delete().ilike("event_title", cleanTitle),
-              new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 5000))
-            ]);
-          } catch {}
-        }
-      } catch (err) {
-        console.warn("Supabase clearEventCertificates error:", err);
-      }
+    // Call server action to securely delete from Supabase
+    try {
+      await clearEventDataAction({ eventId: cleanId, eventTitle });
+    } catch (err) {
+      console.warn("clearEventDataAction notice:", err);
     }
 
     return deletedCount;
@@ -1053,6 +1014,12 @@ class ChapterDatabase {
 
   async clearEventAttendanceAndCertificates(eventId: string, eventTitle?: string): Promise<void> {
     this.clearAttendance(eventId);
+    // Clear local registrations for this event
+    const cleanId = (eventId || "").trim();
+    const cleanTitle = (eventTitle || "").trim().toLowerCase();
+    const regs = this.getRegistrations().filter((r) => r.eventId !== cleanId);
+    this.setItem("registrations", regs);
+
     await this.clearEventCertificates(eventId, eventTitle);
     this.addAuditLog(
       "Muhammad Roshan Ashraf",
@@ -1068,16 +1035,10 @@ class ChapterDatabase {
     const count = list.length;
     this.setItem("certificates", []);
 
-    const client = getSupabase();
-    if (client) {
-      try {
-        await Promise.race([
-          client.from("certificates").delete().neq("id", "00000000-0000-0000-0000-000000000000"),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 6000))
-        ]).catch((err) => console.warn("Supabase wipeAllCertificates notice:", err));
-      } catch (err) {
-        console.warn("Supabase wipeAllCertificates error:", err);
-      }
+    try {
+      await wipeAllCertificatesAction();
+    } catch (err) {
+      console.warn("wipeAllCertificatesAction notice:", err);
     }
     return count;
   }

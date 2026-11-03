@@ -1,6 +1,24 @@
 import { createClient } from "@/lib/supabase/server";
 import { EventItem, EventTeam } from "@/types";
 
+function parseObjectives(raw: any): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.flatMap((item) => parseObjectives(item)).filter(Boolean);
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parseObjectives(parsed);
+      } catch {}
+    }
+    return trimmed.split("\n").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
+  }
+  return [String(raw)];
+}
+
 export async function getEvents(options?: { publishedOnly?: boolean }): Promise<EventItem[]> {
   const supabase = await createClient();
   
@@ -25,9 +43,7 @@ export async function getEvents(options?: { publishedOnly?: boolean }): Promise<
     slug: row.slug,
     title: row.title,
     description: row.description || "",
-    learningObjectives: typeof row.learning_objectives === "string"
-      ? row.learning_objectives.split("\n").map((s: string) => s.trim()).filter(Boolean)
-      : (Array.isArray(row.learning_objectives) ? row.learning_objectives : []),
+    learningObjectives: parseObjectives(row.learning_objectives),
     targetAudience: row.target_audience || "",
     startDate: row.start_date,
     endDate: row.end_date,
@@ -73,9 +89,7 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
     slug: data.slug,
     title: data.title,
     description: data.description || "",
-    learningObjectives: typeof data.learning_objectives === "string"
-      ? data.learning_objectives.split("\n").map((s: string) => s.trim()).filter(Boolean)
-      : (Array.isArray(data.learning_objectives) ? data.learning_objectives : []),
+    learningObjectives: parseObjectives(data.learning_objectives),
     targetAudience: data.target_audience || "",
     startDate: data.start_date,
     endDate: data.end_date,

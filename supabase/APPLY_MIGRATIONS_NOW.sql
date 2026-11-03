@@ -142,6 +142,39 @@ $$;
 
 GRANT EXECUTE ON FUNCTION public.bulk_save_certificates(JSONB) TO anon, authenticated, service_role;
 
+-- 4B. High-Performance Atomic Clear Event Data RPC (SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION public.clear_event_data(p_event_id TEXT, p_event_title TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_certs_deleted INT := 0;
+  v_regs_deleted INT := 0;
+BEGIN
+  SET LOCAL statement_timeout = '15s';
+  SET LOCAL lock_timeout = '5s';
+
+  DELETE FROM public.certificates
+  WHERE event_id = p_event_id
+     OR (p_event_title IS NOT NULL AND TRIM(p_event_title) <> '' AND LOWER(event_title) = LOWER(TRIM(p_event_title)));
+  GET DIAGNOSTICS v_certs_deleted = ROW_COUNT;
+
+  DELETE FROM public.registrations
+  WHERE event_id = p_event_id;
+  GET DIAGNOSTICS v_regs_deleted = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'certificates_deleted', v_certs_deleted,
+    'registrations_deleted', v_regs_deleted
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.clear_event_data(TEXT, TEXT) TO anon, authenticated, service_role;
+
 -- 5. Safe non-blocking audit logging trigger
 CREATE OR REPLACE FUNCTION public.process_audit_log()
 RETURNS TRIGGER
