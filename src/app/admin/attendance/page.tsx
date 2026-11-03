@@ -5,6 +5,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
 import { EventItem, AttendanceRecord, CertificateRecord } from "@/types";
 import { generateCertificateCode, generateQrPngDataUrl } from "@/lib/codeGenerator";
+import { saveEventAction } from "@/app/actions/events";
 import { Button } from "@/components/ui/Button";
 import * as XLSX from "xlsx";
 import JSZip from "jszip";
@@ -1358,9 +1359,14 @@ export default function AdminAttendancePage() {
                   onClick={async () => {
                     const currentlyOpen = currentEvent.isRegistrationOpen ?? (currentEvent.status === "UPCOMING");
                     const nextState = !currentlyOpen;
-                    await db.updateEvent(currentEvent.id, { isRegistrationOpen: nextState });
                     const updated = events.map((ev) => ev.id === currentEvent.id ? { ...ev, isRegistrationOpen: nextState } : ev);
                     setEvents(updated);
+                    await db.updateEvent(currentEvent.id, { isRegistrationOpen: nextState });
+                    try {
+                      await saveEventAction({ ...currentEvent, isRegistrationOpen: nextState });
+                    } catch (err) {
+                      console.warn("Toggle registration save error:", err);
+                    }
                   }}
                   className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-montserrat font-bold transition-all shadow-xs ${
                     (currentEvent.isRegistrationOpen ?? (currentEvent.status === "UPCOMING"))

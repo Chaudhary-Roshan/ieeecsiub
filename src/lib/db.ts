@@ -25,6 +25,7 @@ import {
 } from "./certificateTemplates";
 import { DIGITALFEST_PARTICIPANTS } from "./digitalFestData";
 import { normalizeVerificationCode } from "./codeGenerator";
+import { parseLearningObjectives } from "./sha256";
 
 // Seed Templates
 const SEED_TEMPLATES: CertificateTemplate[] = [
@@ -723,7 +724,7 @@ class ChapterDatabase {
             slug: d.slug || "",
             title: d.title || "Untitled Event",
             description: d.description || "",
-            learningObjectives: typeof d.learning_objectives === "string" ? d.learning_objectives.split("\n").filter(Boolean) : (Array.isArray(d.learning_objectives) ? d.learning_objectives : []),
+            learningObjectives: parseLearningObjectives(d.learning_objectives),
             targetAudience: d.target_audience || "",
             startDate: d.start_date || new Date().toISOString(),
             endDate: d.end_date || new Date().toISOString(),
@@ -742,7 +743,7 @@ class ChapterDatabase {
             featuredImage: d.featured_image || "/ieee-cs-logo.png",
             galleryImages: Array.isArray(d.gallery_images) ? d.gallery_images.filter(Boolean) : [],
             eventReport: d.event_report || "",
-            isRegistrationOpen: d.is_registration_open !== undefined ? Boolean(d.is_registration_open) : (d.status === "UPCOMING"),
+            isRegistrationOpen: d.is_registration_open !== null && d.is_registration_open !== undefined ? Boolean(d.is_registration_open) : (d.status === "UPCOMING"),
           }));
 
           // Remote is the single source of truth
@@ -797,7 +798,7 @@ class ChapterDatabase {
             slug: data.slug || "",
             title: data.title || "Untitled Event",
             description: data.description || "",
-            learningObjectives: typeof data.learning_objectives === "string" ? data.learning_objectives.split("\n").filter(Boolean) : (Array.isArray(data.learning_objectives) ? data.learning_objectives : []),
+            learningObjectives: parseLearningObjectives(data.learning_objectives),
             targetAudience: data.target_audience || "",
             startDate: data.start_date || new Date().toISOString(),
             endDate: data.end_date || new Date().toISOString(),
@@ -816,7 +817,7 @@ class ChapterDatabase {
             featuredImage: data.featured_image || "/ieee-cs-logo.png",
             galleryImages: Array.isArray(data.gallery_images) ? data.gallery_images.filter(Boolean) : [],
             eventReport: data.event_report || "",
-            isRegistrationOpen: data.is_registration_open !== undefined ? Boolean(data.is_registration_open) : (data.status === "UPCOMING"),
+            isRegistrationOpen: data.is_registration_open !== null && data.is_registration_open !== undefined ? Boolean(data.is_registration_open) : (data.status === "UPCOMING"),
           };
           return evt;
         }
@@ -855,6 +856,7 @@ class ChapterDatabase {
           meeting_link: event.meetingLink || null,
           status: event.status,
           status_reason: event.statusReason || null,
+          is_registration_open: event.isRegistrationOpen !== undefined ? Boolean(event.isRegistrationOpen) : true,
           seats_limit: event.seatsLimit || 60,
           fee_pkr: event.feePkr || 0,
           payment_instructions: event.paymentInstructions || null,
@@ -929,6 +931,7 @@ class ChapterDatabase {
         if (updates.description) payload.description = updates.description;
         if (updates.status) payload.status = updates.status;
         if (updates.statusReason !== undefined) payload.status_reason = updates.statusReason;
+        if (updates.isRegistrationOpen !== undefined) payload.is_registration_open = Boolean(updates.isRegistrationOpen);
         if (updates.startDate) payload.start_date = updates.startDate;
         if (updates.endDate) payload.end_date = updates.endDate;
         if (updates.venue) payload.venue = updates.venue;

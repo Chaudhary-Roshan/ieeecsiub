@@ -25,7 +25,35 @@ import {
   ExternalLink,
   ShieldCheck,
   Ticket,
+  Upload,
+  FileSpreadsheet,
 } from "lucide-react";
+
+function extractFieldFromRow(row: any, aliases: string[]): string {
+  if (!row || typeof row !== "object") return "";
+  const keys = Object.keys(row);
+
+  // 1. Direct exact key match
+  for (const alias of aliases) {
+    if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== "") {
+      return String(row[alias]).trim();
+    }
+  }
+
+  // 2. Case-insensitive and normalized key match (removes spaces, underscores, dots)
+  const normAliases = aliases.map((a) => a.toLowerCase().replace(/[\s_\-\.]/g, ""));
+  for (const k of keys) {
+    const normK = k.toLowerCase().replace(/[\s_\-\.]/g, "");
+    if (normAliases.includes(normK)) {
+      const val = row[k];
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
+        return String(val).trim();
+      }
+    }
+  }
+
+  return "";
+}
 
 export default function AdminRegistrationsPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
@@ -65,6 +93,8 @@ export default function AdminRegistrationsPage() {
   // Action Feedback States
   const [copiedTicket, setCopiedTicket] = useState<string | null>(null);
   const [pushingAttendanceId, setPushingAttendanceId] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const loadData = async () => {
     setIsLoading(true);
@@ -305,6 +335,191 @@ export default function AdminRegistrationsPage() {
     XLSX.writeFile(workbook, `IEEE_CS_Registrations_${eventName}.xlsx`);
   };
 
+  // Export to CSV (.csv)
+  const handleExportCSV = () => {
+    if (filteredRegistrations.length === 0) {
+      alert("No registrations available to export.");
+      return;
+    }
+
+    const rows = filteredRegistrations.map((r, idx) => {
+      const ev = eventMap.get(r.eventId);
+      return {
+        "Sr #": idx + 1,
+        "Full Name": r.fullName,
+        "Roll Number": r.rollNumber || "N/A",
+        "Email Address": r.email,
+        "Phone Number": r.phone || "N/A",
+        "Event Title": ev?.title || "N/A",
+        "Program / Degree": r.degreeProgram || "N/A",
+        "Department": r.department || "Computer Science",
+        "IEEE Member": r.isIeeeMember ? "Yes" : "No",
+        "IEEE Membership #": r.ieeeMembershipNumber || "N/A",
+        "Ticket Code": r.ticketCode || "N/A",
+        "Registration Status": r.status,
+        "Registered At": r.createdAt ? formatPKTDateTime(r.createdAt) : "N/A",
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const csvContent = XLSX.utils.sheet_to_csv(worksheet);
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    const eventName =
+      selectedEventId === "ALL"
+        ? "All_Events"
+        : (eventMap.get(selectedEventId)?.slug.replace(/\//g, "_") || "Event");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `IEEE_CS_Registrations_${eventName}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Import from Excel or CSV
+  const handleImportSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Reset input value so user can re-upload same file
+    e.target.value = "";
+
+    try {
+      setIsImporting(true);
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const jsonRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+
+      if (jsonRows.length === 0) {
+        alert("The uploaded spreadsheet is empty.");
+        return;
+      }
+
+      // Default target event
+      let targetEventId = selectedEventId !== "ALL" ? selectedEventId : (events[0]?.id || "");
+      if (!targetEventId && events.length > 0) {
+        targetEventId = events[0].id;
+      }
+
+      let importedCount = 0;
+      const newRegistrations: Registration[] = [];
+
+      for (let idx = 0; idx < jsonRows.length; idx++) {
+        const row = jsonRows[idx];
+
+        const fullName = extractFieldFromRow(row, [
+          "Full Name", "Student Name", "Participant Name", "Name", "Student", "Attendee", "Attendee Name", "Participant"
+        ]);
+        if (!fullName) continue;
+
+        const rollNumber = extractFieldFromRow(row, [
+          "Roll Number", "Roll No", "Roll No.", "Roll_No", "Registration No", "Reg No", "Reg No.", "Reg_No",
+          "Registration", "Roll", "Reg", "ID", "Student ID", "RollNumber", "RegNumber", "Roll_Number"
+        ]);
+
+        const email = extractFieldFromRow(row, [
+          "Email Address", "Email", "Gmail", "E-mail", "Student Email", "Mail", "Email / Gmail", "E-Mail Address",
+          "Contact Email", "EmailAddress", "G-Mail"
+        ]) || `${fullName.toLowerCase().replace(/[^a-z0-9]/g, "")}.${Date.now().toString().slice(-4)}@ucet.iub.edu.pk`;
+
+        const phone = extractFieldFromRow(row, [
+          "Phone Number", "Phone", "Mobile", "Contact", "Cell", "WhatsApp", "Phone_Number", "Contact Number", "Mobile Number"
+        ]) || "0300-0000000";
+
+        const department = extractFieldFromRow(row, [
+          "Department", "Dept", "Faculty", "Discipline"
+        ]) || "Computer Science";
+
+        const degreeProgram = extractFieldFromRow(row, [
+          "Program / Degree", "Degree Program", "Degree", "Program", "Study Program", "BS / MS", "Course"
+        ]);
+
+        const ieeeRaw = extractFieldFromRow(row, [
+          "IEEE Member", "Member", "Is IEEE Member", "Is IEEE", "IEEE"
+        ]).toLowerCase();
+        const isIeeeMember = ieeeRaw.includes("yes") || ieeeRaw.includes("true") || ieeeRaw.includes("1");
+
+        const ieeeNo = extractFieldFromRow(row, [
+          "IEEE Membership #", "IEEE Membership Number", "IEEE Number", "IEEE No", "Membership Number", "Member ID", "IEEE ID"
+        ]);
+
+        const ticketRaw = extractFieldFromRow(row, [
+          "Ticket Code", "Ticket", "Code", "Ticket Number", "Ticket ID"
+        ]);
+        const ticketCode = ticketRaw || `TCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+
+        const statusRaw = extractFieldFromRow(row, [
+          "Registration Status", "Status", "Payment Status"
+        ]).toUpperCase();
+        const validStatuses: Registration["status"][] = ["CONFIRMED", "PAYMENT_PENDING", "ATTENDED", "CANCELLED"];
+        const status = validStatuses.includes(statusRaw as any) ? (statusRaw as any) : "CONFIRMED";
+
+        // Check if event title in row matches an event
+        const eventTitleInRow = extractFieldFromRow(row, ["Event Title", "Event", "Event Name"]);
+        let rowEventId = targetEventId;
+        if (eventTitleInRow) {
+          const matchedEvt = events.find(
+            (ev) =>
+              ev.title.toLowerCase() === eventTitleInRow.toLowerCase() ||
+              ev.slug.toLowerCase().includes(eventTitleInRow.toLowerCase())
+          );
+          if (matchedEvt) rowEventId = matchedEvt.id;
+        }
+
+        const regItem: Registration = {
+          id: `reg-import-${Date.now()}-${idx}`,
+          eventId: rowEventId,
+          privateToken: `priv-${Math.random().toString(36).substring(2, 12)}`,
+          fullName,
+          namePreference: "FULL_NAME",
+          email,
+          phone,
+          rollNumber: rollNumber || "N/A",
+          department,
+          degreeProgram: degreeProgram || undefined,
+          isIeeeMember,
+          ieeeMembershipNumber: ieeeNo || undefined,
+          photoConsent: true,
+          status,
+          ticketCode,
+          createdAt: new Date().toISOString(),
+        };
+
+        newRegistrations.push(regItem);
+        importedCount++;
+      }
+
+      if (newRegistrations.length === 0) {
+        alert("No valid attendee records could be parsed. Please check spreadsheet headers.");
+        return;
+      }
+
+      // Save each to local database & remote
+      for (const reg of newRegistrations) {
+        await db.addRegistration(reg);
+      }
+
+      db.addAuditLog(
+        "Muhammad Roshan Ashraf",
+        "BULK_REGISTRATIONS_IMPORTED",
+        "registrations",
+        targetEventId,
+        `Imported ${importedCount} registrations from spreadsheet "${file.name}".`
+      );
+
+      await loadData();
+      alert(`Success! Successfully imported ${importedCount} attendee registration(s) from "${file.name}".`);
+    } catch (err: any) {
+      console.error("Sheet import error:", err);
+      alert("Failed to import sheet: " + (err?.message || "Invalid file format."));
+    } finally {
+      setIsImporting(false);
+    }
+  };
+
   // Filter Registrations
   const filteredRegistrations = registrations.filter((r) => {
     const matchesEvent = selectedEventId === "ALL" || r.eventId === selectedEventId;
@@ -348,12 +563,39 @@ export default function AdminRegistrationsPage() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Hidden file input for Excel / CSV import */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleImportSheet}
+              className="hidden"
+            />
+
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="px-3.5 py-2 border border-blue-300 bg-blue-50 text-blue-900 text-xs font-semibold rounded-lg hover:bg-blue-100 flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
+              title="Import attendees from an Excel (.xlsx/.xls) or CSV spreadsheet"
+            >
+              <Upload size={14} className="text-ieee-blue" />
+              {isImporting ? "Importing Sheet..." : "Import Excel / CSV"}
+            </button>
+
             <button
               onClick={handleExportExcel}
               className="px-3.5 py-2 border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 shadow-xs transition-colors"
               title="Export all filtered registrations to Excel sheet"
             >
-              <Download size={14} className="text-emerald-700" /> Export to Excel (.xlsx)
+              <Download size={14} className="text-emerald-700" /> Export Excel (.xlsx)
+            </button>
+
+            <button
+              onClick={handleExportCSV}
+              className="px-3 py-2 border border-gray-300 bg-white text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 flex items-center gap-1.5 shadow-xs transition-colors"
+              title="Export all filtered registrations to CSV"
+            >
+              <FileSpreadsheet size={14} className="text-gray-600" /> Export CSV
             </button>
 
             <button

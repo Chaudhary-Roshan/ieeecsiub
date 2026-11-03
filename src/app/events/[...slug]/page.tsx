@@ -9,7 +9,7 @@ import { EventItem, Registration } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import clsx from "clsx";
-import { formatPKTDateTime, formatPKTDateOnly } from "@/lib/sha256";
+import { formatPKTDateTime, formatPKTDateOnly, parseLearningObjectives } from "@/lib/sha256";
 import {
   Calendar,
   MapPin,
@@ -314,21 +314,25 @@ export default function EventDetailPage() {
               </div>
 
               {/* Learning Objectives */}
-              {Array.isArray(event.learningObjectives) && event.learningObjectives.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-base font-montserrat font-bold text-ieee-navy">
-                    Key Learning Objectives
-                  </h3>
-                  <ul className="space-y-2 text-sm text-gray-700">
-                    {event.learningObjectives.map((obj, i) => (
-                      <li key={i} className="flex items-start gap-2">
-                        <CheckCircle size={16} className="text-status-active flex-shrink-0 mt-0.5" />
-                        <span>{obj}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
+              {(() => {
+                const objectives = parseLearningObjectives(event.learningObjectives);
+                if (objectives.length === 0) return null;
+                return (
+                  <div className="space-y-3">
+                    <h3 className="text-base font-montserrat font-bold text-ieee-navy">
+                      Key Learning Objectives
+                    </h3>
+                    <ul className="space-y-2 text-sm text-gray-700">
+                      {objectives.map((obj, i) => (
+                        <li key={i} className="flex items-start gap-2.5">
+                          <CheckCircle size={16} className="text-status-active flex-shrink-0 mt-0.5" />
+                          <span className="leading-relaxed">{obj}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })()}
 
               {/* Target Audience */}
               {event.targetAudience && (

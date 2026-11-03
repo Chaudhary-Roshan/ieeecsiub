@@ -33,6 +33,7 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
       meeting_link: (eventData.meetingLink || "").trim() || null,
       status: ((eventData.status || "UPCOMING") as string).trim().toUpperCase(),
       status_reason: (eventData.statusReason || "").trim() || null,
+      is_registration_open: eventData.isRegistrationOpen !== undefined ? Boolean(eventData.isRegistrationOpen) : true,
       seats_limit: Number(eventData.seatsLimit) || 60,
       registered_count: Number(eventData.registeredCount) || 0,
       registration_deadline: eventData.registrationDeadline || null,
@@ -55,6 +56,17 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
     });
 
     if (!rpcErr && rpcRes && rpcRes.success) {
+      // Also ensure is_registration_open and payment_instructions are directly synchronized to the table
+      try {
+        await supabase
+          .from("events")
+          .update({
+            is_registration_open: payload.is_registration_open,
+            payment_instructions: payload.payment_instructions,
+          })
+          .eq("slug", cleanSlug);
+      } catch {}
+
       try {
         revalidatePath("/");
         revalidatePath("/events");
@@ -66,6 +78,26 @@ export async function saveEventAction(eventData: Partial<EventItem>): Promise<{ 
       }
       return { success: true, event: rpcRes.event };
     }
+
+    // 2. Direct table fallback if RPC failed
+    try {
+      const { data: existing } = await supabase.from("events").select("id").eq("slug", cleanSlug).maybeSingle();
+      if (existing?.id) {
+        const { error: updErr } = await supabase.from("events").update(payload).eq("id", existing.id);
+        if (!updErr) {
+          revalidatePath("/");
+          revalidatePath("/events");
+          return { success: true };
+        }
+      } else {
+        const { error: insErr } = await supabase.from("events").insert(payload);
+        if (!insErr) {
+          revalidatePath("/");
+          revalidatePath("/events");
+          return { success: true };
+        }
+      }
+    } catch {}
 
     if (rpcErr) {
       console.error("saveEventAction RPC error:", rpcErr);

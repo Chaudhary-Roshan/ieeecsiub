@@ -84,3 +84,33 @@ export function pktInputToIso(pktInput?: string | null): string {
     return "";
   }
 }
+
+/**
+ * Safely parse learning objectives from JSON arrays, newline strings, or arrays.
+ * Returns clean individual bullet strings without quotes, brackets, or markdown bullets.
+ */
+export function parseLearningObjectives(raw: any): string[] {
+  if (!raw) return [];
+  if (Array.isArray(raw)) {
+    return raw.flatMap((item) => parseLearningObjectives(item)).filter(Boolean);
+  }
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (
+      (trimmed.startsWith("[") && trimmed.endsWith("]")) ||
+      (trimmed.startsWith("{") && trimmed.endsWith("}"))
+    ) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        return parseLearningObjectives(parsed);
+      } catch {}
+    }
+    return trimmed
+      .split(/\r?\n/)
+      .map((s) => s.trim())
+      .map((s) => s.replace(/^[-*•\d\.\s]+/, "").trim()) // Remove leading bullets or numbers
+      .map((s) => s.replace(/^["']|["']$/g, "").trim()) // Remove wrapping quotes
+      .filter(Boolean);
+  }
+  return [String(raw).trim()].filter(Boolean);
+}

@@ -1,23 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { EventItem, EventTeam } from "@/types";
-
-function parseObjectives(raw: any): string[] {
-  if (!raw) return [];
-  if (Array.isArray(raw)) {
-    return raw.flatMap((item) => parseObjectives(item)).filter(Boolean);
-  }
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
-      try {
-        const parsed = JSON.parse(trimmed);
-        return parseObjectives(parsed);
-      } catch {}
-    }
-    return trimmed.split("\n").map((s) => s.trim().replace(/^["']|["']$/g, "")).filter(Boolean);
-  }
-  return [String(raw)];
-}
+import { parseLearningObjectives } from "@/lib/sha256";
 
 export async function getEvents(options?: { publishedOnly?: boolean }): Promise<EventItem[]> {
   const supabase = await createClient();
@@ -43,7 +26,7 @@ export async function getEvents(options?: { publishedOnly?: boolean }): Promise<
     slug: row.slug,
     title: row.title,
     description: row.description || "",
-    learningObjectives: parseObjectives(row.learning_objectives),
+    learningObjectives: parseLearningObjectives(row.learning_objectives),
     targetAudience: row.target_audience || "",
     startDate: row.start_date,
     endDate: row.end_date,
@@ -52,6 +35,7 @@ export async function getEvents(options?: { publishedOnly?: boolean }): Promise<
     meetingLink: row.meeting_link || "",
     status: row.status,
     statusReason: row.status_reason || "",
+    isRegistrationOpen: row.is_registration_open !== null && row.is_registration_open !== undefined ? Boolean(row.is_registration_open) : (row.status === "UPCOMING"),
     seatsLimit: row.seats_limit ?? undefined,
     registeredCount: row.registered_count ?? 0,
     registrationDeadline: row.registration_deadline || undefined,
@@ -89,7 +73,7 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
     slug: data.slug,
     title: data.title,
     description: data.description || "",
-    learningObjectives: parseObjectives(data.learning_objectives),
+    learningObjectives: parseLearningObjectives(data.learning_objectives),
     targetAudience: data.target_audience || "",
     startDate: data.start_date,
     endDate: data.end_date,
@@ -98,6 +82,7 @@ export async function getEventBySlug(slug: string): Promise<EventItem | null> {
     meetingLink: data.meeting_link || "",
     status: data.status,
     statusReason: data.status_reason || "",
+    isRegistrationOpen: data.is_registration_open !== null && data.is_registration_open !== undefined ? Boolean(data.is_registration_open) : (data.status === "UPCOMING"),
     seatsLimit: data.seats_limit ?? undefined,
     registeredCount: data.registered_count ?? 0,
     registrationDeadline: data.registration_deadline || undefined,

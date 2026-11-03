@@ -6,7 +6,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
 import { getSupabase } from "@/lib/supabase";
 import { saveEventAction, deleteEventAction } from "@/app/actions/events";
-import { isoToPktInput, pktInputToIso } from "@/lib/sha256";
+import { isoToPktInput, pktInputToIso, parseLearningObjectives } from "@/lib/sha256";
 import { EventItem, EventStatus } from "@/types";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -184,11 +184,7 @@ export default function AdminEventsManagerPage() {
     setCertificateType(event.certificateType || "Certificate of Participation");
     setCertificateRule(event.certificateRule || "Minimum 80% physical attendance verified via digital check-in");
     setFeaturedImage(event.featuredImage || "/ieee-cs-logo.png");
-    setLearningObjectives(
-      Array.isArray(event.learningObjectives)
-        ? event.learningObjectives.filter(Boolean).map((s) => String(s || "").trim()).join("\n")
-        : (typeof event.learningObjectives === "string" ? event.learningObjectives : "")
-    );
+    setLearningObjectives(parseLearningObjectives(event.learningObjectives).join("\n"));
     setEventReport(event.eventReport || "");
     setGalleryImages(
       Array.isArray(event.galleryImages)
@@ -283,9 +279,11 @@ export default function AdminEventsManagerPage() {
         certificate_rule: cleanCertRule,
         learning_objectives: objectives,
         fee_pkr: Number(feePkr) || 0,
-        payment_instructions: Number(feePkr) > 0 ? (cleanPaymentInstructions || undefined) : undefined,
+        payment_instructions: Number(feePkr) > 0 ? (cleanPaymentInstructions || undefined) : null,
         seats_limit: Number(seatsLimit) || 60,
         is_online: Boolean(isOnline),
+        is_registration_open: Boolean(isRegistrationOpen),
+        isRegistrationOpen: Boolean(isRegistrationOpen),
       };
 
       // 1. Try direct Supabase client RPC (bypasses Server Action 1MB payload limits and network hops)
@@ -391,8 +389,24 @@ export default function AdminEventsManagerPage() {
   const handleToggleRegistration = async (evt: EventItem) => {
     const currentlyOpen = evt.isRegistrationOpen ?? (evt.status === "UPCOMING");
     const nextState = !currentlyOpen;
+
+    // Optimistic UI update
+    setEvents((prev) =>
+      prev.map((e) => (e.id === evt.id ? { ...e, isRegistrationOpen: nextState } : e))
+    );
+
+    // Update local database
     db.updateEvent(evt.id, { isRegistrationOpen: nextState });
+
+    // Sync to Supabase directly and through Server Action
     try {
+      const client = getSupabase();
+      if (client) {
+        await client
+          .from("events")
+          .update({ is_registration_open: nextState })
+          .or(`id.eq.${evt.id},slug.eq.${evt.slug}`);
+      }
       await saveEventAction({ ...evt, isRegistrationOpen: nextState });
     } catch (err) {
       console.warn("Toggle registration save error:", err);
