@@ -71,6 +71,23 @@ export default function Option1RegistryPage() {
     }
 
     setGenerating(true);
+
+    // Fetch live certificates to ensure idempotent permanent codes
+    await db.fetchCertificates();
+    const existingCerts = db.getCertificates();
+    const codeByName = new Map<string, string>();
+    const codeByRoll = new Map<string, string>();
+    const codeByEmail = new Map<string, string>();
+
+    existingCerts.forEach((c) => {
+      if (c.code) {
+        const cCode = c.code.trim();
+        if (c.recipientName) codeByName.set(c.recipientName.trim().toLowerCase(), cCode);
+        if (c.recipientRollNumber) codeByRoll.set(c.recipientRollNumber.trim().toLowerCase(), cCode);
+        if (c.recipientEmail) codeByEmail.set(c.recipientEmail.trim().toLowerCase(), cCode);
+      }
+    });
+
     const results: { name: string; rollNumber: string; email: string; code: string; qrDataUrl: string }[] = [];
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
 
@@ -88,7 +105,27 @@ export default function Option1RegistryPage() {
 
       if (!name) continue;
 
-      const code = generateCertificateCode("26");
+      const normName = name.toLowerCase();
+      const normRoll = rollNumber.toLowerCase();
+      const normEmail = email.toLowerCase();
+
+      // Check if existing code exists
+      let code: string | undefined = undefined;
+      if (normRoll && codeByRoll.has(normRoll)) {
+        code = codeByRoll.get(normRoll);
+      } else if (normEmail && codeByEmail.has(normEmail)) {
+        code = codeByEmail.get(normEmail);
+      } else if (normName && codeByName.has(normName)) {
+        code = codeByName.get(normName);
+      }
+
+      if (!code) {
+        code = generateCertificateCode("26");
+        if (normName) codeByName.set(normName, code);
+        if (normRoll) codeByRoll.set(normRoll, code);
+        if (normEmail) codeByEmail.set(normEmail, code);
+      }
+
       const verifyUrl = `${origin}/verify/${code}`;
       const qrDataUrl = await generateQrPngDataUrl(verifyUrl);
       results.push({ name, rollNumber, email, code, qrDataUrl });

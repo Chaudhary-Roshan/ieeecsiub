@@ -13,7 +13,7 @@ import {
 } from "@/types";
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
 import { getSupabase } from "./supabase";
-import { clearEventDataAction, wipeAllCertificatesAction } from "@/app/actions/operations";
+import { clearEventDataAction, wipeAllCertificatesAction, wipeEventCredentialsOnlyAction } from "@/app/actions/operations";
 import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
 import {
   TEMPLATE_DESIGN1_SIMPLE,
@@ -1010,6 +1010,62 @@ class ChapterDatabase {
     }
 
     return deletedCount;
+  }
+
+  async clearEventCredentialsOnly(eventId: string, eventTitle?: string): Promise<number> {
+    const list = this.getCertificates();
+    const cleanId = (eventId || "").trim();
+    const cleanTitle = (eventTitle || "").trim().toLowerCase();
+
+    const remaining = list.filter((c) => {
+      const matchId = cleanId && c.eventId && c.eventId === cleanId;
+      const matchTitle = cleanTitle && c.eventTitle && c.eventTitle.trim().toLowerCase() === cleanTitle;
+      return !matchId && !matchTitle;
+    });
+
+    const deletedCount = list.length - remaining.length;
+    this.setItem("certificates", remaining);
+
+    // Also remove certificate code references from the cached attendance records
+    const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
+    if (stored[cleanId]) {
+      stored[cleanId] = stored[cleanId].map((rec) => ({
+        ...rec,
+        certificateCode: undefined,
+      }));
+      this.setItem("attendance_records", stored);
+    }
+
+    try {
+      await wipeEventCredentialsOnlyAction({ eventId: cleanId, eventTitle });
+    } catch (err) {
+      console.warn("wipeEventCredentialsOnlyAction notice:", err);
+    }
+
+    this.addAuditLog(
+      "Muhammad Roshan Ashraf",
+      "DATA_WIPED",
+      "certificates",
+      eventId,
+      `Cleared all verification codes and QR records for event ${eventTitle || eventId}.`
+    );
+
+    return deletedCount;
+  }
+
+  clearEventAttendanceOnly(eventId: string, eventTitle?: string): void {
+    this.clearAttendance(eventId);
+    const cleanId = (eventId || "").trim();
+    const regs = this.getRegistrations().filter((r) => r.eventId !== cleanId);
+    this.setItem("registrations", regs);
+
+    this.addAuditLog(
+      "Muhammad Roshan Ashraf",
+      "DATA_WIPED",
+      "attendance",
+      eventId,
+      `Cleared attendance sheet records for event ${eventTitle || eventId}.`
+    );
   }
 
   async clearEventAttendanceAndCertificates(eventId: string, eventTitle?: string): Promise<void> {

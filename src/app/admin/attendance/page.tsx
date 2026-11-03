@@ -24,6 +24,34 @@ import {
   Trash2,
 } from "lucide-react";
 
+function extractFieldFromRow(row: any, aliases: string[]): string {
+  if (!row || typeof row !== "object") return "";
+  const keys = Object.keys(row);
+
+  // 1. Direct exact key match
+  for (const alias of aliases) {
+    if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== "") {
+      return String(row[alias]).trim();
+    }
+  }
+
+  // 2. Normalized alphanumeric match
+  for (const alias of aliases) {
+    const cleanAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, "");
+    for (const k of keys) {
+      const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, "");
+      if (cleanKey === cleanAlias || cleanKey.includes(cleanAlias) || cleanAlias.includes(cleanKey)) {
+        const val = row[k];
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          return String(val).trim();
+        }
+      }
+    }
+  }
+
+  return "";
+}
+
 export default function AdminAttendancePage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("");
@@ -32,6 +60,8 @@ export default function AdminAttendancePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isGeneratingPdfs, setIsGeneratingPdfs] = useState(false);
   const [generationProgress, setGenerationProgress] = useState("");
+  const [isWipeModalOpen, setIsWipeModalOpen] = useState(false);
+  const [wipeScope, setWipeScope] = useState<"ALL" | "ATTENDANCE_ONLY" | "CODES_ONLY">("ALL");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -115,17 +145,33 @@ export default function AdminAttendancePage() {
 
       for (let idx = 0; idx < jsonRows.length; idx++) {
         const row = jsonRows[idx];
-        const name = String(row["Name"] || row["name"] || row["Full Name"] || row["Student Name"] || `Participant ${idx + 1}`).trim();
-        const rollNumber = String(row["Roll Number"] || row["Roll No"] || row["rollNumber"] || row["Registration No"] || "").trim();
-        const email = String(row["Email"] || row["email"] || "").trim();
-        const attendedRaw = String(row["Attended"] || row["Status"] || row["attended"] || "Yes").toLowerCase();
-        const attended = attendedRaw.includes("yes") || attendedRaw.includes("present") || attendedRaw.includes("1") || attendedRaw.includes("true");
+
+        // 1. Ultra-robust fuzzy column extraction
+        const name = extractFieldFromRow(row, [
+          "Full Name", "Student Name", "Participant Name", "Name", "Student", "Attendee", "Attendee Name", "Participant"
+        ]) || `Participant ${idx + 1}`;
+
+        const rollNumber = extractFieldFromRow(row, [
+          "Roll Number", "Roll No", "Roll No.", "Roll_No", "Registration No", "Reg No", "Reg No.", "Reg_No",
+          "Registration", "Roll", "Reg", "ID", "Student ID", "RollNumber", "RegNumber", "Roll_Number"
+        ]);
+
+        const email = extractFieldFromRow(row, [
+          "Email Address", "Email", "Gmail", "E-mail", "Student Email", "Mail", "Email / Gmail", "E-Mail Address",
+          "Contact Email", "EmailAddress", "G-Mail"
+        ]);
+
+        const attendedRaw = extractFieldFromRow(row, [
+          "Attended", "Attendance", "Status", "Present", "Attended?"
+        ]).toLowerCase();
+
+        const attended = !attendedRaw || attendedRaw.includes("yes") || attendedRaw.includes("present") || attendedRaw.includes("1") || attendedRaw.includes("true");
 
         const normName = name.toLowerCase();
         const normRoll = rollNumber.toLowerCase();
         const normEmail = email.toLowerCase();
 
-        // Check if existing code exists for this participant
+        // 2. Multi-key idempotency lookup: Match existing code by Roll Number, Email, OR Name
         let assignedCode: string | undefined = undefined;
         if (normRoll && codeByRoll.has(normRoll)) {
           assignedCode = codeByRoll.get(normRoll);
@@ -150,11 +196,13 @@ export default function AdminAttendancePage() {
             if (normEmail) codeByEmail.set(normEmail, assignedCode);
           }
 
-          // Permanently record/upsert the certificate in DB so it is live and verifiable
+          // Permanently record/upsert the verification record in DB with full roll number and email
           const certRecord: CertificateRecord = {
             id: `cert-${Date.now()}-${idx}`,
             code: assignedCode,
             recipientName: name,
+            recipientRollNumber: rollNumber || undefined,
+            recipientEmail: email || undefined,
             publicNameFormat: "FULL_NAME",
             eventId: selectedEventId,
             eventTitle: currentEvent?.title || "UCET IUB Technical Event",
@@ -184,7 +232,7 @@ export default function AdminAttendancePage() {
         });
       }
 
-      // Fast atomic bulk upsert to database
+      // Fast atomic bulk upsert to database with roll numbers and emails
       if (newCertificates.length > 0) {
         await db.addCertificatesBulk(newCertificates);
       }
@@ -209,8 +257,9 @@ export default function AdminAttendancePage() {
       alert(
         `Attendance Processed Successfully!\n\n` +
         `• Total Rows in File: ${jsonRows.length}\n` +
+        `• Roll Numbers & Emails: Successfully Parsed & Stored\n` +
         `• Existing Codes Preserved: ${preservedCount} (codes remain permanent)\n` +
-        `• New Certificates Issued: ${newlyIssuedCount}\n` +
+        `• New Verification Codes Issued: ${newlyIssuedCount}\n` +
         `• Total Event Attendees: ${mergedList.length}`
       );
 
@@ -230,21 +279,31 @@ export default function AdminAttendancePage() {
   };
 
   const handleClearEventData = async () => {
+    setIsWipeModalOpen(true);
+  };
+
+  const executeGranularWipe = async () => {
     const currentEvent = events.find((e) => e.id === selectedEventId);
     const eventName = currentEvent?.title || "this event";
 
-    if (
-      !confirm(
-        `DANGER / DATA WIPE:\n\nAre you sure you want to permanently clear all attendance records and certificates for:\n"${eventName}"?\n\nThis will wipe the data from the database so you can upload fresh records.`
-      )
-    ) {
-      return;
-    }
+    setIsWipeModalOpen(false);
 
     try {
-      await db.clearEventAttendanceAndCertificates(selectedEventId, currentEvent?.title);
-      setAttendanceList([]);
-      alert(`All attendance records and certificates for "${eventName}" have been completely wiped! You can now upload a fresh attendance sheet.`);
+      if (wipeScope === "ATTENDANCE_ONLY") {
+        db.clearEventAttendanceOnly(selectedEventId, currentEvent?.title);
+        setAttendanceList([]);
+        alert(`Attendance records for "${eventName}" have been wiped. Existing QR / Verification codes remain preserved.`);
+      } else if (wipeScope === "CODES_ONLY") {
+        await db.clearEventCredentialsOnly(selectedEventId, currentEvent?.title);
+        // Refresh attendance list so code column is cleared
+        const updated = db.getAttendance(selectedEventId);
+        setAttendanceList(updated);
+        alert(`All QR and verification codes for "${eventName}" have been deleted/revoked. You can now generate fresh codes.`);
+      } else {
+        await db.clearEventAttendanceAndCertificates(selectedEventId, currentEvent?.title);
+        setAttendanceList([]);
+        alert(`All attendance records and verification codes for "${eventName}" have been completely wiped!`);
+      }
     } catch (err: any) {
       alert("Failed to clear data: " + err.message);
     }
@@ -429,13 +488,13 @@ export default function AdminAttendancePage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-montserrat font-bold text-ieee-blue uppercase tracking-wider">
-              <Users size={16} /> Attendance & Certification Engine
+              <Users size={16} /> Attendance & Verification Hub
             </div>
             <h1 className="text-2xl sm:text-3xl font-montserrat font-extrabold text-ieee-navy mt-1">
-              Attendance Sheet & Bulk PDF Generator
+              Attendance & QR Verification Code Hub
             </h1>
             <p className="text-xs text-gray-500 mt-1">
-              Upload attendance sheets (Excel/CSV), mark attendees, and generate official verifiable certificates in bulk.
+              Upload attendance sheets (Excel/CSV with Roll Numbers & Emails), verify attendees, and issue tamper-evident permanent QR codes.
             </p>
           </div>
 
@@ -465,9 +524,9 @@ export default function AdminAttendancePage() {
             <button
               onClick={handleClearEventData}
               className="px-3.5 py-2 border border-red-200 bg-red-50 text-red-700 text-xs font-semibold rounded-lg hover:bg-red-100 flex items-center gap-1.5 shadow-sm transition-colors"
-              title="Permanently wipe attendance records and certificates for this event"
+              title="Wipe attendance sheet or QR verification codes for this event"
             >
-              <Trash2 size={14} className="text-red-600" /> Clear / Wipe Event Data
+              <Trash2 size={14} className="text-red-600" /> Wipe Event Data
             </button>
 
             <Button
@@ -481,6 +540,86 @@ export default function AdminAttendancePage() {
             </Button>
           </div>
         </div>
+
+        {/* Granular Wipe Confirmation Modal */}
+        {isWipeModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-card max-w-md w-full p-6 shadow-2xl border border-red-200 space-y-4">
+              <div className="flex items-center gap-2.5 text-red-600">
+                <Trash2 size={20} />
+                <h3 className="font-montserrat font-bold text-lg text-gray-900">
+                  Wipe Data: {currentEvent?.title || "Event"}
+                </h3>
+              </div>
+
+              <p className="text-xs text-gray-600">
+                Choose what you want to remove. Once wiped, you can upload fresh corrected data:
+              </p>
+
+              <div className="space-y-2 border border-red-100 p-3 rounded-lg bg-red-50/40">
+                <label className="flex items-start gap-2.5 text-xs text-gray-800 cursor-pointer p-1.5 rounded hover:bg-white">
+                  <input
+                    type="radio"
+                    name="modalWipeScope"
+                    value="ALL"
+                    checked={wipeScope === "ALL"}
+                    onChange={() => setWipeScope("ALL")}
+                    className="mt-0.5 text-red-600 focus:ring-red-500"
+                  />
+                  <div>
+                    <strong className="block text-gray-900">Everything (Full Reset)</strong>
+                    <span className="text-[11px] text-gray-500">Wipe Attendance records AND revoke all issued QR & verification codes.</span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2.5 text-xs text-gray-800 cursor-pointer p-1.5 rounded hover:bg-white">
+                  <input
+                    type="radio"
+                    name="modalWipeScope"
+                    value="ATTENDANCE_ONLY"
+                    checked={wipeScope === "ATTENDANCE_ONLY"}
+                    onChange={() => setWipeScope("ATTENDANCE_ONLY")}
+                    className="mt-0.5 text-red-600 focus:ring-red-500"
+                  />
+                  <div>
+                    <strong className="block text-gray-900">Attendance Sheet Only</strong>
+                    <span className="text-[11px] text-gray-500">Clears uploaded attendees. Previously issued QR and verification codes remain permanent.</span>
+                  </div>
+                </label>
+
+                <label className="flex items-start gap-2.5 text-xs text-gray-800 cursor-pointer p-1.5 rounded hover:bg-white">
+                  <input
+                    type="radio"
+                    name="modalWipeScope"
+                    value="CODES_ONLY"
+                    checked={wipeScope === "CODES_ONLY"}
+                    onChange={() => setWipeScope("CODES_ONLY")}
+                    className="mt-0.5 text-red-600 focus:ring-red-500"
+                  />
+                  <div>
+                    <strong className="block text-gray-900">QR & Verification Codes Only</strong>
+                    <span className="text-[11px] text-gray-500">Revokes codes from the database so fresh QR codes can be generated for the same attendees.</span>
+                  </div>
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  onClick={() => setIsWipeModalOpen(false)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={executeGranularWipe}
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-bold shadow-sm"
+                >
+                  Confirm & Wipe
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Generation Progress Bar */}
         {isGeneratingPdfs && (

@@ -203,7 +203,9 @@ export default function AdminCertificatesPage() {
     (c) =>
       c.recipientName.toLowerCase().includes(search.toLowerCase()) ||
       c.code.toLowerCase().includes(search.toLowerCase()) ||
-      c.eventTitle.toLowerCase().includes(search.toLowerCase())
+      c.eventTitle.toLowerCase().includes(search.toLowerCase()) ||
+      (c.recipientRollNumber && c.recipientRollNumber.toLowerCase().includes(search.toLowerCase())) ||
+      (c.recipientEmail && c.recipientEmail.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (
@@ -212,18 +214,17 @@ export default function AdminCertificatesPage() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-montserrat font-extrabold text-ieee-navy">
-              Certificate Lifecycle Records
+              Verified Credentials & QR Registry
             </h1>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              Search, verify, revoke erroneously issued credentials, or issue replacements
-              with linked pointers.
+              Search, verify, revoke credentials, or view live issued QR records synchronized with Supabase.
             </p>
           </div>
 
           <div className="flex items-center gap-2.5">
-            <Link href="/admin/certificates/new">
-              <Button variant="primary" size="sm" className="bg-ieee-navy hover:bg-ieee-blue text-xs font-bold flex items-center gap-1.5 shadow-sm">
-                <Award size={15} /> 5-Step Certificate Wizard
+            <Link href="/admin/attendance">
+              <Button variant="accent" size="sm" className="text-xs font-bold flex items-center gap-1.5 shadow-sm">
+                <Award size={15} /> Attendance & QR Generator Hub
               </Button>
             </Link>
 
@@ -293,7 +294,14 @@ export default function AdminCertificatesPage() {
                     </td>
 
                     <td className="p-4 font-semibold text-gray-900">
-                      {cert.recipientName}
+                      <div>{cert.recipientName}</div>
+                      {(cert.recipientRollNumber || cert.recipientEmail) && (
+                        <div className="text-[11px] font-normal text-gray-500 space-x-1.5 mt-0.5">
+                          {cert.recipientRollNumber && <span className="font-mono text-ieee-navy font-semibold">{cert.recipientRollNumber}</span>}
+                          {cert.recipientRollNumber && cert.recipientEmail && <span>•</span>}
+                          {cert.recipientEmail && <span>{cert.recipientEmail}</span>}
+                        </div>
+                      )}
                     </td>
 
                     <td className="p-4 text-gray-600">

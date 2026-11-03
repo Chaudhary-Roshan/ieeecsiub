@@ -115,6 +115,29 @@ export async function checkInTicketAction(ticketCode: string, reason?: string) {
   return data;
 }
 
+export async function wipeEventCredentialsOnlyAction(params: { eventId: string; eventTitle?: string }) {
+  const supabase = await createClient();
+  const cleanId = (params.eventId || "").trim();
+  const cleanTitle = (params.eventTitle || "").trim();
+
+  if (cleanId) {
+    try {
+      await supabase.from("certificates").delete().eq("event_id", cleanId);
+    } catch {}
+  }
+  if (cleanTitle) {
+    try {
+      await supabase.from("certificates").delete().ilike("event_title", cleanTitle);
+    } catch {}
+  }
+
+  revalidatePath("/admin/attendance");
+  revalidatePath("/admin/registry");
+  revalidatePath("/admin/certificates");
+  revalidatePath("/verify");
+  return { success: true };
+}
+
 export async function clearEventDataAction(params: { eventId: string; eventTitle?: string }) {
   const supabase = await createClient();
   const cleanId = (params.eventId || "").trim();
@@ -129,6 +152,7 @@ export async function clearEventDataAction(params: { eventId: string; eventTitle
     if (!rpcErr && rpcRes?.success) {
       revalidatePath("/admin/attendance");
       revalidatePath("/admin/registry");
+      revalidatePath("/admin/certificates");
       revalidatePath("/verify");
       return { success: true, count: rpcRes.certificates_deleted || 0 };
     }
@@ -151,6 +175,7 @@ export async function clearEventDataAction(params: { eventId: string; eventTitle
 
   revalidatePath("/admin/attendance");
   revalidatePath("/admin/registry");
+  revalidatePath("/admin/certificates");
   revalidatePath("/verify");
   return { success: true };
 }
@@ -160,8 +185,12 @@ export async function wipeAllCertificatesAction() {
   try {
     await supabase.from("certificates").delete().neq("id", "00000000-0000-0000-0000-000000000000");
   } catch {}
+  try {
+    await supabase.from("upload_batches").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  } catch {}
   revalidatePath("/admin/registry");
   revalidatePath("/admin/attendance");
+  revalidatePath("/admin/certificates");
   revalidatePath("/verify");
   return { success: true };
 }

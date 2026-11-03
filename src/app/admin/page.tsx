@@ -33,6 +33,7 @@ export default function AdminDashboardPage() {
   const [isDbModalOpen, setIsDbModalOpen] = useState(false);
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedWipeEvent, setSelectedWipeEvent] = useState<string>("");
+  const [wipeScope, setWipeScope] = useState<"ALL" | "ATTENDANCE_ONLY" | "CODES_ONLY">("ALL");
   const [isWiping, setIsWiping] = useState(false);
 
   useEffect(() => {
@@ -61,19 +62,34 @@ export default function AdminDashboardPage() {
     if (!selectedWipeEvent) return;
     const targetEvent = events.find((e) => e.id === selectedWipeEvent);
     const title = targetEvent?.title || "selected event";
-    if (
-      !confirm(
-        `DANGER: Are you sure you want to permanently clear all attendance records and certificates for:\n"${title}"?\n\nThis will wipe the data so you can re-upload fresh records.`
-      )
-    ) {
-      return;
+
+    let confirmMsg = "";
+    if (wipeScope === "ATTENDANCE_ONLY") {
+      confirmMsg = `Are you sure you want to clear ATTENDANCE RECORDS ONLY for:\n"${title}"?\n\nExisting QR codes and verification codes will remain intact.`;
+    } else if (wipeScope === "CODES_ONLY") {
+      confirmMsg = `Are you sure you want to clear QR & VERIFICATION CODES ONLY for:\n"${title}"?\n\nThis will revoke/delete all issued verification records and QR codes for this event so you can regenerate fresh ones.`;
+    } else {
+      confirmMsg = `DANGER / FULL WIPE:\n\nAre you sure you want to permanently clear BOTH Attendance records AND QR/Verification codes for:\n"${title}"?\n\nThis resets all records for this event completely.`;
     }
+
+    if (!confirm(confirmMsg)) return;
+
     setIsWiping(true);
     try {
-      await db.clearEventAttendanceAndCertificates(selectedWipeEvent, targetEvent?.title);
-      const liveCerts = await db.fetchCertificates();
-      setCertsCount(liveCerts.length);
-      alert(`Successfully wiped attendance records and certificates for "${title}"!`);
+      if (wipeScope === "ATTENDANCE_ONLY") {
+        db.clearEventAttendanceOnly(selectedWipeEvent, targetEvent?.title);
+        alert(`Successfully wiped attendance records for "${title}"! Existing QR/Verification codes remain preserved.`);
+      } else if (wipeScope === "CODES_ONLY") {
+        await db.clearEventCredentialsOnly(selectedWipeEvent, targetEvent?.title);
+        const liveCerts = await db.fetchCertificates();
+        setCertsCount(liveCerts.length);
+        alert(`Successfully wiped all QR & verification codes for "${title}"! Attendance list remains intact.`);
+      } else {
+        await db.clearEventAttendanceAndCertificates(selectedWipeEvent, targetEvent?.title);
+        const liveCerts = await db.fetchCertificates();
+        setCertsCount(liveCerts.length);
+        alert(`Successfully wiped both attendance records and QR/verification codes for "${title}"!`);
+      }
     } catch (err: any) {
       alert("Wipe failed: " + err.message);
     } finally {
@@ -84,7 +100,7 @@ export default function AdminDashboardPage() {
   const handleWipeAllCertificates = async () => {
     if (
       !confirm(
-        `EXTREME DANGER: Are you sure you want to delete ALL certificates from the database?\n\nThis will wipe every certificate issued across all events so you can start completely fresh.`
+        `EXTREME DANGER: Are you sure you want to delete ALL verification codes and QR records across the ENTIRE system?\n\nThis will wipe every credential and batch issued across all events so you can start completely fresh.`
       )
     ) {
       return;
@@ -94,7 +110,7 @@ export default function AdminDashboardPage() {
       const count = await db.wipeAllCertificates();
       db.wipeAllAttendance();
       setCertsCount(0);
-      alert(`Successfully wiped ${count} certificates and reset all attendance records!`);
+      alert(`Successfully wiped ${count} verification codes and reset all attendance records!`);
     } catch (err: any) {
       alert("Wipe failed: " + err.message);
     } finally {
@@ -325,10 +341,10 @@ export default function AdminDashboardPage() {
                 <Trash2 size={16} /> Database Maintenance & Data Wipe
               </div>
               <h3 className="font-montserrat font-bold text-lg text-ieee-navy mt-0.5">
-                Clear Event Attendance & Certificate Data
+                Clear Event Attendance & Verification QR Codes
               </h3>
               <p className="text-xs text-gray-500">
-                Wipe event attendance sheets or certificates so you can upload fresh corrected data. Once certificates are issued, their codes stay permanent until wiped here.
+                Wipe event attendance sheets or QR / verification credentials with granular controls. Once issued, codes remain permanent until wiped here.
               </p>
             </div>
             {isWiping && (
@@ -345,46 +361,92 @@ export default function AdminDashboardPage() {
                 Wipe Selected Event Data
               </h4>
               <p className="text-xs text-gray-600">
-                Permanently clears all attendance records and certificates for a specific event so you can re-upload a clean attendance sheet.
+                Choose the target event and exactly what you wish to delete:
               </p>
-              <div className="space-y-2">
-                <select
-                  value={selectedWipeEvent}
-                  onChange={(e) => setSelectedWipeEvent(e.target.value)}
-                  className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-red-500 font-medium"
-                >
-                  {events.map((evt) => (
-                    <option key={evt.id} value={evt.id}>
-                      {evt.title} ({evt.status})
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 block mb-1">Target Event:</label>
+                  <select
+                    value={selectedWipeEvent}
+                    onChange={(e) => setSelectedWipeEvent(e.target.value)}
+                    className="w-full text-xs border border-gray-300 rounded-lg p-2.5 bg-white text-gray-900 focus:outline-none focus:ring-1 focus:ring-red-500 font-medium"
+                  >
+                    {events.map((evt) => (
+                      <option key={evt.id} value={evt.id}>
+                        {evt.title} ({evt.status})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-gray-700 block mb-1.5">What would you like to delete?</label>
+                  <div className="space-y-1.5">
+                    <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer p-1.5 rounded hover:bg-red-100/50">
+                      <input
+                        type="radio"
+                        name="wipeScope"
+                        value="ALL"
+                        checked={wipeScope === "ALL"}
+                        onChange={() => setWipeScope("ALL")}
+                        className="text-red-600 focus:ring-red-500"
+                      />
+                      <span><strong>Everything:</strong> Wipe Attendance + All QR Codes & Verification Codes</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer p-1.5 rounded hover:bg-red-100/50">
+                      <input
+                        type="radio"
+                        name="wipeScope"
+                        value="ATTENDANCE_ONLY"
+                        checked={wipeScope === "ATTENDANCE_ONLY"}
+                        onChange={() => setWipeScope("ATTENDANCE_ONLY")}
+                        className="text-red-600 focus:ring-red-500"
+                      />
+                      <span><strong>Attendance Records Only:</strong> Keep issued QR / verification codes intact</span>
+                    </label>
+
+                    <label className="flex items-center gap-2 text-xs text-gray-800 cursor-pointer p-1.5 rounded hover:bg-red-100/50">
+                      <input
+                        type="radio"
+                        name="wipeScope"
+                        value="CODES_ONLY"
+                        checked={wipeScope === "CODES_ONLY"}
+                        onChange={() => setWipeScope("CODES_ONLY")}
+                        className="text-red-600 focus:ring-red-500"
+                      />
+                      <span><strong>QR & Verification Codes Only:</strong> Revoke codes to regenerate fresh ones</span>
+                    </label>
+                  </div>
+                </div>
 
                 <button
                   onClick={handleWipeEventData}
                   disabled={isWiping || !selectedWipeEvent}
-                  className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-lg transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                  className="w-full mt-2 px-4 py-2.5 bg-red-600 hover:bg-red-700 disabled:bg-gray-300 text-white text-xs font-bold rounded-lg transition-colors shadow-xs flex items-center justify-center gap-1.5"
                 >
-                  <Trash2 size={14} /> Clear Attendance & Certificates for Selected Event
+                  <Trash2 size={14} /> Wipe Selected Event Data
                 </button>
               </div>
             </div>
 
-            {/* Global Certificate Registry Reset */}
-            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3">
-              <h4 className="font-montserrat font-bold text-sm text-gray-900">
-                Wipe All Registry Certificates
-              </h4>
-              <p className="text-xs text-gray-600">
-                Resets the entire certificate registry across all events. Use this if you want a complete blank slate before launching fresh events.
-              </p>
-              <div className="pt-8">
+            {/* Global Credential Registry Reset */}
+            <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 space-y-3 flex flex-col justify-between">
+              <div className="space-y-2">
+                <h4 className="font-montserrat font-bold text-sm text-gray-900">
+                  Wipe All Verification Codes & QR Records (Complete Reset)
+                </h4>
+                <p className="text-xs text-gray-600 leading-relaxed">
+                  Resets the entire verification and QR credential registry across all events in both the local storage and Supabase database. Use this if you want a complete blank slate before launching fresh events.
+                </p>
+              </div>
+              <div className="pt-4">
                 <button
                   onClick={handleWipeAllCertificates}
                   disabled={isWiping}
-                  className="w-full px-4 py-2 border border-red-300 bg-white hover:bg-red-50 text-red-700 text-xs font-bold rounded-lg transition-colors shadow-xs flex items-center justify-center gap-1.5"
+                  className="w-full px-4 py-2.5 border border-red-300 bg-white hover:bg-red-50 text-red-700 text-xs font-bold rounded-lg transition-colors shadow-xs flex items-center justify-center gap-1.5"
                 >
-                  <Trash2 size={14} /> Clear All Certificates Registry (Full Reset)
+                  <Trash2 size={14} /> Wipe All Credentials Across All Events (Full Reset)
                 </button>
               </div>
             </div>
