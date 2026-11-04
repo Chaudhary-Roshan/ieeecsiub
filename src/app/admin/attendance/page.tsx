@@ -34,27 +34,100 @@ import {
   X,
 } from "lucide-react";
 
-function extractFieldFromRow(row: any, aliases: string[]): string {
+function cleanStr(s: any): string {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function formatExtractedValue(val: any, type?: "text" | "phone" | "email" | "roll"): string {
+  if (val === undefined || val === null) return "";
+  let s = String(val).trim();
+  if (typeof val === "number" && !isNaN(val)) {
+    s = val.toLocaleString("fullwide", { useGrouping: false });
+  }
+
+  if (type === "phone") {
+    let digits = s.replace(/[^\d]/g, "");
+    if (digits.startsWith("923") && digits.length === 12) {
+      digits = "0" + digits.slice(2);
+    } else if (digits.startsWith("00923") && digits.length === 14) {
+      digits = "0" + digits.slice(4);
+    } else if (digits.startsWith("3") && digits.length === 10) {
+      digits = "0" + digits;
+    }
+    if (digits.length === 11 && digits.startsWith("03")) {
+      return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    }
+    return digits || s;
+  }
+
+  if (type === "roll") {
+    if (s.toLowerCase() === "n/a" || s.toLowerCase() === "none" || s.toLowerCase() === "null") return "";
+    return s.toUpperCase();
+  }
+
+  if (type === "email") {
+    return s.toLowerCase();
+  }
+
+  return s;
+}
+
+function extractFieldFromRow(row: any, aliases: string[], type?: "text" | "phone" | "email" | "roll"): string {
   if (!row || typeof row !== "object") return "";
   const keys = Object.keys(row);
 
   // 1. Direct exact key match
   for (const alias of aliases) {
     if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== "") {
-      return String(row[alias]).trim();
+      return formatExtractedValue(row[alias], type);
     }
   }
 
   // 2. Normalized alphanumeric match
-  for (const alias of aliases) {
-    const cleanAlias = alias.toLowerCase().replace(/[^a-z0-9]/g, "");
-    for (const k of keys) {
-      const cleanKey = k.toLowerCase().replace(/[^a-z0-9]/g, "");
-      if (cleanKey === cleanAlias || cleanKey.includes(cleanAlias) || cleanAlias.includes(cleanKey)) {
+  const normAliases = aliases.map(cleanStr);
+  for (const k of keys) {
+    const normK = cleanStr(k);
+    if (normAliases.includes(normK)) {
+      const val = row[k];
+      if (val !== undefined && val !== null && String(val).trim() !== "") {
+        return formatExtractedValue(val, type);
+      }
+    }
+  }
+
+  // 3. Substring & question header match
+  for (const k of keys) {
+    const normK = cleanStr(k);
+    for (const alias of aliases) {
+      const normAlias = cleanStr(alias);
+      if (normAlias.length >= 3 && normK.includes(normAlias)) {
         const val = row[k];
         if (val !== undefined && val !== null && String(val).trim() !== "") {
-          return String(val).trim();
+          return formatExtractedValue(val, type);
         }
+      }
+    }
+  }
+
+  // 4. Value-pattern fallback
+  if (type === "roll") {
+    for (const k of keys) {
+      const normK = cleanStr(k);
+      if (normK.includes("name") || normK.includes("email") || normK.includes("phone") || normK.includes("time") || normK.includes("date")) continue;
+      const val = String(row[k] || "").trim();
+      if (/^[A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}$/i.test(val) || /^[A-Za-z]{2,4}\d{2}[A-Za-z0-9\-]+$/i.test(val)) {
+        return formatExtractedValue(val, "roll");
+      }
+    }
+  }
+
+  if (type === "email") {
+    for (const k of keys) {
+      const val = row[k];
+      if (!val) continue;
+      const strVal = String(val).trim();
+      if (strVal.includes("@") && strVal.includes(".")) {
+        return formatExtractedValue(strVal, "email");
       }
     }
   }
@@ -187,17 +260,17 @@ export default function AdminAttendancePage() {
         // 1. Ultra-robust fuzzy column extraction
         const name = extractFieldFromRow(row, [
           "Full Name", "Student Name", "Participant Name", "Name", "Student", "Attendee", "Attendee Name", "Participant"
-        ]) || `Participant ${idx + 1}`;
+        ], "text") || `Participant ${idx + 1}`;
 
         const rollNumber = extractFieldFromRow(row, [
           "Roll Number", "Roll No", "Roll No.", "Roll_No", "Registration No", "Reg No", "Reg No.", "Reg_No",
           "Registration", "Roll", "Reg", "ID", "Student ID", "RollNumber", "RegNumber", "Roll_Number"
-        ]);
+        ], "roll");
 
         const email = extractFieldFromRow(row, [
           "Email Address", "Email", "Gmail", "E-mail", "Student Email", "Mail", "Email / Gmail", "E-Mail Address",
           "Contact Email", "EmailAddress", "G-Mail"
-        ]);
+        ], "email");
 
         const attendedRaw = extractFieldFromRow(row, [
           "Attended", "Attendance", "Status", "Present", "Attended?"

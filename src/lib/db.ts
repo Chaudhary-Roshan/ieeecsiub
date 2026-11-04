@@ -1945,15 +1945,75 @@ class ChapterDatabase {
 
   // --- Option 2: Registrations & Payments ---
   getRegistrations(): Registration[] {
-    return this.getItem("registrations", SEED_REGISTRATIONS);
+    const raw = this.getItem<Registration[]>("registrations", SEED_REGISTRATIONS);
+    if (!Array.isArray(raw)) return [];
+
+    // Deduplicate in memory by ticketCode and eventId+email
+    const seen = new Set<string>();
+    const deduplicated: Registration[] = [];
+    for (const r of raw) {
+      if (!r) continue;
+      const key = (r.ticketCode && r.ticketCode.trim())
+        ? `ticket:${r.ticketCode.trim().toUpperCase()}`
+        : `${r.eventId || ""}_${(r.email || "").trim().toLowerCase()}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        deduplicated.push(r);
+      }
+    }
+    return deduplicated;
   }
 
   async fetchRegistrations(eventId?: string): Promise<Registration[]> {
     const localList = this.getRegistrations();
+    // Use unique primary key: ticketCode, or id, or (eventId + email)
     const regMap = new Map<string, Registration>();
+    const emailIndex = new Map<string, string>(); // eventId_email -> primaryKey
+
+    const getKeys = (r: Partial<Registration>) => {
+      const primaryKey = (r.ticketCode && r.ticketCode.trim())
+        ? `TCK:${r.ticketCode.trim().toUpperCase()}`
+        : (r.id ? `ID:${r.id}` : `AUTO:${Math.random()}`);
+      const emailKey = (r.eventId && r.email)
+        ? `${r.eventId}:${r.email.trim().toLowerCase()}`
+        : null;
+      return { primaryKey, emailKey };
+    };
+
+    const mergeRecord = (existing: Registration, incoming: Registration): Registration => {
+      // Pick best roll number: avoid empty or "N/A"
+      const bestRoll = (incoming.rollNumber && incoming.rollNumber.trim() && incoming.rollNumber !== "N/A" && incoming.rollNumber !== "N / A")
+        ? incoming.rollNumber.trim()
+        : existing.rollNumber;
+
+      // Pick best phone: avoid empty or fallback dummy "0300-0000000"
+      const bestPhone = (incoming.phone && incoming.phone.trim() && !incoming.phone.includes("0300-0000000") && incoming.phone !== "N/A")
+        ? incoming.phone.trim()
+        : existing.phone;
+
+      return {
+        ...existing,
+        ...incoming,
+        rollNumber: bestRoll || "N/A",
+        phone: bestPhone || "0300-0000000",
+        degreeProgram: incoming.degreeProgram || existing.degreeProgram,
+        department: incoming.department || existing.department || "Computer Science",
+      };
+    };
+
     localList.forEach((r) => {
-      if (r.id) regMap.set(r.id, r);
-      if (r.ticketCode) regMap.set(r.ticketCode, r);
+      const { primaryKey, emailKey } = getKeys(r);
+      if (emailKey && emailIndex.has(emailKey)) {
+        const existingKey = emailIndex.get(emailKey)!;
+        const existing = regMap.get(existingKey);
+        if (existing) {
+          regMap.set(existingKey, mergeRecord(existing, r));
+          return;
+        }
+      }
+
+      regMap.set(primaryKey, r);
+      if (emailKey) emailIndex.set(emailKey, primaryKey);
     });
 
     const client = getSupabase();
@@ -1989,7 +2049,24 @@ class ChapterDatabase {
               ticketCode: d.ticket_code,
               createdAt: d.created_at,
             };
-            regMap.set(mapped.id, mapped);
+
+            const { primaryKey, emailKey } = getKeys(mapped);
+            if (emailKey && emailIndex.has(emailKey)) {
+              const existingKey = emailIndex.get(emailKey)!;
+              const existing = regMap.get(existingKey);
+              if (existing) {
+                regMap.set(existingKey, mergeRecord(existing, mapped));
+                return;
+              }
+            }
+
+            if (regMap.has(primaryKey)) {
+              const existing = regMap.get(primaryKey)!;
+              regMap.set(primaryKey, mergeRecord(existing, mapped));
+            } else {
+              regMap.set(primaryKey, mapped);
+              if (emailKey) emailIndex.set(emailKey, primaryKey);
+            }
           });
         }
       } catch (err) {
@@ -2013,11 +2090,48 @@ class ChapterDatabase {
     this.setItem("registrations", regs);
   }
 
+  deduplicateRegistrations(): { before: number; after: number; removed: number } {
+    const list = this.getRegistrations();
+    const before = list.length;
+    const seen = new Map<string, Registration>();
+
+    for (const r of list) {
+      const emailKey = `${r.eventId || ""}_${(r.email || "").trim().toLowerCase()}`;
+      if (!seen.has(emailKey)) {
+        seen.set(emailKey, r);
+      } else {
+        const existing = seen.get(emailKey)!;
+        const bestRoll = (r.rollNumber && r.rollNumber !== "N/A" && r.rollNumber !== "N / A") ? r.rollNumber : existing.rollNumber;
+        const bestPhone = (r.phone && r.phone !== "0300-0000000" && r.phone !== "N/A") ? r.phone : existing.phone;
+        seen.set(emailKey, {
+          ...existing,
+          ...r,
+          rollNumber: bestRoll,
+          phone: bestPhone,
+        });
+      }
+    }
+
+    const cleaned = Array.from(seen.values());
+    this.setItem("registrations", cleaned);
+    return { before, after: cleaned.length, removed: before - cleaned.length };
+  }
+
   async addRegistration(reg: Registration): Promise<void> {
     const list = this.getRegistrations();
-    const existingIdx = list.findIndex((r) => r.id === reg.id || (reg.ticketCode && r.ticketCode === reg.ticketCode));
+    const existingIdx = list.findIndex(
+      (r) =>
+        r.id === reg.id ||
+        (reg.ticketCode && r.ticketCode === reg.ticketCode) ||
+        (r.eventId === reg.eventId && r.email.toLowerCase() === reg.email.toLowerCase())
+    );
     if (existingIdx >= 0) {
-      list[existingIdx] = { ...list[existingIdx], ...reg };
+      list[existingIdx] = {
+        ...list[existingIdx],
+        ...reg,
+        rollNumber: (reg.rollNumber && reg.rollNumber !== "N/A") ? reg.rollNumber : list[existingIdx].rollNumber,
+        phone: (reg.phone && reg.phone !== "0300-0000000") ? reg.phone : list[existingIdx].phone,
+      };
     } else {
       list.unshift(reg);
     }

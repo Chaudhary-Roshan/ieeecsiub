@@ -27,27 +27,114 @@ import {
   Ticket,
   Upload,
   FileSpreadsheet,
+  Sparkles,
 } from "lucide-react";
 
-function extractFieldFromRow(row: any, aliases: string[]): string {
+function cleanStr(s: any): string {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function formatExtractedValue(val: any, type?: "text" | "phone" | "email" | "roll"): string {
+  if (val === undefined || val === null) return "";
+  let s = String(val).trim();
+  if (typeof val === "number" && !isNaN(val)) {
+    s = val.toLocaleString("fullwide", { useGrouping: false });
+  }
+
+  if (type === "phone") {
+    let digits = s.replace(/[^\d]/g, "");
+    if (digits.startsWith("923") && digits.length === 12) {
+      digits = "0" + digits.slice(2);
+    } else if (digits.startsWith("00923") && digits.length === 14) {
+      digits = "0" + digits.slice(4);
+    } else if (digits.startsWith("3") && digits.length === 10) {
+      digits = "0" + digits;
+    }
+    if (digits.length === 11 && digits.startsWith("03")) {
+      return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    }
+    return digits || s;
+  }
+
+  if (type === "roll") {
+    if (s.toLowerCase() === "n/a" || s.toLowerCase() === "none" || s.toLowerCase() === "null") return "";
+    return s.toUpperCase();
+  }
+
+  if (type === "email") {
+    return s.toLowerCase();
+  }
+
+  return s;
+}
+
+function extractFieldFromRow(row: any, aliases: string[], type?: "text" | "phone" | "email" | "roll"): string {
   if (!row || typeof row !== "object") return "";
   const keys = Object.keys(row);
 
   // 1. Direct exact key match
   for (const alias of aliases) {
     if (row[alias] !== undefined && row[alias] !== null && String(row[alias]).trim() !== "") {
-      return String(row[alias]).trim();
+      return formatExtractedValue(row[alias], type);
     }
   }
 
-  // 2. Case-insensitive and normalized key match (removes spaces, underscores, dots)
-  const normAliases = aliases.map((a) => a.toLowerCase().replace(/[\s_\-\.]/g, ""));
+  // 2. Case-insensitive & punctuation-stripped normalized key match
+  const normAliases = aliases.map(cleanStr);
   for (const k of keys) {
-    const normK = k.toLowerCase().replace(/[\s_\-\.]/g, "");
+    const normK = cleanStr(k);
     if (normAliases.includes(normK)) {
       const val = row[k];
       if (val !== undefined && val !== null && String(val).trim() !== "") {
-        return String(val).trim();
+        return formatExtractedValue(val, type);
+      }
+    }
+  }
+
+  // 3. Substring & question header match (handles Google Forms like "Roll Number (e.g. FA21-BCS-001)")
+  for (const k of keys) {
+    const normK = cleanStr(k);
+    for (const alias of aliases) {
+      const normAlias = cleanStr(alias);
+      if (normAlias.length >= 3 && normK.includes(normAlias)) {
+        const val = row[k];
+        if (val !== undefined && val !== null && String(val).trim() !== "") {
+          return formatExtractedValue(val, type);
+        }
+      }
+    }
+  }
+
+  // 4. Value-pattern fallback if headers are non-standard
+  if (type === "phone") {
+    for (const k of keys) {
+      const val = row[k];
+      if (!val) continue;
+      const digits = String(val).replace(/[^\d]/g, "");
+      if (digits.length >= 10 && (digits.startsWith("03") || digits.startsWith("3") || digits.startsWith("923"))) {
+        return formatExtractedValue(val, "phone");
+      }
+    }
+  }
+
+  if (type === "roll") {
+    for (const k of keys) {
+      const normK = cleanStr(k);
+      if (normK.includes("name") || normK.includes("email") || normK.includes("phone") || normK.includes("time") || normK.includes("date") || normK.includes("dept") || normK.includes("program")) continue;
+      const val = String(row[k] || "").trim();
+      if (/^[A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}$/i.test(val) || /^[A-Za-z]{2,4}\d{2}[A-Za-z0-9\-]+$/i.test(val)) {
+        return formatExtractedValue(val, "roll");
+      }
+    }
+  }
+
+  if (type === "email") {
+    for (const k of keys) {
+      const val = row[k];
+      if (!val) continue;
+      const strVal = String(val).trim();
+      if (strVal.includes("@") && strVal.includes(".")) {
+        return formatExtractedValue(strVal, "email");
       }
     }
   }
@@ -377,6 +464,17 @@ export default function AdminRegistrationsPage() {
     document.body.removeChild(link);
   };
 
+  // Deduplicate and clean registrations
+  const handleDeduplicate = async () => {
+    const res = db.deduplicateRegistrations();
+    await loadData();
+    if (res.removed > 0) {
+      alert(`Successfully merged and removed ${res.removed} duplicate registration(s)! Total unique registrations is now ${res.after}.`);
+    } else {
+      alert(`Registrations are already 100% clean and free of duplicates (${res.after} unique records).`);
+    }
+  };
+
   // Import from Excel or CSV
   const handleImportSheet = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -404,61 +502,74 @@ export default function AdminRegistrationsPage() {
         targetEventId = events[0].id;
       }
 
-      let importedCount = 0;
-      const newRegistrations: Registration[] = [];
+      let newCount = 0;
+      let updatedCount = 0;
+      const sheetSeen = new Set<string>();
+
+      const ROLL_ALIASES = [
+        "rollnumber", "rollno", "roll", "regno", "regnumber", "registration",
+        "registrationno", "registrationnumber", "cmsid", "cms", "studentid",
+        "seatno", "enrollment", "enrollmentno", "studentrollno", "id", "reg",
+        "roll_number", "roll_no", "reg_no", "student_id"
+      ];
+      const PHONE_ALIASES = [
+        "phonenumber", "phone", "phoneno", "mobile", "mobileno", "mobilenumber",
+        "whatsapp", "whatsappno", "whatsappnumber", "contact", "contactno",
+        "contactnumber", "cell", "cellno", "cellnumber", "tel", "phone_number"
+      ];
+      const NAME_ALIASES = [
+        "fullname", "studentname", "participantname", "name", "student", "attendee",
+        "attendeename", "participant", "yourname", "nameofparticipant", "candidate", "candidatename"
+      ];
+      const EMAIL_ALIASES = [
+        "emailaddress", "email", "gmail", "studentemail", "mail", "emailgmail",
+        "contactemail", "youremail", "emailid"
+      ];
+      const DEPT_ALIASES = [
+        "department", "dept", "faculty", "discipline"
+      ];
+      const PROGRAM_ALIASES = [
+        "programdegree", "degreeprogram", "degree", "program", "studyprogram",
+        "bsms", "course", "batch", "semester", "session"
+      ];
+      const IEEE_ALIASES = [
+        "ieeemember", "member", "isieeemember", "isieee", "ieee", "areyouanieeemember"
+      ];
+      const IEEE_NO_ALIASES = [
+        "ieeemembership", "ieeemembershipnumber", "ieeenumber", "ieeeno",
+        "membershipnumber", "memberid", "ieeeid", "ieeemembershipno"
+      ];
 
       for (let idx = 0; idx < jsonRows.length; idx++) {
         const row = jsonRows[idx];
 
-        const fullName = extractFieldFromRow(row, [
-          "Full Name", "Student Name", "Participant Name", "Name", "Student", "Attendee", "Attendee Name", "Participant"
-        ]);
+        const fullName = extractFieldFromRow(row, NAME_ALIASES, "text");
         if (!fullName) continue;
 
-        const rollNumber = extractFieldFromRow(row, [
-          "Roll Number", "Roll No", "Roll No.", "Roll_No", "Registration No", "Reg No", "Reg No.", "Reg_No",
-          "Registration", "Roll", "Reg", "ID", "Student ID", "RollNumber", "RegNumber", "Roll_Number"
-        ]);
+        const rollNumber = extractFieldFromRow(row, ROLL_ALIASES, "roll");
 
-        const email = extractFieldFromRow(row, [
-          "Email Address", "Email", "Gmail", "E-mail", "Student Email", "Mail", "Email / Gmail", "E-Mail Address",
-          "Contact Email", "EmailAddress", "G-Mail"
-        ]) || `${fullName.toLowerCase().replace(/[^a-z0-9]/g, "")}.${Date.now().toString().slice(-4)}@ucet.iub.edu.pk`;
+        const email = extractFieldFromRow(row, EMAIL_ALIASES, "email") ||
+          `${fullName.toLowerCase().replace(/[^a-z0-9]/g, "")}.${Date.now().toString().slice(-4)}@ucet.iub.edu.pk`;
 
-        const phone = extractFieldFromRow(row, [
-          "Phone Number", "Phone", "Mobile", "Contact", "Cell", "WhatsApp", "Phone_Number", "Contact Number", "Mobile Number"
-        ]) || "0300-0000000";
+        const phone = extractFieldFromRow(row, PHONE_ALIASES, "phone") || "0300-0000000";
 
-        const department = extractFieldFromRow(row, [
-          "Department", "Dept", "Faculty", "Discipline"
-        ]) || "Computer Science";
+        const department = extractFieldFromRow(row, DEPT_ALIASES, "text") || "Computer Science";
 
-        const degreeProgram = extractFieldFromRow(row, [
-          "Program / Degree", "Degree Program", "Degree", "Program", "Study Program", "BS / MS", "Course"
-        ]);
+        const degreeProgram = extractFieldFromRow(row, PROGRAM_ALIASES, "text");
 
-        const ieeeRaw = extractFieldFromRow(row, [
-          "IEEE Member", "Member", "Is IEEE Member", "Is IEEE", "IEEE"
-        ]).toLowerCase();
+        const ieeeRaw = extractFieldFromRow(row, IEEE_ALIASES, "text").toLowerCase();
         const isIeeeMember = ieeeRaw.includes("yes") || ieeeRaw.includes("true") || ieeeRaw.includes("1");
 
-        const ieeeNo = extractFieldFromRow(row, [
-          "IEEE Membership #", "IEEE Membership Number", "IEEE Number", "IEEE No", "Membership Number", "Member ID", "IEEE ID"
-        ]);
+        const ieeeNo = extractFieldFromRow(row, IEEE_NO_ALIASES, "text");
 
-        const ticketRaw = extractFieldFromRow(row, [
-          "Ticket Code", "Ticket", "Code", "Ticket Number", "Ticket ID"
-        ]);
-        const ticketCode = ticketRaw || `TCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+        const ticketRaw = extractFieldFromRow(row, ["ticketcode", "ticket", "code", "ticketnumber", "ticketid"], "text");
 
-        const statusRaw = extractFieldFromRow(row, [
-          "Registration Status", "Status", "Payment Status"
-        ]).toUpperCase();
+        const statusRaw = extractFieldFromRow(row, ["registrationstatus", "status", "paymentstatus"], "text").toUpperCase();
         const validStatuses: Registration["status"][] = ["CONFIRMED", "PAYMENT_PENDING", "ATTENDED", "CANCELLED"];
         const status = validStatuses.includes(statusRaw as any) ? (statusRaw as any) : "CONFIRMED";
 
         // Check if event title in row matches an event
-        const eventTitleInRow = extractFieldFromRow(row, ["Event Title", "Event", "Event Name"]);
+        const eventTitleInRow = extractFieldFromRow(row, ["eventtitle", "event", "eventname"], "text");
         let rowEventId = targetEventId;
         if (eventTitleInRow) {
           const matchedEvt = events.find(
@@ -469,37 +580,65 @@ export default function AdminRegistrationsPage() {
           if (matchedEvt) rowEventId = matchedEvt.id;
         }
 
-        const regItem: Registration = {
-          id: `reg-import-${Date.now()}-${idx}`,
-          eventId: rowEventId,
-          privateToken: `priv-${Math.random().toString(36).substring(2, 12)}`,
-          fullName,
-          namePreference: "FULL_NAME",
-          email,
-          phone,
-          rollNumber: rollNumber || "N/A",
-          department,
-          degreeProgram: degreeProgram || undefined,
-          isIeeeMember,
-          ieeeMembershipNumber: ieeeNo || undefined,
-          photoConsent: true,
-          status,
-          ticketCode,
-          createdAt: new Date().toISOString(),
-        };
+        // Deduplicate inside spreadsheet itself
+        const inSheetKey = `${rowEventId}_${email.toLowerCase()}`;
+        if (sheetSeen.has(inSheetKey)) {
+          continue;
+        }
+        sheetSeen.add(inSheetKey);
 
-        newRegistrations.push(regItem);
-        importedCount++;
+        // Check if attendee is already registered for this event
+        const existingReg = registrations.find(
+          (r) =>
+            r.eventId === rowEventId &&
+            ((r.email && r.email.toLowerCase() === email.toLowerCase()) ||
+             (rollNumber && r.rollNumber && r.rollNumber !== "N/A" && r.rollNumber.toUpperCase() === rollNumber.toUpperCase()))
+        );
+
+        if (existingReg) {
+          // Update existing attendee with imported phone / roll number / degree
+          const updatedReg: Registration = {
+            ...existingReg,
+            fullName: fullName || existingReg.fullName,
+            phone: (phone && phone !== "0300-0000000") ? phone : existingReg.phone,
+            rollNumber: (rollNumber && rollNumber !== "N/A") ? rollNumber : existingReg.rollNumber,
+            department: department || existingReg.department,
+            degreeProgram: degreeProgram || existingReg.degreeProgram,
+            isIeeeMember: isIeeeMember || existingReg.isIeeeMember,
+            ieeeMembershipNumber: ieeeNo || existingReg.ieeeMembershipNumber,
+          };
+          await db.addRegistration(updatedReg);
+          updatedCount++;
+        } else {
+          // Create new attendee registration
+          const ticketCode = ticketRaw || `TCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
+          const regItem: Registration = {
+            id: `reg-import-${Date.now()}-${idx}`,
+            eventId: rowEventId,
+            privateToken: `priv-${Math.random().toString(36).substring(2, 12)}`,
+            fullName,
+            namePreference: "FULL_NAME",
+            email,
+            phone,
+            rollNumber: rollNumber || "N/A",
+            department,
+            degreeProgram: degreeProgram || undefined,
+            isIeeeMember,
+            ieeeMembershipNumber: ieeeNo || undefined,
+            photoConsent: true,
+            status,
+            ticketCode,
+            createdAt: new Date().toISOString(),
+          };
+
+          await db.addRegistration(regItem);
+          newCount++;
+        }
       }
 
-      if (newRegistrations.length === 0) {
+      if (newCount === 0 && updatedCount === 0) {
         alert("No valid attendee records could be parsed. Please check spreadsheet headers.");
         return;
-      }
-
-      // Save each to local database & remote
-      for (const reg of newRegistrations) {
-        await db.addRegistration(reg);
       }
 
       db.addAuditLog(
@@ -507,11 +646,11 @@ export default function AdminRegistrationsPage() {
         "BULK_REGISTRATIONS_IMPORTED",
         "registrations",
         targetEventId,
-        `Imported ${importedCount} registrations from spreadsheet "${file.name}".`
+        `Processed spreadsheet "${file.name}": added ${newCount} new registrations, updated ${updatedCount} existing attendee details.`
       );
 
       await loadData();
-      alert(`Success! Successfully imported ${importedCount} attendee registration(s) from "${file.name}".`);
+      alert(`Success! Successfully processed spreadsheet "${file.name}":\n• ${newCount} new attendee(s) added\n• ${updatedCount} existing attendee(s) updated with roll/phone details.`);
     } catch (err: any) {
       console.error("Sheet import error:", err);
       alert("Failed to import sheet: " + (err?.message || "Invalid file format."));
@@ -580,6 +719,14 @@ export default function AdminRegistrationsPage() {
             >
               <Upload size={14} className="text-ieee-blue" />
               {isImporting ? "Importing Sheet..." : "Import Excel / CSV"}
+            </button>
+
+            <button
+              onClick={handleDeduplicate}
+              className="px-3.5 py-2 border border-purple-300 bg-purple-50 text-purple-900 text-xs font-semibold rounded-lg hover:bg-purple-100 flex items-center gap-1.5 shadow-xs transition-colors"
+              title="Scan, merge, and clean duplicate registrations"
+            >
+              <Sparkles size={14} className="text-purple-600" /> Clean Duplicates
             </button>
 
             <button
