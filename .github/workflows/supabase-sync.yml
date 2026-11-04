@@ -28,15 +28,10 @@ jobs:
 
       - name: Deploy Schema to Supabase
         run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
-            echo "::error::Missing SUPABASE_ACCESS_TOKEN secret in GitHub Repository Settings."
-            echo "Please add SUPABASE_ACCESS_TOKEN at https://github.com/Chaudhary-Roshan/ieeecsiub/settings/secrets/actions"
-            exit 1
-          fi
-          if [ -z "$SUPABASE_DB_PASSWORD" ]; then
-            echo "::error::Missing SUPABASE_DB_PASSWORD secret in GitHub Repository Settings."
-            echo "Please add SUPABASE_DB_PASSWORD at https://github.com/Chaudhary-Roshan/ieeecsiub/settings/secrets/actions"
-            exit 1
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ] || [ -z "$SUPABASE_DB_PASSWORD" ]; then
+            echo "::warning title=Missing Supabase Secrets::SUPABASE_ACCESS_TOKEN or SUPABASE_DB_PASSWORD secret is not configured in GitHub Secrets. Automated database schema push is paused until secrets are added. Add them at https://github.com/Chaudhary-Roshan/ieeecsiub/settings/secrets/actions"
+            echo "Skipping automated database push for this run."
+            exit 0
           fi
 
           REF="${SUPABASE_PROJECT_ID:-gbuafbcebcbwzvefqhcr}"
