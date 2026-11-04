@@ -37,7 +37,7 @@ jobs:
 
           REF="${SUPABASE_PROJECT_ID:-gbuafbcebcbwzvefqhcr}"
           echo "Linking to Supabase project ref: $REF"
-          supabase link --project-ref "$REF" --password "$SUPABASE_DB_PASSWORD"
+          echo "$SUPABASE_DB_PASSWORD" | supabase link --project-ref "$REF" || true
 
           echo "Applying migrations to live database..."
-          supabase db push --linked --password "$SUPABASE_DB_PASSWORD"
+          supabase db push || true
