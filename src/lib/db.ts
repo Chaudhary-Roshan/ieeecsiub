@@ -286,10 +286,16 @@ class ChapterDatabase {
     return undefined;
   }
 
-  async fetchCertificateByCode(query: string): Promise<CertificateRecord | undefined> {
-    if (!query) return undefined;
+  async fetchCertificateWithStatus(query: string): Promise<{
+    certificate: CertificateRecord | null;
+    status: "FOUND" | "NOT_FOUND" | "ERROR";
+    error?: string;
+  }> {
+    if (!query) return { certificate: null, status: "NOT_FOUND" };
     const clean = normalizeVerificationCode(query);
     const client = getSupabase();
+    let networkOrDbError: string | null = null;
+    let queryExecutedSuccessfully = false;
 
     if (client) {
       try {
@@ -298,37 +304,44 @@ class ChapterDatabase {
           cert_code: clean,
         });
 
-        if (rpcData && !rpcError && rpcData.found) {
-          const mapped: CertificateRecord = {
-            id: rpcData.code,
-            code: rpcData.code,
-            recipientName: rpcData.recipient_name || rpcData.recipientName,
-            recipientRollNumber: rpcData.recipient_roll_number || rpcData.recipientRollNumber || rpcData.roll_number || undefined,
-            recipientEmail: rpcData.recipient_email || rpcData.recipientEmail || rpcData.email || undefined,
-            publicNameFormat: "FULL_NAME",
-            eventId: "",
-            eventTitle: rpcData.event_name || rpcData.event_title || "IEEE Technical Session",
-            certificateType: rpcData.certificate_type || "Certificate of Participation",
-            recognitionLevel: (rpcData.recognition_level as any) || "CHAPTER_RECOGNITION",
-            partnerName: rpcData.partner_name || undefined,
-            issuerStatement: rpcData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
-            activityDate: rpcData.event_date || "",
-            issueDate: rpcData.issue_date || "",
-            approverName: rpcData.approver_name || "Chapter Chair",
-            approverRole: rpcData.approver_role || "Chapter Chair",
-            status: rpcData.status || "ACTIVE",
-            source: "IN_SITE_GENERATED",
-            templateId: rpcData.template_id || undefined,
-            teamName: rpcData.team_name || undefined,
-            projectTitle: rpcData.project_title || undefined,
-            replacedByCode: rpcData.replaced_by_code || undefined,
-            replacementReason: rpcData.replacement_reason || undefined,
-            revocationDate: rpcData.revocation_date || undefined,
-            revocationReason: rpcData.revocation_reason || undefined,
-            sha256Fingerprint: rpcData.sha256_hash || undefined,
-            createdAt: rpcData.issue_date || new Date().toISOString(),
-          };
-          return mapped;
+        if (rpcError) {
+          if (rpcError.code !== "PGRST202") {
+            networkOrDbError = rpcError.message;
+          }
+        } else if (rpcData) {
+          queryExecutedSuccessfully = true;
+          if (rpcData.found) {
+            const mapped: CertificateRecord = {
+              id: rpcData.code,
+              code: rpcData.code,
+              recipientName: rpcData.recipient_name || rpcData.recipientName,
+              recipientRollNumber: rpcData.recipient_roll_number || rpcData.recipientRollNumber || rpcData.roll_number || undefined,
+              recipientEmail: rpcData.recipient_email || rpcData.recipientEmail || rpcData.email || undefined,
+              publicNameFormat: "FULL_NAME",
+              eventId: "",
+              eventTitle: rpcData.event_name || rpcData.event_title || "IEEE Technical Session",
+              certificateType: rpcData.certificate_type || "Certificate of Participation",
+              recognitionLevel: (rpcData.recognition_level as any) || "CHAPTER_RECOGNITION",
+              partnerName: rpcData.partner_name || undefined,
+              issuerStatement: rpcData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+              activityDate: rpcData.event_date || "",
+              issueDate: rpcData.issue_date || "",
+              approverName: rpcData.approver_name || "Chapter Chair",
+              approverRole: rpcData.approver_role || "Chapter Chair",
+              status: rpcData.status || "ACTIVE",
+              source: "IN_SITE_GENERATED",
+              templateId: rpcData.template_id || undefined,
+              teamName: rpcData.team_name || undefined,
+              projectTitle: rpcData.project_title || undefined,
+              replacedByCode: rpcData.replaced_by_code || undefined,
+              replacementReason: rpcData.replacement_reason || undefined,
+              revocationDate: rpcData.revocation_date || undefined,
+              revocationReason: rpcData.revocation_reason || undefined,
+              sha256Fingerprint: rpcData.sha256_hash || undefined,
+              createdAt: rpcData.issue_date || new Date().toISOString(),
+            };
+            return { certificate: mapped, status: "FOUND" };
+          }
         }
 
         // Direct select fallback by code
@@ -338,113 +351,144 @@ class ChapterDatabase {
           .eq("code", clean)
           .maybeSingle();
 
-        if (data && !error) {
-          const mapped: CertificateRecord = {
-            id: data.id,
-            code: data.code,
-            recipientName: data.recipient_name,
-            recipientRollNumber: data.recipient_roll_number || data.roll_number || undefined,
-            recipientEmail: data.recipient_email || data.email || undefined,
-            publicNameFormat: (data.public_name_format as any) || "FULL_NAME",
-            eventId: data.event_id || "",
-            eventTitle: data.event_title || data.event_name || "IEEE Technical Session",
-            certificateType: data.certificate_type || "Certificate of Participation",
-            recognitionLevel: (data.recognition_level as any) || "CHAPTER_RECOGNITION",
-            issuerStatement: data.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
-            activityDate: data.activity_date || data.event_date || "",
-            issueDate: data.issue_date || "",
-            approverName: data.approver_name || "Chapter Chair",
-            approverRole: data.approver_role || "Chapter Chair",
-            status: data.status,
-            source: data.source || "IN_SITE_GENERATED",
-            batchId: data.batch_id,
-            templateId: data.template_id || undefined,
-            teamName: data.team_name || undefined,
-            projectTitle: data.project_title || undefined,
-            replacedByCode: data.replaced_by_code,
-            replacementReason: data.replacement_reason,
-            revocationDate: data.revocation_date || data.revoked_at,
-            revocationReason: data.revocation_reason || data.revoke_reason,
-            sha256Fingerprint: data.sha256_fingerprint || data.sha256_hash,
-            pdfUrl: data.pdf_url,
-            createdAt: data.created_at || new Date().toISOString(),
-          };
-          return mapped;
+        if (error) {
+          networkOrDbError = error.message;
+        } else {
+          queryExecutedSuccessfully = true;
+          if (data) {
+            const mapped: CertificateRecord = {
+              id: data.id,
+              code: data.code,
+              recipientName: data.recipient_name,
+              recipientRollNumber: data.recipient_roll_number || data.roll_number || undefined,
+              recipientEmail: data.recipient_email || data.email || undefined,
+              publicNameFormat: (data.public_name_format as any) || "FULL_NAME",
+              eventId: data.event_id || "",
+              eventTitle: data.event_title || data.event_name || "IEEE Technical Session",
+              certificateType: data.certificate_type || "Certificate of Participation",
+              recognitionLevel: (data.recognition_level as any) || "CHAPTER_RECOGNITION",
+              issuerStatement: data.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+              activityDate: data.activity_date || data.event_date || "",
+              issueDate: data.issue_date || "",
+              approverName: data.approver_name || "Chapter Chair",
+              approverRole: data.approver_role || "Chapter Chair",
+              status: data.status,
+              source: data.source || "IN_SITE_GENERATED",
+              batchId: data.batch_id,
+              templateId: data.template_id || undefined,
+              teamName: data.team_name || undefined,
+              projectTitle: data.project_title || undefined,
+              replacedByCode: data.replaced_by_code,
+              replacementReason: data.replacement_reason,
+              revocationDate: data.revocation_date || data.revoked_at,
+              revocationReason: data.revocation_reason || data.revoke_reason,
+              sha256Fingerprint: data.sha256_fingerprint || data.sha256_hash,
+              pdfUrl: data.pdf_url,
+              createdAt: data.created_at || new Date().toISOString(),
+            };
+            return { certificate: mapped, status: "FOUND" };
+          }
         }
 
         // Search by email or roll number if query looks like one
         const queryLower = query.trim().toLowerCase();
         if (queryLower.includes("@")) {
-          const { data: emailData } = await client
+          const { data: emailData, error: emailError } = await client
             .from("certificates")
             .select("*")
             .ilike("recipient_email", queryLower)
             .maybeSingle();
-          if (emailData) {
+          if (emailData && !emailError) {
             return {
-              id: emailData.id,
-              code: emailData.code,
-              recipientName: emailData.recipient_name,
-              recipientRollNumber: emailData.recipient_roll_number || emailData.roll_number || undefined,
-              recipientEmail: emailData.recipient_email || emailData.email || undefined,
-              publicNameFormat: (emailData.public_name_format as any) || "FULL_NAME",
-              eventId: emailData.event_id || "",
-              eventTitle: emailData.event_title || emailData.event_name || "IEEE Technical Session",
-              certificateType: emailData.certificate_type || "Certificate of Participation",
-              recognitionLevel: (emailData.recognition_level as any) || "CHAPTER_RECOGNITION",
-              issuerStatement: emailData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
-              activityDate: emailData.activity_date || emailData.event_date || "",
-              issueDate: emailData.issue_date || "",
-              approverName: emailData.approver_name || "Chapter Chair",
-              approverRole: emailData.approver_role || "Chapter Chair",
-              status: emailData.status,
-              source: emailData.source || "IN_SITE_GENERATED",
-              createdAt: emailData.created_at || new Date().toISOString(),
+              certificate: {
+                id: emailData.id,
+                code: emailData.code,
+                recipientName: emailData.recipient_name,
+                recipientRollNumber: emailData.recipient_roll_number || emailData.roll_number || undefined,
+                recipientEmail: emailData.recipient_email || emailData.email || undefined,
+                publicNameFormat: (emailData.public_name_format as any) || "FULL_NAME",
+                eventId: emailData.event_id || "",
+                eventTitle: emailData.event_title || emailData.event_name || "IEEE Technical Session",
+                certificateType: emailData.certificate_type || "Certificate of Participation",
+                recognitionLevel: (emailData.recognition_level as any) || "CHAPTER_RECOGNITION",
+                issuerStatement: emailData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+                activityDate: emailData.activity_date || emailData.event_date || "",
+                issueDate: emailData.issue_date || "",
+                approverName: emailData.approver_name || "Chapter Chair",
+                approverRole: emailData.approver_role || "Chapter Chair",
+                status: emailData.status,
+                source: emailData.source || "IN_SITE_GENERATED",
+                createdAt: emailData.created_at || new Date().toISOString(),
+              },
+              status: "FOUND",
             };
           }
         } else if (clean.length >= 4) {
-          const { data: rollData } = await client
+          const { data: rollData, error: rollError } = await client
             .from("certificates")
             .select("*")
             .ilike("recipient_roll_number", clean)
             .maybeSingle();
-          if (rollData) {
+          if (rollData && !rollError) {
             return {
-              id: rollData.id,
-              code: rollData.code,
-              recipientName: rollData.recipient_name,
-              recipientRollNumber: rollData.recipient_roll_number || rollData.roll_number || undefined,
-              recipientEmail: rollData.recipient_email || rollData.email || undefined,
-              publicNameFormat: (rollData.public_name_format as any) || "FULL_NAME",
-              eventId: rollData.event_id || "",
-              eventTitle: rollData.event_title || rollData.event_name || "IEEE Technical Session",
-              certificateType: rollData.certificate_type || "Certificate of Participation",
-              recognitionLevel: (rollData.recognition_level as any) || "CHAPTER_RECOGNITION",
-              issuerStatement: rollData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
-              activityDate: rollData.activity_date || rollData.event_date || "",
-              issueDate: rollData.issue_date || "",
-              approverName: rollData.approver_name || "Chapter Chair",
-              approverRole: rollData.approver_role || "Chapter Chair",
-              status: rollData.status,
-              source: rollData.source || "IN_SITE_GENERATED",
-              createdAt: rollData.created_at || new Date().toISOString(),
+              certificate: {
+                id: rollData.id,
+                code: rollData.code,
+                recipientName: rollData.recipient_name,
+                recipientRollNumber: rollData.recipient_roll_number || rollData.roll_number || undefined,
+                recipientEmail: rollData.recipient_email || rollData.email || undefined,
+                publicNameFormat: (rollData.public_name_format as any) || "FULL_NAME",
+                eventId: rollData.event_id || "",
+                eventTitle: rollData.event_title || rollData.event_name || "IEEE Technical Session",
+                certificateType: rollData.certificate_type || "Certificate of Participation",
+                recognitionLevel: (rollData.recognition_level as any) || "CHAPTER_RECOGNITION",
+                issuerStatement: rollData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+                activityDate: rollData.activity_date || rollData.event_date || "",
+                issueDate: rollData.issue_date || "",
+                approverName: rollData.approver_name || "Chapter Chair",
+                approverRole: rollData.approver_role || "Chapter Chair",
+                status: rollData.status,
+                source: rollData.source || "IN_SITE_GENERATED",
+                createdAt: rollData.created_at || new Date().toISOString(),
+              },
+              status: "FOUND",
             };
           }
         }
-      } catch (err) {
-        console.warn("Supabase fetchCertificateByCode error:", err);
+      } catch (err: any) {
+        console.warn("Supabase fetchCertificateWithStatus error:", err);
+        networkOrDbError = err?.message || String(err);
       }
     }
 
     // Fallback to Server Action to verify against live database with full server session
     try {
       const saResult = await verifyCertificateAction(clean);
-      if (saResult) return saResult;
-    } catch (saErr) {
+      if (saResult) return { certificate: saResult, status: "FOUND" };
+      queryExecutedSuccessfully = true;
+    } catch (saErr: any) {
       console.warn("verifyCertificateAction server action notice:", saErr);
+      if (!networkOrDbError) {
+        networkOrDbError = saErr?.message || String(saErr);
+      }
     }
 
-    return this.getCertificateByCode(clean) || this.getCertificateByCode(query);
+    const localCert = this.getCertificateByCode(clean) || this.getCertificateByCode(query);
+    if (localCert) {
+      return { certificate: localCert, status: "FOUND" };
+    }
+
+    // If a database error or network failure prevented verifying, report ERROR
+    if (networkOrDbError && !queryExecutedSuccessfully) {
+      return { certificate: null, status: "ERROR", error: networkOrDbError };
+    }
+
+    return { certificate: null, status: "NOT_FOUND" };
+  }
+
+  async fetchCertificateByCode(query: string): Promise<CertificateRecord | undefined> {
+    const res = await this.fetchCertificateWithStatus(query);
+    return res.certificate || undefined;
   }
 
   async fetchCertificates(): Promise<CertificateRecord[]> {
@@ -608,9 +652,12 @@ class ChapterDatabase {
             if (saRes && saRes.success) {
               cloudSaved = true;
               cloudError = undefined;
+            } else if (saRes && !saRes.success) {
+              cloudError = saRes.error || cloudError;
             }
           } catch (saErr: any) {
             console.warn("Server action certificate bulk save error:", saErr);
+            cloudError = saErr?.message || cloudError;
           }
         }
       } catch (err: any) {
@@ -618,7 +665,7 @@ class ChapterDatabase {
         console.warn("Supabase addCertificatesBulk notice:", err);
       }
     }
-    return { success: true, cloudSaved, count: certs.length, error: cloudError };
+    return { success: cloudSaved, cloudSaved, count: certs.length, error: cloudError };
   }
 
   async updateCertificate(code: string, updates: Partial<CertificateRecord>): Promise<boolean> {

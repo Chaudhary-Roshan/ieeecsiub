@@ -397,14 +397,23 @@ export async function bulkSaveCertificatesAction(
     }
 
     // 2. Direct upsert fallback
+    let lastError: string | null = null;
+    let savedCount = 0;
     for (let i = 0; i < payload.length; i += 50) {
       const chunk = payload.slice(i, i + 50);
       const { error: upsertErr } = await supabase
         .from("certificates")
         .upsert(chunk, { onConflict: "code" });
       if (upsertErr) {
-        console.warn("Direct certificates upsert warning:", upsertErr.message);
+        lastError = upsertErr.message;
+        console.error("Direct certificates upsert error:", upsertErr.message);
+      } else {
+        savedCount += chunk.length;
       }
+    }
+
+    if (lastError && savedCount === 0) {
+      return { success: false, count: 0, error: lastError };
     }
 
     try {
@@ -413,7 +422,7 @@ export async function bulkSaveCertificatesAction(
       revalidateTag("certificates");
     } catch {}
 
-    return { success: true, count: certs.length };
+    return { success: true, count: savedCount };
   } catch (err: any) {
     console.error("bulkSaveCertificatesAction error:", err);
     return {

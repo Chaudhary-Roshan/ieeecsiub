@@ -501,7 +501,21 @@ export default function AdminAttendancePage() {
       });
 
       if (newCertificates.length > 0) {
-        await db.addCertificatesBulk(newCertificates);
+        const bulkRes = await db.addCertificatesBulk(newCertificates);
+        if (!bulkRes.cloudSaved) {
+          db.saveAttendance(selectedEventId, updatedList);
+          setAttendanceList(updatedList);
+          setSelectedIds(new Set());
+
+          alert(
+            `⚠️ Local Codes Ready — Database Save Incomplete\n\n` +
+            `Verification codes were generated in your session, but they could NOT be saved to the live cloud database.\n\n` +
+            `Database Error: ${bulkRes.error || "Permission Denied (42501)"}\n\n` +
+            `Action Required:\n` +
+            `Please run the Supabase permission SQL in your Supabase SQL Editor, then click 'Sync to Cloud Database' in the Verified Credentials Registry so other browsers (like Edge or mobile) can verify them.`
+          );
+          return;
+        }
       }
 
       db.saveAttendance(selectedEventId, updatedList);
@@ -513,7 +527,7 @@ export default function AdminAttendancePage() {
         `• Attendees Processed: ${recordsToProcess.length}\n` +
         `• Permanent Codes Preserved: ${preservedCount}\n` +
         `• New Verification Codes Issued: ${newlyIssuedCount}\n\n` +
-        `All codes are now live and verifiable in the cloud database!`
+        `All codes are now live and verifiable in the cloud database across Chrome, Edge, and all devices!`
       );
     } catch (err: any) {
       alert("Failed to generate codes: " + err.message);

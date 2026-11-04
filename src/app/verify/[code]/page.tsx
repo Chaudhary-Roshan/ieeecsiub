@@ -15,6 +15,8 @@ import {
   ArrowLeft,
   HelpCircle,
   AlertCircle,
+  AlertTriangle,
+  RefreshCw,
 } from "lucide-react";
 
 export default function CertificateVerificationResultPage() {
@@ -24,25 +26,38 @@ export default function CertificateVerificationResultPage() {
   const normalizedCode = normalizeVerificationCode(rawCode);
 
   const [cert, setCert] = useState<CertificateRecord | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [status, setStatus] = useState<"LOADING" | "FOUND" | "NOT_FOUND" | "ERROR">("LOADING");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [searchInput, setSearchInput] = useState(normalizedCode || rawCode);
 
-  useEffect(() => {
-    if (!rawCode) return;
-    setLoading(true);
+  const executeLookup = (code: string) => {
+    if (!code) return;
+    setStatus("LOADING");
+    setErrorMessage(null);
     let active = true;
 
-    // Look up certificate in Supabase (with fallback to local storage)
-    db.fetchCertificateByCode(rawCode).then((found) => {
-      if (active) {
-        setCert(found || null);
-        setLoading(false);
+    db.fetchCertificateWithStatus(code).then((result) => {
+      if (!active) return;
+      if (result.status === "FOUND" && result.certificate) {
+        setCert(result.certificate);
+        setStatus("FOUND");
+      } else if (result.status === "ERROR") {
+        setCert(null);
+        setErrorMessage(result.error || "Database connectivity issue");
+        setStatus("ERROR");
+      } else {
+        setCert(null);
+        setStatus("NOT_FOUND");
       }
     });
 
     return () => {
       active = false;
     };
+  };
+
+  useEffect(() => {
+    return executeLookup(rawCode);
   }, [rawCode]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -85,19 +100,55 @@ export default function CertificateVerificationResultPage() {
         </div>
 
         {/* Loading State */}
-        {loading ? (
+        {status === "LOADING" ? (
           <div className="bg-white border border-ieee-border rounded-card p-12 text-center space-y-3">
             <div className="w-10 h-10 border-4 border-ieee-blue border-t-transparent rounded-full animate-spin mx-auto" />
             <p className="text-sm text-gray-600 font-montserrat font-medium">
               Querying chapter certificate registry...
             </p>
           </div>
-        ) : cert ? (
+        ) : status === "FOUND" && cert ? (
           /* Match Found: Detailed Certificate Card */
           <div className="space-y-6">
             <CertificateCard
               certificate={cert}
             />
+          </div>
+        ) : status === "ERROR" ? (
+          /* Database or Network Failure (Requirement 5) */
+          <div className="bg-white border border-amber-200 rounded-card p-8 md:p-12 text-center space-y-6 shadow-sm">
+            <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+              <AlertTriangle size={32} />
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-montserrat font-extrabold text-ieee-navy">
+                Verification Temporarily Unavailable
+              </h2>
+              <p className="text-sm font-mono text-gray-500 uppercase">
+                Queried Identifier: <span className="font-bold text-gray-700">{normalizedCode || rawCode}</span>
+              </p>
+              <p className="text-xs sm:text-sm text-gray-600 max-w-lg mx-auto leading-relaxed pt-2">
+                The chapter certificate registry is currently experiencing a database connectivity interruption
+                or service delay. Your verification request could not be completed at this moment.
+              </p>
+              {errorMessage && (
+                <div className="inline-block mt-2">
+                  <span className="text-[11px] font-mono text-amber-800 bg-amber-100/70 border border-amber-200 px-3 py-1 rounded-md">
+                    Registry Service Notice: {errorMessage}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button onClick={() => executeLookup(rawCode)} variant="primary" size="md">
+                <RefreshCw size={15} className="mr-2" /> Retry Verification
+              </Button>
+              <Button href="/verify" variant="outline" size="md">
+                Search Another Identifier
+              </Button>
+            </div>
           </div>
         ) : (
           /* Unknown Code: Strict wording per specification */
