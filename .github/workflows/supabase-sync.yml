@@ -1,3 +1,4 @@
+# IEEE CS UCET-IUB Supabase Schema Automation
 name: Supabase Database Auto-Deploy
 
 on:
