@@ -26,6 +26,7 @@ import {
   X,
   Trash2,
   Edit2,
+  UploadCloud,
 } from "lucide-react";
 
 export default function AdminCertificatesPage() {
@@ -65,6 +66,41 @@ export default function AdminCertificatesPage() {
   // QR Preview & Copy States
   const [previewQrCert, setPreviewQrCert] = useState<{ name: string; roll: string; code: string; qrDataUrl: string } | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+
+  // Cloud Sync State
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
+  const handleSyncToCloud = async () => {
+    setIsSyncing(true);
+    setSyncFeedback(null);
+    try {
+      const allLocal = db.getCertificates();
+      if (!allLocal || allLocal.length === 0) {
+        setSyncFeedback({ type: "success", message: "No local certificates to sync." });
+        setIsSyncing(false);
+        return;
+      }
+      const res = await db.addCertificatesBulk(allLocal);
+      if (res.cloudSaved) {
+        setSyncFeedback({
+          type: "success",
+          message: `Successfully synchronized ${allLocal.length} certificates to live Supabase database! They are now verifiable by anyone worldwide.`,
+        });
+        const fresh = await db.fetchCertificates();
+        setCerts(fresh);
+      } else {
+        setSyncFeedback({
+          type: "error",
+          message: `Cloud sync blocked: ${res.error || "Permission denied"}. Please execute the provided SQL in Supabase Dashboard SQL Editor once.`,
+        });
+      }
+    } catch (e: any) {
+      setSyncFeedback({ type: "error", message: `Sync failed: ${e?.message || e}` });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const handleOpenQrPreview = async (cert: CertificateRecord) => {
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
@@ -297,7 +333,19 @@ export default function AdminCertificatesPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              onClick={handleSyncToCloud}
+              disabled={isSyncing}
+              variant="primary"
+              size="sm"
+              className="text-xs font-bold flex items-center gap-1.5 shadow-sm"
+              title="Push all locally stored certificates to live Supabase cloud database"
+            >
+              <UploadCloud size={15} className={isSyncing ? "animate-bounce" : ""} />
+              {isSyncing ? "Syncing to Cloud..." : "Sync to Cloud Database"}
+            </Button>
+
             <Link href="/admin/attendance">
               <Button variant="accent" size="sm" className="text-xs font-bold flex items-center gap-1.5 shadow-sm">
                 <Award size={15} /> Attendance & QR Generator Hub
@@ -309,6 +357,32 @@ export default function AdminCertificatesPage() {
             </Button>
           </div>
         </div>
+
+        {/* Sync Feedback Banner */}
+        {syncFeedback && (
+          <div
+            className={`p-4 rounded-xl text-xs font-medium border flex items-center justify-between ${
+              syncFeedback.type === "success"
+                ? "bg-green-50 text-green-900 border-green-200"
+                : "bg-amber-50 text-amber-900 border-amber-200"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {syncFeedback.type === "success" ? (
+                <CheckCircle size={16} className="text-status-active shrink-0" />
+              ) : (
+                <AlertTriangle size={16} className="text-amber-600 shrink-0" />
+              )}
+              <span>{syncFeedback.message}</span>
+            </div>
+            <button
+              onClick={() => setSyncFeedback(null)}
+              className="text-gray-400 hover:text-gray-700 ml-4 font-bold"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
 
         {/* Search & Stats Bar */}
         <div className="bg-white border border-gray-200 rounded-card p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">

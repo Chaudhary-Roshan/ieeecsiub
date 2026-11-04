@@ -485,12 +485,21 @@ export async function verifyCertificateAction(
       };
     }
 
-    // 2. Direct select fallback by code
-    const { data: row } = await supabase
+    // 2. Direct select fallback by code, roll number, or email
+    let { data: row } = await supabase
       .from("certificates")
       .select("*")
       .eq("code", clean)
       .maybeSingle();
+
+    if (!row) {
+      const { data: altRow } = await supabase
+        .from("certificates")
+        .select("*")
+        .or(`recipient_roll_number.ilike.${clean},recipient_email.ilike.${clean}`)
+        .maybeSingle();
+      row = altRow;
+    }
 
     if (row) {
       return {
