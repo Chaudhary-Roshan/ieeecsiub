@@ -1,3 +1,21 @@
+import { ChapterSettings } from "@/types";
+
+export const DEFAULT_CHAPTER_SETTINGS: ChapterSettings = {
+  id: "current",
+  emailGeneral: "ieeecsiub.contact@gmail.com",
+  emailVerify: "ieeecsiub.contact@gmail.com",
+  whatsappGroupUrl: "https://chat.whatsapp.com/sample-ieee-cs-ucet-iub",
+  whatsappChatNumber: "923000000000",
+  linkedinUrl: "https://www.linkedin.com/company/ieee-cs-ucet-iub",
+  instagramUrl: "https://www.instagram.com/ieeecsucetiub",
+  facebookUrl: "https://www.facebook.com/ieeecsucetiub",
+  githubUrl: "https://github.com/ieee-cs-ucet-iub",
+  parentBranchUrl: "https://edu.ieee.org/pk-ucetiub",
+  sectionUrl: "https://ieeebahawalpurssection.org/",
+  addressRoom1: "Room No. 1.25, Department of Information and Communication Engineering, Old Engineering Building, UCET",
+  addressRoom2: "Room No. 105, Faculty of Engineering, IUB, Baghdad-ul-Jadeed Campus, Bahawalpur, Pakistan.",
+};
+
 export const CHAPTER_INFO = {
   fullName: "IEEE Computer Society Student Branch Chapter, UCET – The Islamia University of Bahawalpur",
   shortName: "IEEE CS UCET-IUB",

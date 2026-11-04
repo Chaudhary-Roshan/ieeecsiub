@@ -22,6 +22,7 @@ import {
   Trash2,
   RefreshCw,
   ClipboardList,
+  Share2,
 } from "lucide-react";
 import { EventItem } from "@/types";
 
@@ -316,6 +317,26 @@ export default function AdminDashboardPage() {
                     </h4>
                     <p className="text-gray-500 text-[11px]">
                       Rapid on-site digital check-in scanner for workshop staff with duplicate detection.
+                    </p>
+                  </div>
+                </div>
+                <ArrowRight size={16} className="text-gray-400 group-hover:translate-x-1 transition-transform" />
+              </Link>
+
+              <Link
+                href="/admin/settings"
+                className="p-4 bg-gray-50 hover:bg-ieee-surfaceTint/30 rounded-xl border border-gray-200 flex items-center justify-between transition-colors group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-lg bg-ieee-blue text-white flex items-center justify-center">
+                    <Share2 size={18} />
+                  </div>
+                  <div>
+                    <h4 className="font-montserrat font-bold text-gray-900 group-hover:text-ieee-blue">
+                      Chapter Profile & Social Hub
+                    </h4>
+                    <p className="text-gray-500 text-[11px]">
+                      Manage official Gmail, WhatsApp community links, social networks, and campus addresses.
                     </p>
                   </div>
                 </div>

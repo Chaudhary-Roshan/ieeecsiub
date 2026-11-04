@@ -27,6 +27,7 @@ import {
   RefreshCw,
   Database,
   ClipboardList,
+  Share2,
 } from "lucide-react";
 import clsx from "clsx";
 
@@ -66,6 +67,7 @@ export const AdminLayout: React.FC<{ children: React.ReactNode }> = ({ children 
     { label: "Officers & Faculty Advisors", href: "/admin/team", icon: UserCheck },
     { label: "Verified Credentials Registry", href: "/admin/certificates", icon: Award },
     { label: "Payment Verification Queue", href: "/admin/payments", icon: CreditCard },
+    { label: "Chapter Profile & Socials", href: "/admin/settings", icon: Share2 },
     { label: "Mobile Check-in Scanner", href: "/admin/checkin", icon: QrCode },
     { label: "vTools Reporting Export", href: "/admin/vtools-export", icon: FileText },
     { label: "Audit Logs", href: "/admin/audit", icon: History },

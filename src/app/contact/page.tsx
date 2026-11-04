@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/Button";
-import { CHAPTER_INFO } from "@/lib/constants";
+import { DEFAULT_CHAPTER_SETTINGS, CHAPTER_INFO } from "@/lib/constants";
+import { ChapterSettings } from "@/types";
+import { db } from "@/lib/db";
 import { supabase } from "@/lib/supabase";
 import {
   Mail,
@@ -68,6 +70,7 @@ function GitHubIcon({ className = "w-4 h-4" }: { className?: string }) {
 }
 
 export default function ContactPage() {
+  const [settings, setSettings] = useState<ChapterSettings>(DEFAULT_CHAPTER_SETTINGS);
   const [submitted, setSubmitted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -76,8 +79,16 @@ export default function ContactPage() {
   const [captchaAnswer, setCaptchaAnswer] = useState("");
   const [copiedEmail, setCopiedEmail] = useState(false);
 
+  useEffect(() => {
+    async function load() {
+      const data = await db.fetchChapterSettings();
+      setSettings(data);
+    }
+    load();
+  }, []);
+
   const handleCopyEmail = () => {
-    navigator.clipboard.writeText("ieeecsiub.contact@gmail.com");
+    navigator.clipboard.writeText(settings.emailGeneral || "ieeecsiub.contact@gmail.com");
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2200);
   };
@@ -141,14 +152,14 @@ export default function ContactPage() {
                   Direct Address:
                 </span>
                 <span className="font-mono text-xs font-bold text-ieee-navy break-all select-all">
-                  ieeecsiub.contact@gmail.com
+                  {settings.emailGeneral}
                 </span>
               </div>
             </div>
 
             <div className="pt-4 mt-4 border-t border-gray-100 flex items-center gap-2">
               <a
-                href="mailto:ieeecsiub.contact@gmail.com"
+                href={`mailto:${settings.emailGeneral}`}
                 className="flex-1 px-3.5 py-2.5 bg-red-600 hover:bg-red-700 text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors"
               >
                 <Mail size={14} /> Send Email
@@ -199,7 +210,7 @@ export default function ContactPage() {
 
             <div className="pt-4 mt-4 border-t border-gray-100 flex items-center gap-2">
               <a
-                href={CHAPTER_INFO.socials.whatsapp}
+                href={settings.whatsappGroupUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex-1 px-3.5 py-2.5 bg-[#25D366] hover:bg-[#20ba5a] text-white text-xs font-bold rounded-lg shadow-sm flex items-center justify-center gap-1.5 transition-colors"
@@ -207,7 +218,7 @@ export default function ContactPage() {
                 <WhatsAppIcon className="w-4 h-4 text-white" /> Join Group
               </a>
               <a
-                href="https://wa.me/?text=Hello%20IEEE%20CS%20UCET-IUB%20Team,%20I%20have%20an%20inquiry%20regarding:"
+                href={`https://wa.me/${settings.whatsappChatNumber.replace(/\D/g, "")}?text=Hello%20IEEE%20CS%20UCET-IUB%20Team,%20I%20have%20an%20inquiry%20regarding:`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="px-3 py-2.5 border border-emerald-300 hover:border-emerald-400 bg-white text-emerald-800 text-xs font-semibold rounded-lg hover:bg-emerald-50 transition-colors flex items-center gap-1"
@@ -244,7 +255,7 @@ export default function ContactPage() {
 
               <div className="grid grid-cols-2 gap-2 pt-1">
                 <a
-                  href={CHAPTER_INFO.socials.linkedin}
+                  href={settings.linkedinUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-[#0A66C2]/10 hover:text-[#0A66C2] border border-gray-200 text-xs font-medium text-gray-700 transition-colors"
@@ -253,7 +264,7 @@ export default function ContactPage() {
                   <span>LinkedIn</span>
                 </a>
                 <a
-                  href={CHAPTER_INFO.socials.instagram}
+                  href={settings.instagramUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-[#E1306C]/10 hover:text-[#E1306C] border border-gray-200 text-xs font-medium text-gray-700 transition-colors"
@@ -262,7 +273,7 @@ export default function ContactPage() {
                   <span>Instagram</span>
                 </a>
                 <a
-                  href={CHAPTER_INFO.socials.facebook}
+                  href={settings.facebookUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-[#1877F2]/10 hover:text-[#1877F2] border border-gray-200 text-xs font-medium text-gray-700 transition-colors"
@@ -271,7 +282,7 @@ export default function ContactPage() {
                   <span>Facebook</span>
                 </a>
                 <a
-                  href={CHAPTER_INFO.socials.github}
+                  href={settings.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 p-2 rounded-lg bg-gray-50 hover:bg-gray-900 hover:text-white border border-gray-200 text-xs font-medium text-gray-700 transition-colors"
@@ -284,7 +295,7 @@ export default function ContactPage() {
 
             <div className="pt-4 mt-4 border-t border-gray-100 flex items-center justify-between">
               <a
-                href={CHAPTER_INFO.parentBranchUrl}
+                href={settings.parentBranchUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs font-semibold text-ieee-blue hover:underline flex items-center gap-1"
@@ -324,11 +335,11 @@ export default function ContactPage() {
               <div className="space-y-2 text-xs text-gray-600 leading-relaxed">
                 <div>
                   <strong className="text-gray-800 block">Location 1:</strong>
-                  Room No. 1.25, Department of Information &amp; Communication Engineering, Old Engineering Building, UCET, The Islamia University of Bahawalpur.
+                  {settings.addressRoom1}
                 </div>
                 <div>
                   <strong className="text-gray-800 block">Location 2:</strong>
-                  Room No. 105, Faculty of Engineering, IUB, Baghdad-ul-Jadeed Campus, Bahawalpur, Punjab, Pakistan.
+                  {settings.addressRoom2}
                 </div>
               </div>
               <div className="pt-1">
@@ -351,10 +362,10 @@ export default function ContactPage() {
                 Dedicated desk for participant name rectifications, replacement certifications, or employer background verifications:
               </p>
               <a
-                href="mailto:ieeecsiub.contact@gmail.com?subject=Certificate%20Verification%20Query"
+                href={`mailto:${settings.emailVerify}?subject=Certificate%20Verification%20Query`}
                 className="text-xs font-bold text-[#00843D] underline break-all block font-mono"
               >
-                ieeecsiub.contact@gmail.com
+                {settings.emailVerify}
               </a>
               <div className="pt-2">
                 <Link

@@ -9,9 +9,10 @@ import {
   StaffUser,
   CertificateTemplate,
   AttendanceRecord,
-  EventTeam
+  EventTeam,
+  ChapterSettings
 } from "@/types";
-import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
+import { INITIAL_STAFF_USERS, CHAPTER_INFO, DEFAULT_CHAPTER_SETTINGS } from "./constants";
 import { getSupabase } from "./supabase";
 import { clearEventDataAction, wipeAllCertificatesAction, wipeEventCredentialsOnlyAction } from "@/app/actions/operations";
 import { bulkSaveCertificatesAction, verifyCertificateAction } from "@/app/actions/certificates";
@@ -2509,6 +2510,111 @@ class ChapterDatabase {
     } catch (err: any) {
       return { success: false, message: err?.message || "Failed to seed database.", counts };
     }
+  }
+
+  getChapterSettings(): ChapterSettings {
+    const saved = this.getItem<ChapterSettings | null>("chapter_settings", null);
+    if (saved && saved.emailGeneral) {
+      return { ...DEFAULT_CHAPTER_SETTINGS, ...saved };
+    }
+    return DEFAULT_CHAPTER_SETTINGS;
+  }
+
+  async fetchChapterSettings(): Promise<ChapterSettings> {
+    const local = this.getChapterSettings();
+    const client = getSupabase();
+    if (client) {
+      try {
+        const { data, error } = await client
+          .from("chapter_settings")
+          .select("*")
+          .eq("id", "current")
+          .maybeSingle();
+
+        if (!error && data) {
+          const settings: ChapterSettings = {
+            id: data.id,
+            emailGeneral: data.email_general || DEFAULT_CHAPTER_SETTINGS.emailGeneral,
+            emailVerify: data.email_verify || DEFAULT_CHAPTER_SETTINGS.emailVerify,
+            whatsappGroupUrl: data.whatsapp_group_url || DEFAULT_CHAPTER_SETTINGS.whatsappGroupUrl,
+            whatsappChatNumber: data.whatsapp_chat_number || DEFAULT_CHAPTER_SETTINGS.whatsappChatNumber,
+            linkedinUrl: data.linkedin_url || DEFAULT_CHAPTER_SETTINGS.linkedinUrl,
+            instagramUrl: data.instagram_url || DEFAULT_CHAPTER_SETTINGS.instagramUrl,
+            facebookUrl: data.facebook_url || DEFAULT_CHAPTER_SETTINGS.facebookUrl,
+            githubUrl: data.github_url || DEFAULT_CHAPTER_SETTINGS.githubUrl,
+            parentBranchUrl: data.parent_branch_url || DEFAULT_CHAPTER_SETTINGS.parentBranchUrl,
+            sectionUrl: data.section_url || DEFAULT_CHAPTER_SETTINGS.sectionUrl,
+            addressRoom1: data.address_room_1 || DEFAULT_CHAPTER_SETTINGS.addressRoom1,
+            addressRoom2: data.address_room_2 || DEFAULT_CHAPTER_SETTINGS.addressRoom2,
+            updatedAt: data.updated_at,
+            updatedBy: data.updated_by,
+          };
+          this.setItem("chapter_settings", settings);
+          return settings;
+        }
+      } catch (err) {
+        console.warn("fetchChapterSettings warning:", err);
+      }
+    }
+    return local;
+  }
+
+  async saveChapterSettings(
+    settings: ChapterSettings,
+    staffName?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const clean: ChapterSettings = {
+      ...DEFAULT_CHAPTER_SETTINGS,
+      ...settings,
+      updatedAt: new Date().toISOString(),
+      updatedBy: staffName || "Chapter Administrator",
+    };
+    this.setItem("chapter_settings", clean);
+
+    const client = getSupabase();
+    if (client) {
+      try {
+        const payload = {
+          id: "current",
+          email_general: clean.emailGeneral.trim(),
+          email_verify: clean.emailVerify.trim(),
+          whatsapp_group_url: clean.whatsappGroupUrl.trim(),
+          whatsapp_chat_number: clean.whatsappChatNumber.trim(),
+          linkedin_url: clean.linkedinUrl.trim(),
+          instagram_url: clean.instagramUrl.trim(),
+          facebook_url: clean.facebookUrl.trim(),
+          github_url: clean.githubUrl.trim(),
+          parent_branch_url: clean.parentBranchUrl.trim(),
+          section_url: clean.sectionUrl.trim(),
+          address_room_1: clean.addressRoom1.trim(),
+          address_room_2: clean.addressRoom2.trim(),
+          updated_at: clean.updatedAt,
+          updated_by: clean.updatedBy,
+        };
+
+        const { error } = await client
+          .from("chapter_settings")
+          .upsert(payload, { onConflict: "id" });
+
+        if (error) {
+          console.warn("Supabase saveChapterSettings error:", error.message);
+          return { success: false, error: error.message };
+        }
+      } catch (err: any) {
+        console.warn("Supabase saveChapterSettings exception:", err);
+        return { success: false, error: err?.message };
+      }
+    }
+
+    this.addAuditLog(
+      staffName || "Chapter Administrator",
+      "CHAPTER_SETTINGS_UPDATED",
+      "settings",
+      "current",
+      "Updated Chapter Contact, WhatsApp, Social links, and Campus addresses."
+    );
+
+    return { success: true };
   }
 
   // Reset database and wipe all local storage keys

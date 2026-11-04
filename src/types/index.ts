@@ -208,3 +208,21 @@ export interface AttendanceRecord {
   certificateCode?: string;
   checkedInAt?: string;
 }
+
+export interface ChapterSettings {
+  id?: string;
+  emailGeneral: string;
+  emailVerify: string;
+  whatsappGroupUrl: string;
+  whatsappChatNumber: string;
+  linkedinUrl: string;
+  instagramUrl: string;
+  facebookUrl: string;
+  githubUrl: string;
+  parentBranchUrl: string;
+  sectionUrl: string;
+  addressRoom1: string;
+  addressRoom2: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}

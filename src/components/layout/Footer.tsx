@@ -1,15 +1,28 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { ChapterLogo } from "./ChapterLogo";
-import { CHAPTER_INFO } from "@/lib/constants";
+import { DEFAULT_CHAPTER_SETTINGS } from "@/lib/constants";
+import { ChapterSettings } from "@/types";
+import { db } from "@/lib/db";
 import {
   Mail,
   MapPin,
   ExternalLink,
-  Lock,
 } from "lucide-react";
 
 export const Footer: React.FC = () => {
+  const [settings, setSettings] = useState<ChapterSettings>(DEFAULT_CHAPTER_SETTINGS);
+
+  useEffect(() => {
+    async function load() {
+      const data = await db.fetchChapterSettings();
+      setSettings(data);
+    }
+    load();
+  }, []);
+
   return (
     <footer className="bg-ieee-navy text-white font-openSans text-sm pt-14 pb-8 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
@@ -28,13 +41,13 @@ export const Footer: React.FC = () => {
               <div className="flex items-start gap-2">
                 <MapPin size={15} className="text-ieee-cyan flex-shrink-0 mt-0.5" />
                 <span className="leading-relaxed">
-                  <strong>Address 1:</strong> Room No. 1.25, Department of Information &amp; Communication Engineering, Old Engineering Building, UCET, The Islamia University of Bahawalpur, Punjab, Pakistan.
+                  <strong>Address 1:</strong> {settings.addressRoom1}
                 </span>
               </div>
               <div className="flex items-start gap-2">
                 <MapPin size={15} className="text-ieee-cyan flex-shrink-0 mt-0.5" />
                 <span className="leading-relaxed">
-                  <strong>Address 2:</strong> Room No. 105, Faculty of Engineering, IUB, Baghdad-ul-Jadeed Campus, Bahawalpur, Punjab, Pakistan.
+                  <strong>Address 2:</strong> {settings.addressRoom2}
                 </span>
               </div>
             </div>
@@ -42,7 +55,7 @@ export const Footer: React.FC = () => {
             {/* Quick Social & WhatsApp Icons */}
             <div className="flex items-center gap-3 pt-2 text-gray-300">
               <a
-                href={CHAPTER_INFO.socials.whatsapp}
+                href={settings.whatsappGroupUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#25D366] hover:text-white flex items-center justify-center transition-colors"
@@ -54,7 +67,7 @@ export const Footer: React.FC = () => {
                 </svg>
               </a>
               <a
-                href={CHAPTER_INFO.socials.linkedin}
+                href={settings.linkedinUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#0A66C2] hover:text-white flex items-center justify-center transition-colors"
@@ -65,7 +78,7 @@ export const Footer: React.FC = () => {
                 </svg>
               </a>
               <a
-                href={CHAPTER_INFO.socials.instagram}
+                href={settings.instagramUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#E1306C] hover:text-white flex items-center justify-center transition-colors"
@@ -78,7 +91,7 @@ export const Footer: React.FC = () => {
                 </svg>
               </a>
               <a
-                href={CHAPTER_INFO.socials.facebook}
+                href={settings.facebookUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-[#1877F2] hover:text-white flex items-center justify-center transition-colors"
@@ -89,7 +102,7 @@ export const Footer: React.FC = () => {
                 </svg>
               </a>
               <a
-                href={CHAPTER_INFO.socials.github}
+                href={settings.githubUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-gray-800 hover:text-white flex items-center justify-center transition-colors"
@@ -130,7 +143,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <a
-                  href="https://edu.ieee.org/pk-ucetiub"
+                  href={settings.parentBranchUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-ieee-orange transition-colors flex items-center justify-between"
@@ -140,7 +153,7 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <a
-                  href="https://ieeebahawalpurssection.org/"
+                  href={settings.sectionUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-ieee-orange transition-colors flex items-center justify-between font-semibold text-white"
@@ -180,11 +193,11 @@ export const Footer: React.FC = () => {
               For verification queries, name spelling rectifications, or executive chapter inquiries, contact our designated communications desk:
             </p>
             <a
-              href={`mailto:${CHAPTER_INFO.contacts.verify}`}
+              href={`mailto:${settings.emailVerify}`}
               className="inline-flex items-center gap-2 text-xs font-semibold text-ieee-orange hover:underline break-all bg-black/30 px-3 py-2 rounded-lg border border-white/10"
             >
               <Mail size={14} />
-              {CHAPTER_INFO.contacts.verify}
+              {settings.emailVerify}
             </a>
           </div>
         </div>
@@ -195,16 +208,6 @@ export const Footer: React.FC = () => {
             © {new Date().getFullYear()} IEEE Computer Society Student Branch Chapter,
             UCET-IUB. All rights reserved.
           </p>
-
-          <div className="flex items-center gap-6">
-            <Link
-              href="/admin/login"
-              className="inline-flex items-center gap-1.5 text-gray-400 hover:text-white transition-colors"
-            >
-              <Lock size={12} />
-              Staff Login (2FA)
-            </Link>
-          </div>
         </div>
       </div>
     </footer>

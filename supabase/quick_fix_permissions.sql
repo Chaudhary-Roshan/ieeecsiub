@@ -3,6 +3,42 @@
 -- ====================================================================
 
 -- 1. Ensure all essential tables and columns exist
+CREATE TABLE IF NOT EXISTS public.chapter_settings (
+    id TEXT PRIMARY KEY DEFAULT 'current',
+    email_general TEXT NOT NULL DEFAULT 'ieeecsiub.contact@gmail.com',
+    email_verify TEXT NOT NULL DEFAULT 'ieeecsiub.contact@gmail.com',
+    whatsapp_group_url TEXT NOT NULL DEFAULT 'https://chat.whatsapp.com/sample-ieee-cs-ucet-iub',
+    whatsapp_chat_number TEXT NOT NULL DEFAULT '923000000000',
+    linkedin_url TEXT NOT NULL DEFAULT 'https://www.linkedin.com/company/ieee-cs-ucet-iub',
+    instagram_url TEXT NOT NULL DEFAULT 'https://www.instagram.com/ieeecsucetiub',
+    facebook_url TEXT NOT NULL DEFAULT 'https://www.facebook.com/ieeecsucetiub',
+    github_url TEXT NOT NULL DEFAULT 'https://github.com/ieee-cs-ucet-iub',
+    parent_branch_url TEXT NOT NULL DEFAULT 'https://edu.ieee.org/pk-ucetiub',
+    section_url TEXT NOT NULL DEFAULT 'https://ieeebahawalpurssection.org/',
+    address_room_1 TEXT NOT NULL DEFAULT 'Room No. 1.25, Department of Information and Communication Engineering, Old Engineering Building, UCET',
+    address_room_2 TEXT NOT NULL DEFAULT 'Room No. 105, Faculty of Engineering, IUB, Baghdad-ul-Jadeed Campus, Bahawalpur, Pakistan.',
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_by TEXT
+);
+
+INSERT INTO public.chapter_settings (id, email_general, email_verify, whatsapp_group_url, whatsapp_chat_number, linkedin_url, instagram_url, facebook_url, github_url, parent_branch_url, section_url, address_room_1, address_room_2)
+VALUES (
+    'current',
+    'ieeecsiub.contact@gmail.com',
+    'ieeecsiub.contact@gmail.com',
+    'https://chat.whatsapp.com/sample-ieee-cs-ucet-iub',
+    '923000000000',
+    'https://www.linkedin.com/company/ieee-cs-ucet-iub',
+    'https://www.instagram.com/ieeecsucetiub',
+    'https://www.facebook.com/ieeecsucetiub',
+    'https://github.com/ieee-cs-ucet-iub',
+    'https://edu.ieee.org/pk-ucetiub',
+    'https://ieeebahawalpurssection.org/',
+    'Room No. 1.25, Department of Information and Communication Engineering, Old Engineering Building, UCET',
+    'Room No. 105, Faculty of Engineering, IUB, Baghdad-ul-Jadeed Campus, Bahawalpur, Pakistan.'
+)
+ON CONFLICT (id) DO NOTHING;
+
 CREATE TABLE IF NOT EXISTS public.event_teams (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     event_id TEXT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
