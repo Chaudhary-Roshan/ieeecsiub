@@ -401,9 +401,14 @@ export async function bulkSaveCertificatesAction(
     let savedCount = 0;
     for (let i = 0; i < payload.length; i += 50) {
       const chunk = payload.slice(i, i + 50);
-      const { error: upsertErr } = await supabase
+      let { error: upsertErr } = await supabase
         .from("certificates")
         .upsert(chunk, { onConflict: "code" });
+      if (upsertErr && (upsertErr.message.includes("column") || upsertErr.message.includes("schema cache"))) {
+        const safeChunk = chunk.map(({ template_id, team_name, project_title, ...rest }: any) => rest);
+        const retry = await supabase.from("certificates").upsert(safeChunk, { onConflict: "code" });
+        upsertErr = retry.error;
+      }
       if (upsertErr) {
         lastError = upsertErr.message;
         console.error("Direct certificates upsert error:", upsertErr.message);
