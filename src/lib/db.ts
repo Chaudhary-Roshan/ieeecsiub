@@ -14,6 +14,7 @@ import {
 import { INITIAL_STAFF_USERS, CHAPTER_INFO } from "./constants";
 import { getSupabase } from "./supabase";
 import { clearEventDataAction, wipeAllCertificatesAction, wipeEventCredentialsOnlyAction } from "@/app/actions/operations";
+import { bulkSaveCertificatesAction, verifyCertificateAction } from "@/app/actions/certificates";
 import { DEFAULT_CERTIFICATE_HTML } from "./defaultCertificateHtml";
 import {
   TEMPLATE_DESIGN1_SIMPLE,
@@ -435,7 +436,15 @@ class ChapterDatabase {
       }
     }
 
-    return this.getCertificateByCode(query);
+    // Fallback to Server Action to verify against live database with full server session
+    try {
+      const saResult = await verifyCertificateAction(clean);
+      if (saResult) return saResult;
+    } catch (saErr) {
+      console.warn("verifyCertificateAction server action notice:", saErr);
+    }
+
+    return this.getCertificateByCode(clean) || this.getCertificateByCode(query);
   }
 
   async fetchCertificates(): Promise<CertificateRecord[]> {
@@ -482,6 +491,15 @@ class ChapterDatabase {
           localCerts.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
           list.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
 
+          const missingInCloud = localCerts.filter(
+            (lc) => lc && lc.code && !list.some((rc) => rc.code.toUpperCase() === lc.code.toUpperCase())
+          );
+          if (missingInCloud.length > 0) {
+            bulkSaveCertificatesAction(missingInCloud).catch((e) =>
+              console.warn("Auto-sync local certs notice:", e)
+            );
+          }
+
           const merged = Array.from(mergedMap.values());
           this.setItem("certificates", merged);
           return merged;
@@ -489,6 +507,10 @@ class ChapterDatabase {
       } catch (err) {
         console.warn("Supabase fetchCertificates error:", err);
       }
+    }
+    // Also try saving any unsaved local certificates if cloud was unreachable earlier
+    if (localCerts.length > 0) {
+      bulkSaveCertificatesAction(localCerts).catch(() => {});
     }
     return localCerts;
   }
@@ -576,6 +598,19 @@ class ChapterDatabase {
           if (batchFails === 0 && payload.length > 0) {
             cloudSaved = true;
             cloudError = undefined;
+          }
+        }
+
+        // 3. Guaranteed Server Action fallback if direct client was blocked
+        if (!cloudSaved) {
+          try {
+            const saRes = await bulkSaveCertificatesAction(certs);
+            if (saRes && saRes.success) {
+              cloudSaved = true;
+              cloudError = undefined;
+            }
+          } catch (saErr: any) {
+            console.warn("Server action certificate bulk save error:", saErr);
           }
         }
       } catch (err: any) {

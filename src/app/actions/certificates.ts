@@ -342,3 +342,195 @@ export async function replaceCertificateAction(
   return { success: true, newCode };
 }
 
+export async function bulkSaveCertificatesAction(
+  certs: CertificateRecord[]
+): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    if (!certs || certs.length === 0) return { success: true, count: 0 };
+    const supabase = await createClient();
+
+    const payload = certs.map((cert) => ({
+      code: cert.code.trim().toUpperCase(),
+      recipient_name: cert.recipientName || "Participant",
+      recipient_roll_number: cert.recipientRollNumber || null,
+      recipient_email: cert.recipientEmail || null,
+      public_name_format: cert.publicNameFormat || "FULL_NAME",
+      event_id: cert.eventId || null,
+      event_title: cert.eventTitle || "UCET IUB Technical Session",
+      certificate_type: cert.certificateType || "Certificate of Participation",
+      recognition_level: cert.recognitionLevel || "CHAPTER_RECOGNITION",
+      issuer_statement:
+        cert.issuerStatement ||
+        "In recognition of active participation and successful completion.",
+      activity_date: cert.activityDate || new Date().toISOString().slice(0, 10),
+      issue_date: cert.issueDate || new Date().toISOString().slice(0, 10),
+      approver_name: cert.approverName || "Muhammad Roshan Ashraf",
+      approver_role: cert.approverRole || "Chapter Chair",
+      status: cert.status || "ACTIVE",
+      source: cert.source || "IN_SITE_GENERATED",
+      template_id: cert.templateId || null,
+      team_name: cert.teamName || null,
+      project_title: cert.projectTitle || null,
+      replaced_by_code: cert.replacedByCode || null,
+      replacement_reason: cert.replacementReason || null,
+      revocation_date: cert.revocationDate || null,
+      revocation_reason: cert.revocationReason || null,
+      sha256_fingerprint: cert.sha256Fingerprint || null,
+      pdf_url: cert.pdfUrl || null,
+    }));
+
+    // 1. Try PostgreSQL RPC
+    const { data: rpcRes, error: rpcErr } = await supabase.rpc(
+      "bulk_save_certificates",
+      {
+        p_certs: payload,
+      }
+    );
+
+    if (!rpcErr && rpcRes && rpcRes.success) {
+      try {
+        revalidatePath("/verify");
+        revalidatePath("/admin/certificates");
+        revalidateTag("certificates");
+      } catch {}
+      return { success: true, count: certs.length };
+    }
+
+    // 2. Direct upsert fallback
+    for (let i = 0; i < payload.length; i += 50) {
+      const chunk = payload.slice(i, i + 50);
+      const { error: upsertErr } = await supabase
+        .from("certificates")
+        .upsert(chunk, { onConflict: "code" });
+      if (upsertErr) {
+        console.warn("Direct certificates upsert warning:", upsertErr.message);
+      }
+    }
+
+    try {
+      revalidatePath("/verify");
+      revalidatePath("/admin/certificates");
+      revalidateTag("certificates");
+    } catch {}
+
+    return { success: true, count: certs.length };
+  } catch (err: any) {
+    console.error("bulkSaveCertificatesAction error:", err);
+    return {
+      success: false,
+      count: 0,
+      error: err?.message || "Failed to bulk save certificates.",
+    };
+  }
+}
+
+export async function verifyCertificateAction(
+  code: string
+): Promise<CertificateRecord | null> {
+  try {
+    if (!code) return null;
+    const clean = code.trim().toUpperCase();
+    const supabase = await createClient();
+
+    // 1. Try verify_certificate RPC
+    const { data: rpcData, error: rpcErr } = await supabase.rpc(
+      "verify_certificate",
+      {
+        cert_code: clean,
+      }
+    );
+
+    if (rpcData && !rpcErr && rpcData.found) {
+      return {
+        id: rpcData.code,
+        code: rpcData.code,
+        recipientName: rpcData.recipient_name || rpcData.recipientName,
+        recipientRollNumber:
+          rpcData.recipient_roll_number ||
+          rpcData.recipientRollNumber ||
+          undefined,
+        recipientEmail:
+          rpcData.recipient_email || rpcData.recipientEmail || undefined,
+        publicNameFormat: "FULL_NAME",
+        eventId: "",
+        eventTitle:
+          rpcData.event_title ||
+          rpcData.event_name ||
+          rpcData.eventTitle ||
+          "IEEE Technical Session",
+        certificateType:
+          rpcData.certificate_type ||
+          rpcData.certificateType ||
+          "Certificate of Participation",
+        recognitionLevel:
+          (rpcData.recognition_level as any) || "CHAPTER_RECOGNITION",
+        issuerStatement:
+          rpcData.issuer_statement ||
+          "In recognition of active participation and successful completion.",
+        activityDate: rpcData.activity_date || rpcData.event_date || "",
+        issueDate: rpcData.issue_date || "",
+        approverName: rpcData.approver_name || "Muhammad Roshan Ashraf",
+        approverRole: rpcData.approver_role || "Chapter Chair",
+        status: rpcData.status || "ACTIVE",
+        source: "IN_SITE_GENERATED",
+        teamName: rpcData.team_name || undefined,
+        projectTitle: rpcData.project_title || undefined,
+        replacedByCode: rpcData.replaced_by_code || undefined,
+        replacementReason: rpcData.replacement_reason || undefined,
+        revocationDate: rpcData.revocation_date || undefined,
+        revocationReason: rpcData.revocation_reason || undefined,
+        sha256Fingerprint: rpcData.sha256_hash || undefined,
+        pdfUrl: rpcData.pdf_url || undefined,
+        createdAt: rpcData.issue_date || new Date().toISOString(),
+      };
+    }
+
+    // 2. Direct select fallback by code
+    const { data: row } = await supabase
+      .from("certificates")
+      .select("*")
+      .eq("code", clean)
+      .maybeSingle();
+
+    if (row) {
+      return {
+        id: row.id,
+        code: row.code,
+        recipientName: row.recipient_name,
+        recipientRollNumber: row.recipient_roll_number || undefined,
+        recipientEmail: row.recipient_email || undefined,
+        publicNameFormat: (row.public_name_format as any) || "FULL_NAME",
+        eventId: row.event_id || "",
+        eventTitle: row.event_title || "IEEE Technical Session",
+        certificateType: row.certificate_type || "Certificate of Participation",
+        recognitionLevel:
+          (row.recognition_level as any) || "CHAPTER_RECOGNITION",
+        issuerStatement:
+          row.issuer_statement ||
+          "In recognition of active participation and successful completion.",
+        activityDate: row.activity_date || "",
+        issueDate: row.issue_date || "",
+        approverName: row.approver_name || "Muhammad Roshan Ashraf",
+        approverRole: row.approver_role || "Chapter Chair",
+        status: row.status || "ACTIVE",
+        source: row.source || "IN_SITE_GENERATED",
+        templateId: row.template_id || undefined,
+        teamName: row.team_name || undefined,
+        projectTitle: row.project_title || undefined,
+        replacedByCode: row.replaced_by_code || undefined,
+        replacementReason: row.replacement_reason || undefined,
+        revocationDate: row.revocation_date || undefined,
+        revocationReason: row.revocation_reason || undefined,
+        sha256Fingerprint: row.sha256_fingerprint || undefined,
+        pdfUrl: row.pdf_url || undefined,
+        createdAt: row.created_at || new Date().toISOString(),
+      };
+    }
+
+    return null;
+  } catch (err) {
+    console.warn("verifyCertificateAction error:", err);
+    return null;
+  }
+}
+
