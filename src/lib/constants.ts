@@ -14,8 +14,8 @@ export const CHAPTER_INFO = {
     { name: "IEEE & IEEE Computer Society", level: "Global Entity" },
   ],
   contacts: {
-    general: "cs.ucet@iub.edu.pk",
-    verify: "verify.cs@ucet-iub.ieee.org",
+    general: "ieeecsiub.contact@gmail.com",
+    verify: "ieeecsiub.contact@gmail.com",
     location: "Department of Computer Science & Engineering, UCET, Baghdad-ul-Jadeed Campus, Bahawalpur, Punjab, Pakistan",
   },
   socials: {

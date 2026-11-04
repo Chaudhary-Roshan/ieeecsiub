@@ -247,17 +247,17 @@ export default function AdminRegistrationsPage() {
       const updated = registrations.map((r) =>
         r.id === editingReg.id
           ? {
-              ...r,
-              fullName: editName.trim(),
-              email: editEmail.trim().toLowerCase(),
-              phone: editPhone.trim() || undefined,
-              rollNumber: editRoll.trim().toUpperCase() || "",
-              department: editDept.trim() || "Computer Science",
-              degreeProgram: editDegreeProgram.trim() || undefined,
-              status: editStatus,
-              isIeeeMember: editIsIeee,
-              ieeeMembershipNumber: editIeeeNo.trim() || undefined,
-            }
+            ...r,
+            fullName: editName.trim(),
+            email: editEmail.trim().toLowerCase(),
+            phone: editPhone.trim() || undefined,
+            rollNumber: editRoll.trim().toUpperCase() || "",
+            department: editDept.trim() || "Computer Science",
+            degreeProgram: editDegreeProgram.trim() || undefined,
+            status: editStatus,
+            isIeeeMember: editIsIeee,
+            ieeeMembershipNumber: editIeeeNo.trim() || undefined,
+          }
           : r
       );
       setRegistrations(updated);
@@ -592,7 +592,7 @@ export default function AdminRegistrationsPage() {
           (r) =>
             r.eventId === rowEventId &&
             ((r.email && r.email.toLowerCase() === email.toLowerCase()) ||
-             (rollNumber && r.rollNumber && r.rollNumber !== "N/A" && r.rollNumber.toUpperCase() === rollNumber.toUpperCase()))
+              (rollNumber && r.rollNumber && r.rollNumber !== "N/A" && r.rollNumber.toUpperCase() === rollNumber.toUpperCase()))
         );
 
         if (existingReg) {
@@ -839,11 +839,10 @@ export default function AdminRegistrationsPage() {
                 <button
                   key={tab.id}
                   onClick={() => setStatusFilter(tab.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-semibold transition-all ${
-                    statusFilter === tab.id
+                  className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-semibold transition-all ${statusFilter === tab.id
                       ? "bg-ieee-navy text-white shadow-sm"
                       : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+                    }`}
                 >
                   {tab.label}
                 </button>
@@ -974,26 +973,24 @@ export default function AdminRegistrationsPage() {
 
                         <td className="p-4">
                           <span
-                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-montserrat font-bold ${
-                              reg.status === "CONFIRMED"
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-montserrat font-bold ${reg.status === "CONFIRMED"
                                 ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
                                 : reg.status === "ATTENDED"
-                                ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                : reg.status === "PAYMENT_PENDING"
-                                ? "bg-amber-50 text-amber-700 border border-amber-200"
-                                : "bg-red-50 text-red-700 border border-red-200"
-                            }`}
+                                  ? "bg-blue-50 text-blue-700 border border-blue-200"
+                                  : reg.status === "PAYMENT_PENDING"
+                                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                                    : "bg-red-50 text-red-700 border border-red-200"
+                              }`}
                           >
                             <span
-                              className={`w-1.5 h-1.5 rounded-full ${
-                                reg.status === "CONFIRMED"
+                              className={`w-1.5 h-1.5 rounded-full ${reg.status === "CONFIRMED"
                                   ? "bg-emerald-500"
                                   : reg.status === "ATTENDED"
-                                  ? "bg-blue-500"
-                                  : reg.status === "PAYMENT_PENDING"
-                                  ? "bg-amber-500"
-                                  : "bg-red-500"
-                              }`}
+                                    ? "bg-blue-500"
+                                    : reg.status === "PAYMENT_PENDING"
+                                      ? "bg-amber-500"
+                                      : "bg-red-500"
+                                }`}
                             />
                             {reg.status}
                           </span>
@@ -1262,7 +1259,7 @@ export default function AdminRegistrationsPage() {
                   <input
                     type="email"
                     required
-                    placeholder="e.g. student@iub.edu.pk"
+                    placeholder="e.g. ieeecsiub.contact@gmail.com"
                     value={addEmail}
                     onChange={(e) => setAddEmail(e.target.value)}
                     className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"

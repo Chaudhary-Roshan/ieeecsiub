@@ -126,7 +126,7 @@ export default function MembershipPage() {
                           required
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          placeholder="student@iub.edu.pk"
+                          placeholder="ieeecsiub.contact@gmail.com"
                           className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
                         />
                       </div>

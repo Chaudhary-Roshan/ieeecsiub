@@ -702,7 +702,7 @@ export default function AdminCertificatesPage() {
                       type="email"
                       value={editEmail}
                       onChange={(e) => setEditEmail(e.target.value)}
-                      placeholder="e.g. student@iub.edu.pk"
+                      placeholder="e.g. ieeecsiub.contact@gmail.com"
                       className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
                     />
                   </div>

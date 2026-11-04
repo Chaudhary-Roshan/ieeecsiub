@@ -426,7 +426,7 @@ export default function AdminAttendancePage() {
       {
         "Full Name": "Muhammad Roshan Ashraf",
         "Roll Number": "S23BINCE1M40414",
-        "Email": "chshan407@gmail.com",
+        "Email": "ieeecsiub.contact@gmail.com",
         "Attended": "Yes",
       },
       {
@@ -1198,7 +1198,7 @@ export default function AdminAttendancePage() {
                   <label className="font-semibold text-gray-700 block mb-1">Email / Gmail Address</label>
                   <input
                     type="email"
-                    placeholder="e.g. roshan@gmail.com"
+                    placeholder="e.g. ieeecsiub.contact@gmail.com"
                     value={newAttendeeEmail}
                     onChange={(e) => setNewAttendeeEmail(e.target.value)}
                     className="w-full p-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
@@ -1286,7 +1286,7 @@ export default function AdminAttendancePage() {
                     type="email"
                     value={editEmail}
                     onChange={(e) => setEditEmail(e.target.value)}
-                    placeholder="e.g. roshan@gmail.com"
+                    placeholder="e.g. ieeecsiub.contact@gmail.com"
                     className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue"
                   />
                 </div>
