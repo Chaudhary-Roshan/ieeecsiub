@@ -1,10 +1,17 @@
-"use client";
-
-import React, { useState, useEffect } from "react";
+import React from "react";
 import Link from "next/link";
 import { formatPKTDateOnly } from "@/lib/sha256";
-import { Newspaper, Calendar, ArrowRight } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Newspaper, Calendar, ArrowRight, Sparkles } from "lucide-react";
+import { getEvents } from "@/lib/data/events";
+import { createClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
+export const metadata = {
+  title: "News & Bulletins | IEEE CS UCET-IUB",
+  description: "Official announcements, technical reports, and event bulletins from IEEE Computer Society UCET-IUB.",
+};
 
 interface NewsItem {
   id: string;
@@ -13,90 +20,68 @@ interface NewsItem {
   category: string;
   summary: string;
   imageUrl?: string;
+  link?: string;
 }
 
-export default function NewsPage() {
-  const [articles, setArticles] = useState<NewsItem[]>([]);
-  const [loading, setLoading] = useState(true);
+export default async function NewsPage() {
+  const supabase = await createClient();
+  const events = await getEvents();
 
-  useEffect(() => {
-    async function loadNews() {
-      if (supabase) {
-        try {
-          const { data, error } = await supabase
-            .from("news")
-            .select("*")
-            .order("published_date", { ascending: false });
-          if (data && !error && data.length > 0) {
-            setArticles(
-              data.map((d: any) => ({
-                id: d.id,
-                title: d.title,
-                date: d.published_date,
-                category: "Announcements",
-                summary: d.summary,
-                imageUrl: d.image_url,
-              }))
-            );
-            setLoading(false);
-            return;
-          }
-        } catch (err) {
-          console.warn("Supabase news load fallback:", err);
-        }
-      }
-      setArticles([
-        {
-          id: "news-df-2026",
-          title: "IEEE DigitalFest 2026 – Projects Expo Concludes Successfully with 60+ Teams",
-          date: "2026-06-03",
-          category: "Expos & Competitions",
-          summary: "Premier student innovation expo featured hardware prototypes, AI/ML models, cybersecurity defenses, and robotics judged by senior faculty. Cash awards and official chapter certificates presented.",
-          imageUrl: "/ieee-cs-logo.png",
-        },
-        {
-          id: "news-portal-launch",
-          title: "Official Launch of IEEE CS UCET IUB Web Platform & Verifiable Credentials",
-          date: "2026-06-10",
-          category: "Announcements",
-          summary: "The chapter unveiled its automated credential verification system, allowing students, recruiters, and institutions to verify certificates with live cryptographic SHA-256 validation.",
-          imageUrl: "/logo.png",
-        },
-        {
-          id: "news-membership-drive",
-          title: "IEEE Computer Society Student Branch Chapter Announces 2026-2027 Programs",
-          date: "2026-07-15",
-          category: "Workshops",
-          summary: "Technical workshops on Cloud Computing, Mobile Development, and AI System Architecture scheduled for the upcoming academic semester under the guidance of Dr. Asjad Amin and Dr. Aoun Muhammad.",
-          imageUrl: "/ieee-cs-logo.png",
-        },
-      ]);
-      setLoading(false);
+  let dbArticles: NewsItem[] = [];
+
+  try {
+    const { data, error } = await supabase
+      .from("news")
+      .select("*")
+      .order("published_date", { ascending: false });
+
+    if (!error && data && data.length > 0) {
+      dbArticles = data.map((d: any) => ({
+        id: d.id,
+        title: d.title,
+        date: d.published_date,
+        category: d.category || "Announcements",
+        summary: d.summary || "",
+        imageUrl: d.image_url || "/ieee-cs-logo.png",
+      }));
     }
+  } catch (err) {
+    console.warn("News fetch warning:", err);
+  }
 
-    loadNews();
-  }, []);
+  // Dynamic Event-derived bulletins synchronized with database events
+  const eventBulletins: NewsItem[] = events.map((evt) => ({
+    id: `event-bulletin-${evt.id}`,
+    title: evt.status === "COMPLETED" 
+      ? `${evt.title} Concludes with Outstanding Student Participation`
+      : `Upcoming: ${evt.title} Registration & Technical Program Details`,
+    date: evt.startDate,
+    category: evt.status === "COMPLETED" ? "Expos & Competitions" : "Upcoming Events",
+    summary: evt.description.slice(0, 180) + (evt.description.length > 180 ? "..." : ""),
+    imageUrl: evt.featuredImage || "/ieee-cs-logo.png",
+    link: `/events/${evt.slug}`,
+  }));
+
+  // Combine and deduplicate
+  const allArticles: NewsItem[] = [...dbArticles, ...eventBulletins];
 
   return (
     <div className="flex-1 bg-gray-50 py-12 md:py-20 px-4 sm:px-8 font-openSans">
       <div className="max-w-6xl mx-auto space-y-10">
         <div className="space-y-3">
-          <span className="text-xs font-montserrat font-bold text-ieee-orange uppercase tracking-widest block">
-            Official Bulletins
-          </span>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 border border-blue-200 text-ieee-blue text-xs font-montserrat font-bold uppercase tracking-wider">
+            <Sparkles size={14} className="text-ieee-orange" />
+            Live Official Bulletins
+          </div>
           <h1 className="text-3xl sm:text-5xl font-montserrat font-extrabold text-ieee-navy">
             Chapter News & Technical Bulletins
           </h1>
           <p className="text-sm sm:text-base text-gray-600 max-w-2xl">
-            Live technical bulletins, competition announcements, and executive reports from the IEEE Computer Society Student Branch Chapter, UCET IUB.
+            Real-time technical bulletins, competition announcements, and executive reports from the IEEE Computer Society Student Branch Chapter, UCET IUB.
           </p>
         </div>
 
-        {loading ? (
-          <div className="py-20 text-center text-gray-400 text-sm">
-            Loading official announcements from database...
-          </div>
-        ) : articles.length === 0 ? (
+        {allArticles.length === 0 ? (
           <div className="bg-white border border-dashed border-gray-300 rounded-card p-12 text-center space-y-3">
             <Newspaper className="mx-auto text-gray-400" size={36} />
             <h3 className="font-montserrat font-bold text-gray-800 text-base">
@@ -116,45 +101,46 @@ export default function NewsPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {articles.map((art) => (
+            {allArticles.map((art) => (
               <div
                 key={art.id}
-                className="bg-white border border-gray-200 rounded-card overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow group"
+                className="bg-white border border-ieee-border rounded-card overflow-hidden shadow-sm flex flex-col justify-between hover:shadow-md transition-shadow group"
               >
                 <div>
-                  {art.imageUrl && (
-                    <div className="h-48 w-full bg-gray-100 overflow-hidden relative">
-                      <img
-                        src={art.imageUrl}
-                        alt={art.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <div className="absolute top-3 left-3 bg-ieee-navy/80 text-white text-[10px] font-bold px-2.5 py-1 rounded-full backdrop-blur-sm">
-                        {art.category}
-                      </div>
+                  <div className="h-44 w-full bg-gradient-to-br from-blue-900 to-indigo-950 relative overflow-hidden flex items-center justify-center p-4">
+                    <img
+                      src={art.imageUrl || "/ieee-cs-logo.png"}
+                      alt={art.title}
+                      className="max-h-24 w-auto object-contain opacity-90 group-hover:scale-105 transition-transform"
+                    />
+                    <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-xs text-ieee-navy text-[10px] font-montserrat font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-2xs">
+                      {art.category}
                     </div>
-                  )}
+                  </div>
 
                   <div className="p-6 space-y-3">
-                    <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                      <Calendar size={13} />
+                    <div className="flex items-center gap-1.5 text-xs text-gray-500 font-medium">
+                      <Calendar size={13} className="text-ieee-blue" />
                       <span>{formatPKTDateOnly(art.date)}</span>
                     </div>
 
-                    <h3 className="font-montserrat font-bold text-base text-ieee-navy group-hover:text-ieee-blue transition-colors line-clamp-2">
+                    <h2 className="font-montserrat font-bold text-base text-ieee-navy group-hover:text-ieee-blue transition-colors line-clamp-2">
                       {art.title}
-                    </h3>
+                    </h2>
 
-                    <p className="text-xs text-gray-600 line-clamp-3 leading-relaxed">
+                    <p className="text-xs text-gray-600 leading-relaxed line-clamp-3">
                       {art.summary}
                     </p>
                   </div>
                 </div>
 
-                <div className="p-6 pt-0 border-t border-gray-100 mt-2">
-                  <span className="inline-flex items-center text-xs font-montserrat font-bold text-ieee-blue group-hover:text-ieee-navy">
-                    Official Bulletin <ArrowRight size={13} className="ml-1" />
-                  </span>
+                <div className="p-6 pt-0 border-t border-gray-100 flex items-center justify-between text-xs font-montserrat font-bold text-ieee-blue">
+                  <Link
+                    href={art.link || "/events"}
+                    className="inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+                  >
+                    Read Details <ArrowRight size={14} />
+                  </Link>
                 </div>
               </div>
             ))}

@@ -92,7 +92,9 @@ export async function renderCertificateHtml(
 
   const teamMembersBullet = formatTeamMembersBullets(membersList);
   const teamMembersProse = formatTeamMembersProse(membersList);
-  const academicAffiliation = cert.semester
+  const academicAffiliation = cert.teamName
+    ? ""
+    : cert.semester
     ? `${cert.semester} Semester, ${cert.department || "Department of Computer Science & IT / UCET"}`
     : (cert.department || "Department of Computer Science & IT / UCET");
 
@@ -121,6 +123,8 @@ export async function renderCertificateHtml(
     .replace(/{{issuer_statement}}/g, effectiveIssuerStatement)
 
     // Team & Project (Projects Expo templates)
+    .replace(/<div[^>]*>\s*\(\{\{academic_affiliation\}\}\)\s*<\/div>/g, academicAffiliation ? `<div>(${academicAffiliation})</div>` : "")
+    .replace(/\(\{\{academic_affiliation\}\}\)/g, academicAffiliation ? `(${academicAffiliation})` : "")
     .replace(/{{team_name}}/g, cert.teamName || cert.recipientName)
     .replace(/{{project_title}}/g, cert.projectTitle || cert.eventTitle)
     .replace(/{{team_members_bulleted}}/g, teamMembersBullet)

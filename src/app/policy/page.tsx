@@ -3,6 +3,9 @@ import Link from "next/link";
 import { CHAPTER_INFO } from "@/lib/constants";
 import { ShieldCheck, AlertTriangle, RefreshCw, CheckCircle, FileText } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function CertificatePolicyPage() {
   return (
     <div className="flex-1 bg-white py-12 md:py-20 px-4 sm:px-8">

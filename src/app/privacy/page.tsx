@@ -2,6 +2,9 @@ import React from "react";
 import Link from "next/link";
 import { ShieldCheck, Lock, Eye, Database, Server } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default function PrivacyPolicyPage() {
   return (
     <div className="flex-1 bg-white py-12 md:py-20 px-4 sm:px-8">

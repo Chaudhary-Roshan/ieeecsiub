@@ -7,6 +7,7 @@ import { Button } from "../ui/Button";
 import { CHAPTER_INFO } from "@/lib/constants";
 import { formatPKTDateOnly } from "@/lib/sha256";
 import { formatTeamMembersBullets, formatTeamMembersProse } from "@/lib/teamCertUtils";
+import { generateVerificationSummaryPdf } from "@/lib/verificationSummaryPdf";
 import {
   ShieldCheck,
   AlertTriangle,
@@ -20,7 +21,8 @@ import {
   Award,
   UserCheck,
   Building,
-  Printer,
+  Download,
+  Loader2,
 } from "lucide-react";
 
 interface CertificateCardProps {
@@ -35,11 +37,25 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
   onDownloadPdf,
 }) => {
   const [copied, setCopied] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const handleCopyCode = () => {
     navigator.clipboard.writeText(certificate.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleDownloadVerificationPdf = async () => {
+    try {
+      setIsGeneratingPdf(true);
+      const doc = await generateVerificationSummaryPdf(certificate);
+      doc.save(`IEEE_CS_Verification_${certificate.code}.pdf`);
+    } catch (err) {
+      console.error("Failed to generate verification PDF:", err);
+      alert("Failed to generate PDF summary. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
   };
 
   const isReplaced = certificate.status === "REPLACED";
@@ -203,9 +219,6 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
               <div className="font-montserrat font-bold text-base text-gray-900 leading-snug">
                 {formatTeamMembersBullets(certificate.teamMembers || [certificate.recipientName])}
               </div>
-              <p className="text-xs text-gray-600 mt-1 font-medium">
-                ({certificate.semester ? `${certificate.semester} Semester, ` : ""}{certificate.department || "Department of Computer Science & IT / UCET"})
-              </p>
             </div>
 
             {/* In Recognition of Their Technical Project */}
@@ -220,28 +233,6 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
                 <p className="text-xs text-gray-600 mt-1">
                   Presented at the <strong className="text-gray-900 font-semibold">{certificate.eventTitle}</strong> on <strong className="text-gray-900 font-semibold">{formatPKTDateOnly(certificate.activityDate)}</strong>.
                 </p>
-              </div>
-            )}
-
-            {/* Certified Team Member Badges */}
-            {certificate.teamMembers && certificate.teamMembers.length > 0 && (
-              <div className="pt-2 flex flex-wrap gap-1.5 items-center">
-                <span className="text-[10px] font-bold text-gray-500 uppercase mr-1">Roster:</span>
-                {certificate.teamMembers.map((member, i) => {
-                  const isRecipient = member.trim().toLowerCase() === certificate.recipientName.trim().toLowerCase();
-                  return (
-                    <span
-                      key={i}
-                      className={`px-2.5 py-0.5 rounded text-xs border transition-all ${
-                        isRecipient
-                          ? "bg-ieee-blue text-white border-ieee-blue font-bold shadow-2xs"
-                          : "bg-white text-gray-800 border-gray-200 font-medium"
-                      }`}
-                    >
-                      {member} {isRecipient ? "★ (Queried Recipient)" : ""}
-                    </span>
-                  );
-                })}
               </div>
             )}
           </div>
@@ -356,10 +347,20 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
             </button>
 
             <button
-              onClick={() => window.print()}
-              className="inline-flex items-center justify-center font-montserrat font-semibold text-xs rounded-button transition-all duration-200 px-3.5 py-2 border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 shadow-2xs"
+              onClick={handleDownloadVerificationPdf}
+              disabled={isGeneratingPdf}
+              className="inline-flex items-center justify-center font-montserrat font-bold text-xs uppercase tracking-wider rounded-button transition-all duration-200 px-4 py-2 border border-ieee-blue/40 bg-white text-ieee-blue hover:bg-ieee-blue hover:text-white disabled:opacity-50 disabled:cursor-not-allowed shadow-2xs"
+              title="Download official vector PDF verification summary"
             >
-              <Printer size={14} className="mr-1.5 text-gray-500" /> Print Verification Summary
+              {isGeneratingPdf ? (
+                <>
+                  <Loader2 size={14} className="mr-1.5 animate-spin text-ieee-blue" /> Generating PDF...
+                </>
+              ) : (
+                <>
+                  <Download size={14} className="mr-1.5" /> Download Verification PDF
+                </>
+              )}
             </button>
           </div>
 
