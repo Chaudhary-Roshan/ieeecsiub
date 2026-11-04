@@ -168,7 +168,16 @@ export default function AdminAttendancePage() {
   const [isSavingEdit, setIsSavingEdit] = useState(false);
 
   // QR Code Preview Modal State
-  const [previewQrRecord, setPreviewQrRecord] = useState<{ name: string; roll: string; code: string; qrDataUrl: string } | null>(null);
+  const [previewQrRecord, setPreviewQrRecord] = useState<{
+    name: string;
+    roll: string;
+    code: string;
+    qrDataUrl: string;
+    teamName?: string;
+    projectTitle?: string;
+    teamMembers?: string[];
+    eventTitle?: string;
+  } | null>(null);
 
   // Copy Feedback State
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
@@ -586,6 +595,10 @@ export default function AdminAttendancePage() {
           approverRole: "Chapter Chair",
           status: "ACTIVE",
           source: "IN_SITE_GENERATED",
+          teamName: rec.teamName || undefined,
+          projectTitle: rec.projectTitle || undefined,
+          teamMembers: rec.teamMembers || undefined,
+          projectDomain: rec.projectDomain || undefined,
           createdAt: new Date().toISOString(),
         });
 
@@ -812,11 +825,16 @@ export default function AdminAttendancePage() {
     const origin = typeof window !== "undefined" ? window.location.origin : "https://ieeecsiub.vercel.app";
     const verifyUrl = `${origin}/verify/${rec.certificateCode}`;
     const qrDataUrl = await generateQrPngDataUrl(verifyUrl);
+    const currentEvent = events.find((e) => e.id === selectedEventId);
     setPreviewQrRecord({
       name: rec.name,
       roll: rec.rollNumber || "",
       code: rec.certificateCode,
       qrDataUrl,
+      teamName: rec.teamName,
+      projectTitle: rec.projectTitle,
+      teamMembers: rec.teamMembers,
+      eventTitle: currentEvent?.title,
     });
   };
 
@@ -1376,17 +1394,53 @@ export default function AdminAttendancePage() {
 
         {/* QR Code Preview Modal */}
         {previewQrRecord && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-card max-w-sm w-full p-6 shadow-2xl border border-gray-200 text-center space-y-4">
-              <div className="flex justify-between items-start">
-                <div className="text-left">
-                  <h3 className="font-montserrat font-bold text-base text-ieee-navy">{previewQrRecord.name}</h3>
-                  <span className="text-xs text-gray-500 font-mono">{previewQrRecord.roll || "UCET IUB"}</span>
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-card max-w-md w-full p-6 shadow-2xl border border-gray-200 text-center space-y-4">
+              <div className="flex justify-between items-start text-left">
+                <div className="space-y-0.5">
+                  {previewQrRecord.teamName ? (
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded font-montserrat uppercase">
+                        Project Expo Team Pass
+                      </span>
+                      <h3 className="font-montserrat font-extrabold text-lg text-ieee-navy mt-1">
+                        {previewQrRecord.teamName}
+                      </h3>
+                      {previewQrRecord.projectTitle && (
+                        <p className="text-xs font-semibold text-ieee-blue">
+                          Project: {previewQrRecord.projectTitle}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-gray-600 mt-1">
+                        <span className="font-bold">Team Lead:</span> {previewQrRecord.name}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 className="font-montserrat font-bold text-base text-ieee-navy">{previewQrRecord.name}</h3>
+                      <span className="text-xs text-gray-500 font-mono">{previewQrRecord.roll || "UCET IUB Attendee"}</span>
+                    </div>
+                  )}
                 </div>
-                <button onClick={() => setPreviewQrRecord(null)} className="text-gray-400 hover:text-gray-600">
+                <button onClick={() => setPreviewQrRecord(null)} className="text-gray-400 hover:text-gray-600 p-1 rounded">
                   <X size={18} />
                 </button>
               </div>
+
+              {previewQrRecord.teamMembers && previewQrRecord.teamMembers.length > 0 && (
+                <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-lg text-left text-xs">
+                  <span className="text-[10px] font-bold uppercase text-ieee-navy block mb-1">
+                    Certified Team Members ({previewQrRecord.teamMembers.length})
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {previewQrRecord.teamMembers.map((m, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded bg-white text-gray-800 text-[11px] border border-gray-200 font-medium">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div className="p-4 bg-gray-50 rounded-xl border flex justify-center">
                 <img
@@ -1401,12 +1455,17 @@ export default function AdminAttendancePage() {
                 <span className="font-mono font-bold text-sm text-ieee-navy bg-ieee-surfaceTint px-3 py-1 rounded inline-block mt-0.5">
                   {previewQrRecord.code}
                 </span>
+                {previewQrRecord.eventTitle && (
+                  <span className="text-[11px] text-gray-500 block mt-1 truncate">
+                    {previewQrRecord.eventTitle}
+                  </span>
+                )}
               </div>
 
               <div className="flex items-center justify-center gap-2 pt-2">
                 <a
                   href={previewQrRecord.qrDataUrl}
-                  download={`QR_${previewQrRecord.code}_${previewQrRecord.name.replace(/\s+/g, "_")}.png`}
+                  download={`QR_${previewQrRecord.code}_${(previewQrRecord.teamName || previewQrRecord.name).replace(/\s+/g, "_")}.png`}
                   className="px-4 py-2 bg-ieee-navy hover:bg-ieee-blue text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 shadow-sm"
                 >
                   <Download size={14} /> Download PNG
@@ -1689,18 +1748,62 @@ export default function AdminAttendancePage() {
                           </button>
                         </td>
 
-                        {/* Name */}
-                        <td className="p-4 font-montserrat font-bold text-gray-800 text-sm">
-                          <div className="flex items-center gap-1.5 group">
-                            <span>{rec.name}</span>
-                            <button
-                              onClick={() => handleOpenEditModal(rec)}
-                              className="text-gray-400 hover:text-ieee-blue p-1 rounded hover:bg-gray-100 opacity-70 hover:opacity-100 transition-opacity"
-                              title="Edit student name or details"
-                            >
-                              <Edit2 size={12} />
-                            </button>
-                          </div>
+                        {/* Name / Team & Project */}
+                        <td className="p-4">
+                          {rec.teamName ? (
+                            <div className="space-y-1 max-w-md">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-1.5 py-0.5 rounded text-[10px] uppercase font-montserrat">
+                                  TEAM
+                                </span>
+                                {rec.projectDomain && (
+                                  <span className="bg-blue-50 text-ieee-blue border border-blue-200 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                                    {rec.projectDomain}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="font-montserrat font-extrabold text-gray-900 text-sm">
+                                {rec.teamName}
+                              </div>
+                              {rec.projectTitle && (
+                                <div className="text-xs font-semibold text-ieee-blue">
+                                  <span className="text-gray-500 font-normal">Project: </span>
+                                  {rec.projectTitle}
+                                </div>
+                              )}
+                              <div className="text-[11px] text-gray-700 flex items-center gap-1">
+                                <span className="font-bold">Leader:</span> {rec.name}
+                                <button
+                                  onClick={() => handleOpenEditModal(rec)}
+                                  className="text-gray-400 hover:text-ieee-blue p-0.5 rounded hover:bg-gray-100 ml-1"
+                                  title="Edit details"
+                                >
+                                  <Edit2 size={11} />
+                                </button>
+                              </div>
+                              {rec.teamMembers && rec.teamMembers.length > 0 && (
+                                <div className="pt-1 flex flex-wrap items-center gap-1">
+                                  <span className="text-[10px] font-bold text-gray-400 uppercase">Members:</span>
+                                  {rec.teamMembers.map((m, i) => (
+                                    <span key={i} className="bg-gray-100 text-gray-700 border border-gray-200 px-1.5 py-0.2 rounded text-[10px] font-medium">
+                                      {m}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 group font-montserrat font-bold text-gray-800 text-sm">
+                              <span>{rec.name}</span>
+                              <button
+                                onClick={() => handleOpenEditModal(rec)}
+                                className="text-gray-400 hover:text-ieee-blue p-1 rounded hover:bg-gray-100 opacity-70 hover:opacity-100 transition-opacity"
+                                title="Edit student name or details"
+                              >
+                                <Edit2 size={12} />
+                              </button>
+                            </div>
+                          )}
                         </td>
 
                         {/* Roll & Email */}

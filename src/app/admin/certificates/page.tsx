@@ -64,7 +64,15 @@ export default function AdminCertificatesPage() {
   const [legacyYear, setLegacyYear] = useState("2025");
 
   // QR Preview & Copy States
-  const [previewQrCert, setPreviewQrCert] = useState<{ name: string; roll: string; code: string; qrDataUrl: string } | null>(null);
+  const [previewQrCert, setPreviewQrCert] = useState<{
+    name: string;
+    roll: string;
+    code: string;
+    qrDataUrl: string;
+    teamName?: string;
+    projectTitle?: string;
+    teamMembers?: string[];
+  } | null>(null);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   // Cloud Sync State
@@ -115,6 +123,9 @@ export default function AdminCertificatesPage() {
       roll: cert.recipientRollNumber || "",
       code: cert.code.trim().toUpperCase(),
       qrDataUrl,
+      teamName: cert.teamName,
+      projectTitle: cert.projectTitle,
+      teamMembers: cert.teamMembers,
     });
   };
 
@@ -444,12 +455,36 @@ export default function AdminCertificatesPage() {
                     </td>
 
                     <td className="p-4 font-semibold text-gray-900">
-                      <div>{cert.recipientName}</div>
-                      {(cert.recipientRollNumber || cert.recipientEmail) && (
-                        <div className="text-[11px] font-normal text-gray-500 space-x-1.5 mt-0.5">
-                          {cert.recipientRollNumber && <span className="font-mono text-ieee-navy font-semibold uppercase">{cert.recipientRollNumber}</span>}
-                          {cert.recipientRollNumber && cert.recipientEmail && <span>•</span>}
-                          {cert.recipientEmail && <span>{cert.recipientEmail}</span>}
+                      {cert.teamName ? (
+                        <div className="space-y-0.5 max-w-xs">
+                          <div className="flex items-center gap-1.5">
+                            <span className="bg-amber-100 text-amber-900 border border-amber-300 font-bold px-1.5 py-0.2 rounded text-[9px] uppercase font-montserrat">
+                              TEAM
+                            </span>
+                            <span className="font-montserrat font-bold text-xs text-ieee-navy">{cert.teamName}</span>
+                          </div>
+                          {cert.projectTitle && (
+                            <div className="text-[11px] font-semibold text-ieee-blue truncate">
+                              {cert.projectTitle}
+                            </div>
+                          )}
+                          <div className="text-xs text-gray-700">Recipient: <span className="font-bold">{cert.recipientName}</span></div>
+                          {cert.teamMembers && cert.teamMembers.length > 0 && (
+                            <div className="text-[10px] text-gray-500 truncate">
+                              Team: {cert.teamMembers.join(", ")}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div>
+                          <div>{cert.recipientName}</div>
+                          {(cert.recipientRollNumber || cert.recipientEmail) && (
+                            <div className="text-[11px] font-normal text-gray-500 space-x-1.5 mt-0.5">
+                              {cert.recipientRollNumber && <span className="font-mono text-ieee-navy font-semibold uppercase">{cert.recipientRollNumber}</span>}
+                              {cert.recipientRollNumber && cert.recipientEmail && <span>•</span>}
+                              {cert.recipientEmail && <span>{cert.recipientEmail}</span>}
+                            </div>
+                          )}
                         </div>
                       )}
                     </td>
@@ -580,17 +615,53 @@ export default function AdminCertificatesPage() {
         {previewQrCert && (
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
             <div className="bg-white rounded-card max-w-sm w-full p-6 shadow-2xl border border-gray-200 text-center space-y-4">
-              <div className="flex justify-between items-start">
-                <div className="text-left">
-                  <h3 className="font-montserrat font-bold text-base text-ieee-navy">{previewQrCert.name}</h3>
-                  {previewQrCert.roll && (
-                    <span className="text-xs font-mono text-gray-500 block">{previewQrCert.roll}</span>
+              <div className="flex justify-between items-start text-left">
+                <div>
+                  {previewQrCert.teamName ? (
+                    <div>
+                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded font-montserrat uppercase">
+                        Team Credential Pass
+                      </span>
+                      <h3 className="font-montserrat font-extrabold text-base text-ieee-navy mt-1">
+                        {previewQrCert.teamName}
+                      </h3>
+                      {previewQrCert.projectTitle && (
+                        <p className="text-xs font-semibold text-ieee-blue">
+                          {previewQrCert.projectTitle}
+                        </p>
+                      )}
+                      <p className="text-[11px] text-gray-600 mt-0.5">
+                        <span className="font-bold">Recipient:</span> {previewQrCert.name}
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <h3 className="font-montserrat font-bold text-base text-ieee-navy">{previewQrCert.name}</h3>
+                      {previewQrCert.roll && (
+                        <span className="text-xs font-mono text-gray-500 block">{previewQrCert.roll}</span>
+                      )}
+                    </div>
                   )}
                 </div>
                 <button onClick={() => setPreviewQrCert(null)} className="text-gray-400 hover:text-gray-600 p-1">
                   <X size={18} />
                 </button>
               </div>
+
+              {previewQrCert.teamMembers && previewQrCert.teamMembers.length > 0 && (
+                <div className="p-2.5 bg-blue-50/70 border border-blue-100 rounded-lg text-left text-xs">
+                  <span className="text-[10px] font-bold uppercase text-ieee-navy block mb-1">
+                    Certified Team Members ({previewQrCert.teamMembers.length})
+                  </span>
+                  <div className="flex flex-wrap gap-1">
+                    {previewQrCert.teamMembers.map((m, i) => (
+                      <span key={i} className="px-2 py-0.5 rounded bg-white text-gray-800 text-[11px] border border-gray-200 font-medium">
+                        {m}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* QR Image Box */}
               <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col items-center justify-center">

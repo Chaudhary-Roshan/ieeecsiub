@@ -162,6 +162,7 @@ export default function AdminRegistrationsPage() {
   const [editIsIeee, setEditIsIeee] = useState(false);
   const [editIeeeNo, setEditIeeeNo] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [selectedProjectSummary, setSelectedProjectSummary] = useState<{ title: string; text: string } | null>(null);
 
   // Manual Add Modal State
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -365,12 +366,17 @@ export default function AdminRegistrationsPage() {
         email: reg.email,
         attended: reg.status === "ATTENDED",
         checkedInAt: reg.status === "ATTENDED" ? new Date().toISOString() : undefined,
+        teamName: reg.teamName,
+        projectTitle: reg.projectTitle,
+        teamMembers: reg.teamMembers,
+        projectDomain: reg.projectDomain,
       };
 
       const updated = [...currentAttendance, newAttendee];
       db.saveAttendance(reg.eventId, updated);
 
-      alert(`Added "${reg.fullName}" to the Event Attendance Sheet! You can now generate their QR code from the Attendance Hub.`);
+      const displayName = reg.teamName ? `Team ${reg.teamName} (${reg.fullName})` : reg.fullName;
+      alert(`Added "${displayName}" to the Event Attendance Sheet! You can now generate their QR code from the Attendance Hub.`);
     } catch (err: any) {
       alert("Failed to push to attendance: " + (err?.message || ""));
     } finally {
@@ -540,10 +546,53 @@ export default function AdminRegistrationsPage() {
         "membershipnumber", "memberid", "ieeeid", "ieeemembershipno"
       ];
 
+      // Team & Project Expo Aliases
+      const TEAM_NAME_ALIASES = ["teamname", "team_name", "nameofteam", "groupname", "team"];
+      const PROJECT_TITLE_ALIASES = ["projecttitle", "project_title", "titleofproject", "projectname", "project"];
+      const TEAM_MEMBERS_ALIASES = ["teammembernames", "teammembers", "members", "teammembernameswritethenamesofallmembersseparatedbycommas", "membernames", "teammates"];
+      const TEAM_LEADER_ALIASES = ["teamleadername", "teamleader", "teamlead", "leadername", "leader", "teamleadname"];
+      const LEADER_PHONE_ALIASES = ["teamleaderwhatsappnumber", "teamleaderwhatsapp", "teamleaderphone", "leaderwhatsapp", "leaderphone"];
+      const LEADER_CNIC_ALIASES = ["teamleadercnicnumber", "teamleadercnic", "leadercnic", "cnic", "cnicnumber"];
+      const DOMAIN_ALIASES = ["selectprojectdomaincategory", "projectdomain", "category", "domain", "projectcategory"];
+      const SUMMARY_ALIASES = ["projectsummary", "summary", "abstract", "projectdescription", "description"];
+      const POSTER_ALIASES = ["projectposter", "poster", "posterlink", "posterurl", "driveposter"];
+      const VIDEO_ALIASES = ["googledrivedownloadablelinkfortechnicalprojectvideomaxduration120sec", "videodemo", "videourl", "videolink", "demovideo", "projectvideo"];
+      const RECEIPT_ALIASES = ["receiptid", "receipt", "transactionid", "tid", "reference", "referencenumber"];
+      const BANK_ALIASES = ["bankname", "bank", "paymentbank", "depositorbank"];
+      const AMOUNT_ALIASES = ["depositedamount", "amount", "fee", "registrationfee"];
+      const PRIZE_BANK_ALIASES = ["teamleadbankname", "prizebankname", "prizebank"];
+      const PRIZE_ACCOUNT_ALIASES = ["teamleadaccountnumberprizemoneyforthewinninggroupswillbetransferredtotheteamleadaccount", "teamleadaccountnumber", "prizeaccount", "prizeaccountnumber"];
+
       for (let idx = 0; idx < jsonRows.length; idx++) {
         const row = jsonRows[idx];
 
-        const fullName = extractFieldFromRow(row, NAME_ALIASES, "text");
+        // 1. Check for Team / Expo Fields
+        const teamName = extractFieldFromRow(row, TEAM_NAME_ALIASES, "text");
+        const projectTitle = extractFieldFromRow(row, PROJECT_TITLE_ALIASES, "text");
+        const rawMembers = extractFieldFromRow(row, TEAM_MEMBERS_ALIASES, "text");
+        const teamLeader = extractFieldFromRow(row, TEAM_LEADER_ALIASES, "text");
+        const leaderPhone = extractFieldFromRow(row, LEADER_PHONE_ALIASES, "phone");
+        const leaderCnic = extractFieldFromRow(row, LEADER_CNIC_ALIASES, "text");
+        const projectDomain = extractFieldFromRow(row, DOMAIN_ALIASES, "text");
+        const projectSummary = extractFieldFromRow(row, SUMMARY_ALIASES, "text");
+        const posterUrl = extractFieldFromRow(row, POSTER_ALIASES, "text");
+        const videoDemoUrl = extractFieldFromRow(row, VIDEO_ALIASES, "text");
+        const receiptId = extractFieldFromRow(row, RECEIPT_ALIASES, "text");
+        const bankName = extractFieldFromRow(row, BANK_ALIASES, "text");
+        const depositedAmount = Number(extractFieldFromRow(row, AMOUNT_ALIASES, "text").replace(/[^\d.]/g, "")) || 1000;
+        const prizeBankName = extractFieldFromRow(row, PRIZE_BANK_ALIASES, "text");
+        const prizeAccountNumber = extractFieldFromRow(row, PRIZE_ACCOUNT_ALIASES, "text");
+        const semester = extractFieldFromRow(row, ["semester"], "text");
+        const city = extractFieldFromRow(row, ["iamfromthecity", "city"], "text");
+
+        const parsedMembers: string[] = rawMembers
+          ? rawMembers.split(/[,\n;]+/).map((m) => m.trim().replace(/^[\d\)\.\-\s]+/, "").trim()).filter(Boolean)
+          : [];
+
+        // 2. Resolve Full Name
+        let fullName = extractFieldFromRow(row, NAME_ALIASES, "text");
+        if (!fullName && teamLeader) fullName = teamLeader;
+        if (!fullName && teamName) fullName = `${teamName} Leader`;
         if (!fullName) continue;
 
         const rollNumber = extractFieldFromRow(row, ROLL_ALIASES, "roll");
@@ -551,11 +600,11 @@ export default function AdminRegistrationsPage() {
         const email = extractFieldFromRow(row, EMAIL_ALIASES, "email") ||
           `${fullName.toLowerCase().replace(/[^a-z0-9]/g, "")}.${Date.now().toString().slice(-4)}@ucet.iub.edu.pk`;
 
-        const phone = extractFieldFromRow(row, PHONE_ALIASES, "phone") || "0300-0000000";
+        const phone = leaderPhone || extractFieldFromRow(row, PHONE_ALIASES, "phone") || "0300-0000000";
 
         const department = extractFieldFromRow(row, DEPT_ALIASES, "text") || "Computer Science";
 
-        const degreeProgram = extractFieldFromRow(row, PROGRAM_ALIASES, "text");
+        const degreeProgram = semester ? `${semester} Semester` : extractFieldFromRow(row, PROGRAM_ALIASES, "text");
 
         const ieeeRaw = extractFieldFromRow(row, IEEE_ALIASES, "text").toLowerCase();
         const isIeeeMember = ieeeRaw.includes("yes") || ieeeRaw.includes("true") || ieeeRaw.includes("1");
@@ -581,22 +630,23 @@ export default function AdminRegistrationsPage() {
         }
 
         // Deduplicate inside spreadsheet itself
-        const inSheetKey = `${rowEventId}_${email.toLowerCase()}`;
+        const inSheetKey = teamName ? `${rowEventId}_team_${teamName.toLowerCase().trim()}` : `${rowEventId}_${email.toLowerCase()}`;
         if (sheetSeen.has(inSheetKey)) {
           continue;
         }
         sheetSeen.add(inSheetKey);
 
-        // Check if attendee is already registered for this event
+        // Check if attendee / team is already registered for this event
         const existingReg = registrations.find(
           (r) =>
             r.eventId === rowEventId &&
-            ((r.email && r.email.toLowerCase() === email.toLowerCase()) ||
+            ((teamName && r.teamName && r.teamName.toLowerCase().trim() === teamName.toLowerCase().trim()) ||
+              (r.email && r.email.toLowerCase() === email.toLowerCase()) ||
               (rollNumber && r.rollNumber && r.rollNumber !== "N/A" && r.rollNumber.toUpperCase() === rollNumber.toUpperCase()))
         );
 
         if (existingReg) {
-          // Update existing attendee with imported phone / roll number / degree
+          // Update existing attendee with imported phone / roll number / degree / team
           const updatedReg: Registration = {
             ...existingReg,
             fullName: fullName || existingReg.fullName,
@@ -606,11 +656,27 @@ export default function AdminRegistrationsPage() {
             degreeProgram: degreeProgram || existingReg.degreeProgram,
             isIeeeMember: isIeeeMember || existingReg.isIeeeMember,
             ieeeMembershipNumber: ieeeNo || existingReg.ieeeMembershipNumber,
+            teamName: teamName || existingReg.teamName,
+            projectTitle: projectTitle || existingReg.projectTitle,
+            teamMembers: parsedMembers.length > 0 ? parsedMembers : existingReg.teamMembers,
+            memberCount: parsedMembers.length > 0 ? parsedMembers.length : existingReg.memberCount,
+            projectDomain: projectDomain || existingReg.projectDomain,
+            projectSummary: projectSummary || existingReg.projectSummary,
+            posterUrl: posterUrl || existingReg.posterUrl,
+            videoDemoUrl: videoDemoUrl || existingReg.videoDemoUrl,
+            teamLeaderPhone: leaderPhone || existingReg.teamLeaderPhone,
+            teamLeaderCnic: leaderCnic || existingReg.teamLeaderCnic,
+            semester: semester || existingReg.semester,
+            city: city || existingReg.city,
+            receiptId: receiptId || existingReg.receiptId,
+            bankName: bankName || existingReg.bankName,
+            prizeBankName: prizeBankName || existingReg.prizeBankName,
+            prizeAccountNumber: prizeAccountNumber || existingReg.prizeAccountNumber,
           };
           await db.addRegistration(updatedReg);
           updatedCount++;
         } else {
-          // Create new attendee registration
+          // Create new attendee / team registration
           const ticketCode = ticketRaw || `TCK-${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
           const regItem: Registration = {
             id: `reg-import-${Date.now()}-${idx}`,
@@ -628,10 +694,45 @@ export default function AdminRegistrationsPage() {
             photoConsent: true,
             status,
             ticketCode,
+            teamName: teamName || undefined,
+            projectTitle: projectTitle || undefined,
+            teamMembers: parsedMembers.length > 0 ? parsedMembers : undefined,
+            memberCount: parsedMembers.length > 0 ? parsedMembers.length : (teamName ? 2 : undefined),
+            projectDomain: projectDomain || undefined,
+            projectSummary: projectSummary || undefined,
+            posterUrl: posterUrl || undefined,
+            videoDemoUrl: videoDemoUrl || undefined,
+            teamLeaderPhone: leaderPhone || undefined,
+            teamLeaderCnic: leaderCnic || undefined,
+            semester: semester || undefined,
+            city: city || undefined,
+            receiptId: receiptId || undefined,
+            bankName: bankName || undefined,
+            prizeBankName: prizeBankName || undefined,
+            prizeAccountNumber: prizeAccountNumber || undefined,
             createdAt: new Date().toISOString(),
           };
 
           await db.addRegistration(regItem);
+
+          // If receipt ID or bank is provided, add to payment queue
+          if (receiptId || bankName) {
+            const payScreenshot = extractFieldFromRow(row, ["paymentscreenshot", "screenshot", "receiptimage", "proof"], "text") || "";
+            const currentEvt = events.find((e) => e.id === rowEventId);
+            db.addPayment({
+              id: `pay-${Date.now()}-${idx}`,
+              registrationId: regItem.id,
+              recipientName: fullName,
+              eventTitle: currentEvt?.title || "UCET IUB Event",
+              amountPkr: depositedAmount || 1000,
+              paymentMethod: (bankName && bankName.toLowerCase().includes("easy")) ? "EasyPaisa / JazzCash" : (bankName && bankName.toLowerCase().includes("jazz")) ? "EasyPaisa / JazzCash" : "Bank Transfer",
+              transactionId: receiptId || `TID-${Date.now()}`,
+              proofImageUrl: payScreenshot,
+              status: "VERIFIED",
+              createdAt: new Date().toISOString(),
+            });
+          }
+
           newCount++;
         }
       }
@@ -889,7 +990,7 @@ export default function AdminRegistrationsPage() {
               <table className="w-full text-left text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200 font-montserrat font-bold text-gray-600 uppercase tracking-wider text-[11px]">
                   <tr>
-                    <th className="p-4">Student Information</th>
+                    <th className="p-4">Participant / Team & Project Information</th>
                     <th className="p-4">Event</th>
                     <th className="p-4">Program & Department</th>
                     <th className="p-4">Ticket Code</th>
@@ -904,23 +1005,114 @@ export default function AdminRegistrationsPage() {
                     return (
                       <tr key={reg.id} className="hover:bg-gray-50/70 transition-colors">
                         <td className="p-4">
-                          <div className="font-montserrat font-bold text-ieee-navy text-sm">
-                            {reg.fullName}
-                          </div>
-                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
-                            {reg.rollNumber && (
-                              <span className="font-mono text-ieee-navy font-semibold bg-gray-100 px-1.5 py-0.5 rounded uppercase">
-                                {reg.rollNumber}
-                              </span>
-                            )}
-                            <span>{reg.email}</span>
-                            {reg.phone && (
-                              <>
-                                <span>•</span>
-                                <span>{reg.phone}</span>
-                              </>
-                            )}
-                          </div>
+                          {reg.teamName ? (
+                            <div className="space-y-1.5 max-w-md">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="bg-amber-100 text-amber-900 border border-amber-300 font-extrabold px-2 py-0.5 rounded text-[10px] tracking-wide font-montserrat uppercase">
+                                  TEAM PROJECT
+                                </span>
+                                {reg.projectDomain && (
+                                  <span className="bg-blue-50 text-ieee-blue border border-blue-200 font-bold px-2 py-0.5 rounded text-[10px]">
+                                    {reg.projectDomain}
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="font-montserrat font-extrabold text-base text-ieee-navy leading-tight">
+                                {reg.teamName}
+                              </div>
+
+                              {reg.projectTitle && (
+                                <div className="text-xs font-semibold text-ieee-blue">
+                                  <span className="text-gray-500 font-normal">Project: </span>
+                                  {reg.projectTitle}
+                                </div>
+                              )}
+
+                              <div className="text-[11px] text-gray-700">
+                                <span className="font-bold text-gray-900">Leader: </span>
+                                {reg.fullName}
+                                {reg.phone && reg.phone !== "0300-0000000" && (
+                                  <span className="text-gray-500 font-mono"> ({reg.phone})</span>
+                                )}
+                                {reg.email && !reg.email.includes("ucet.iub.edu.pk") && (
+                                  <span className="text-gray-500"> • {reg.email}</span>
+                                )}
+                              </div>
+
+                              {reg.teamMembers && reg.teamMembers.length > 0 && (
+                                <div className="pt-1 border-t border-gray-100 flex flex-wrap items-center gap-1">
+                                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 mr-0.5">
+                                    Members ({reg.teamMembers.length}):
+                                  </span>
+                                  {reg.teamMembers.map((m, i) => (
+                                    <span
+                                      key={i}
+                                      className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium bg-gray-100 text-gray-800 border border-gray-200"
+                                    >
+                                      {m}
+                                    </span>
+                                  ))}
+                                </div>
+                              )}
+
+                              <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                                {reg.posterUrl && (
+                                  <a
+                                    href={reg.posterUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2 py-0.5 rounded transition-colors"
+                                  >
+                                    Poster ↗
+                                  </a>
+                                )}
+                                {reg.videoDemoUrl && (
+                                  <a
+                                    href={reg.videoDemoUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-800 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-2 py-0.5 rounded transition-colors"
+                                  >
+                                    Video Demo ↗
+                                  </a>
+                                )}
+                                {reg.projectSummary && (
+                                  <button
+                                    onClick={() =>
+                                      setSelectedProjectSummary({
+                                        title: `${reg.teamName} — ${reg.projectTitle || "Project Summary"}`,
+                                        text: reg.projectSummary!,
+                                      })
+                                    }
+                                    className="inline-flex items-center gap-1 text-[10px] font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 px-2 py-0.5 rounded transition-colors cursor-pointer"
+                                  >
+                                    Abstract
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="font-montserrat font-bold text-ieee-navy text-sm">
+                                {reg.fullName}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
+                                {reg.rollNumber && (
+                                  <span className="font-mono text-ieee-navy font-semibold bg-gray-100 px-1.5 py-0.5 rounded uppercase">
+                                    {reg.rollNumber}
+                                  </span>
+                                )}
+                                <span>{reg.email}</span>
+                                {reg.phone && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{reg.phone}</span>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </td>
 
                         <td className="p-4 max-w-xs">
@@ -1347,6 +1539,39 @@ export default function AdminRegistrationsPage() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+        {/* Project Summary Modal */}
+        {selectedProjectSummary && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white rounded-card max-w-2xl w-full p-6 space-y-4 border border-gray-200 shadow-2xl max-h-[85vh] flex flex-col">
+              <div className="flex items-center justify-between border-b pb-3">
+                <h3 className="font-montserrat font-bold text-base text-ieee-navy flex items-center gap-2">
+                  <Sparkles size={16} className="text-ieee-orange" /> {selectedProjectSummary.title}
+                </h3>
+                <button
+                  onClick={() => setSelectedProjectSummary(null)}
+                  className="text-gray-400 hover:text-gray-600 p-1 rounded"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto flex-1 pr-1">
+                <div className="text-xs leading-relaxed text-gray-700 whitespace-pre-line bg-gray-50 p-4 rounded-lg border font-sans">
+                  {selectedProjectSummary.text}
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-3 border-t">
+                <button
+                  onClick={() => setSelectedProjectSummary(null)}
+                  className="px-4 py-2 bg-ieee-navy text-white text-xs font-semibold rounded-lg hover:bg-ieee-blue transition-colors"
+                >
+                  Close Abstract
+                </button>
+              </div>
             </div>
           </div>
         )}

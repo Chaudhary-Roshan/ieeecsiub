@@ -1,4 +1,4 @@
-import { EventTeam } from "@/types";
+import { EventTeam, Registration } from "@/types";
 
 // ====================================================================
 // IEEE DigitalFest 2026 – Projects Expo: Official Team & Participant Data
@@ -2350,7 +2350,7 @@ export const DIGITALFEST_PARTICIPANTS: ExpoParticipant[] = [
 
 export const DIGITALFEST_EVENT_TEAMS: EventTeam[] = DIGITALFEST_TEAMS.map((t) => ({
   id: `team-df-${t.sr}`,
-  eventId: "evt-digitalfest-2026",
+  eventId: "3f6311ca-f0d0-4ac3-89fc-13d25a3f8e7f",
   sr: t.sr,
   teamName: t.teamName,
   projectTitle: t.projectTitle,
@@ -2358,4 +2358,28 @@ export const DIGITALFEST_EVENT_TEAMS: EventTeam[] = DIGITALFEST_TEAMS.map((t) =>
   semester: t.semester,
   memberCount: t.memberCount,
   teamMembers: t.members,
+}));
+
+export const DIGITALFEST_REGISTRATIONS: Registration[] = DIGITALFEST_TEAMS.map((t) => ({
+  id: `reg-team-df-${t.sr}`,
+  eventId: "3f6311ca-f0d0-4ac3-89fc-13d25a3f8e7f",
+  privateToken: `priv-df-${t.sr}`,
+  fullName: t.leader,
+  namePreference: "FULL_NAME",
+  email: `${t.leader.toLowerCase().replace(/[^a-z0-9]/g, "")}.${t.sr}@ucet.iub.edu.pk`,
+  phone: "0300-0000000",
+  rollNumber: "N/A",
+  department: "Information and Communication Engineering",
+  degreeProgram: `${t.semester} Semester`,
+  isIeeeMember: false,
+  photoConsent: true,
+  status: "CONFIRMED",
+  ticketCode: `TCK-EXPO-${String(t.sr).padStart(2, "0")}`,
+  teamName: t.teamName,
+  projectTitle: t.projectTitle,
+  memberCount: t.memberCount,
+  teamMembers: t.members,
+  semester: t.semester,
+  city: "Bahawalpur",
+  createdAt: "2026-05-20T10:00:00Z",
 }));

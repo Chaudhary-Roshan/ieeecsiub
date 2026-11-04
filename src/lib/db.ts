@@ -25,7 +25,7 @@ import {
   TEMPLATE_EXPO_WINNER_MEMBERS,
   TEMPLATE_EXPO_PARTICIPATION_MEMBERS,
 } from "./certificateTemplates";
-import { DIGITALFEST_PARTICIPANTS } from "./digitalFestData";
+import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_REGISTRATIONS, DIGITALFEST_TEAMS } from "./digitalFestData";
 import { normalizeVerificationCode } from "./codeGenerator";
 import { parseLearningObjectives } from "./sha256";
 
@@ -395,6 +395,29 @@ class ChapterDatabase {
               pdfUrl: data.pdf_url,
               createdAt: data.created_at || new Date().toISOString(),
             };
+
+            // Enrich with team / project expo metadata if matched
+            const dfMatch = DIGITALFEST_PARTICIPANTS.find(
+              (p) => p.certificateCode.toUpperCase() === mapped.code.toUpperCase() || p.name.toLowerCase() === mapped.recipientName.toLowerCase()
+            );
+            if (dfMatch) {
+              if (!mapped.teamName) mapped.teamName = dfMatch.teamName;
+              if (!mapped.projectTitle) mapped.projectTitle = dfMatch.projectTitle;
+              const teamMatch = DIGITALFEST_TEAMS.find((t) => t.teamName.toLowerCase() === dfMatch.teamName.toLowerCase());
+              if (teamMatch) {
+                if (!mapped.teamMembers) mapped.teamMembers = teamMatch.members;
+                if (!mapped.projectDomain) mapped.projectDomain = `${teamMatch.semester} Semester`;
+              }
+            }
+
+            const localMatch = this.getCertificates().find((c) => c.code.toUpperCase() === clean);
+            if (localMatch) {
+              if (!mapped.teamName && localMatch.teamName) mapped.teamName = localMatch.teamName;
+              if (!mapped.projectTitle && localMatch.projectTitle) mapped.projectTitle = localMatch.projectTitle;
+              if (!mapped.teamMembers && localMatch.teamMembers) mapped.teamMembers = localMatch.teamMembers;
+              if (!mapped.projectDomain && localMatch.projectDomain) mapped.projectDomain = localMatch.projectDomain;
+            }
+
             return { certificate: mapped, status: "FOUND" };
           }
         }
@@ -1397,6 +1420,10 @@ class ChapterDatabase {
         if (existing) {
           if (!existing.rollNumber && reg.rollNumber) existing.rollNumber = reg.rollNumber;
           if (!existing.email && reg.email) existing.email = reg.email;
+          if (!existing.teamName && reg.teamName) existing.teamName = reg.teamName;
+          if (!existing.projectTitle && reg.projectTitle) existing.projectTitle = reg.projectTitle;
+          if ((!existing.teamMembers || existing.teamMembers.length === 0) && reg.teamMembers) existing.teamMembers = reg.teamMembers;
+          if (!existing.projectDomain && reg.projectDomain) existing.projectDomain = reg.projectDomain;
         } else {
           map.set(key, {
             id: `att-reg-${reg.id}`,
@@ -1407,6 +1434,10 @@ class ChapterDatabase {
             attended: reg.status === "ATTENDED" || reg.status === "CONFIRMED",
             certificateCode: undefined,
             checkedInAt: reg.checkedInAt,
+            teamName: reg.teamName,
+            projectTitle: reg.projectTitle,
+            teamMembers: reg.teamMembers,
+            projectDomain: reg.projectDomain,
           });
         }
       }
@@ -1429,6 +1460,10 @@ class ChapterDatabase {
         record.certificateCode = cert.code;
         if (!record.rollNumber && cert.recipientRollNumber) record.rollNumber = cert.recipientRollNumber;
         if (!record.email && cert.recipientEmail) record.email = cert.recipientEmail;
+        if (!record.teamName && cert.teamName) record.teamName = cert.teamName;
+        if (!record.projectTitle && cert.projectTitle) record.projectTitle = cert.projectTitle;
+        if ((!record.teamMembers || record.teamMembers.length === 0) && cert.teamMembers) record.teamMembers = cert.teamMembers;
+        if (!record.projectDomain && cert.projectDomain) record.projectDomain = cert.projectDomain;
       } else {
         const newRecord: AttendanceRecord = {
           id: `att-cert-${cert.id || cert.code}`,
@@ -1439,11 +1474,37 @@ class ChapterDatabase {
           attended: true,
           certificateCode: cert.code,
           checkedInAt: cert.createdAt || cert.issueDate || new Date().toISOString(),
+          teamName: cert.teamName,
+          projectTitle: cert.projectTitle,
+          teamMembers: cert.teamMembers,
+          projectDomain: cert.projectDomain,
         };
         const recordKey = normRoll || normEmail || normName;
         map.set(recordKey, newRecord);
       }
     });
+
+    // 5. Special fallback for DigitalFest: If attendance is empty, seed from DIGITALFEST_TEAMS
+    const isDigitalFest = cleanId === "3f6311ca-f0d0-4ac3-89fc-13d25a3f8e7f" || cleanId.includes("digitalfest") || cleanTitle.includes("digitalfest");
+    if (isDigitalFest && map.size === 0 && DIGITALFEST_TEAMS.length > 0) {
+      DIGITALFEST_TEAMS.forEach((team) => {
+        const leaderKey = team.leader.trim().toLowerCase();
+        map.set(leaderKey, {
+          id: `att-df-${team.sr}`,
+          eventId,
+          name: team.leader,
+          rollNumber: `SR-${team.sr}`,
+          email: `${team.leader.toLowerCase().replace(/[^a-z0-9]/g, "")}.${team.sr}@ucet.iub.edu.pk`,
+          attended: true,
+          certificateCode: `CSIUB-26-DF${String(team.sr).padStart(2, "0")}`,
+          teamName: team.teamName,
+          projectTitle: team.projectTitle,
+          teamMembers: team.members,
+          projectDomain: `${team.semester} Semester`,
+          checkedInAt: new Date().toISOString(),
+        });
+      });
+    }
 
     const unifiedList = Array.from(map.values());
     if (unifiedList.length > 0) {
@@ -2030,13 +2091,25 @@ class ChapterDatabase {
 
   // --- Option 2: Registrations & Payments ---
   getRegistrations(): Registration[] {
-    const raw = this.getItem<Registration[]>("registrations", SEED_REGISTRATIONS);
-    if (!Array.isArray(raw)) return [];
+    const raw = this.getItem<Registration[]>("registrations", []);
+    let list = Array.isArray(raw) ? [...raw] : [];
+
+    // Seed official DigitalFest 61 Expo teams if not yet present
+    const hasDigitalFest = list.some(
+      (r) =>
+        r.eventId === "3f6311ca-f0d0-4ac3-89fc-13d25a3f8e7f" ||
+        r.eventId === "evt-digitalfest-2026" ||
+        (r.teamName && r.teamName.length > 0)
+    );
+    if (!hasDigitalFest && DIGITALFEST_REGISTRATIONS.length > 0) {
+      list = [...list, ...DIGITALFEST_REGISTRATIONS];
+      this.setItem("registrations", list);
+    }
 
     // Deduplicate in memory by ticketCode and eventId+email
     const seen = new Set<string>();
     const deduplicated: Registration[] = [];
-    for (const r of raw) {
+    for (const r of list) {
       if (!r) continue;
       const key = (r.ticketCode && r.ticketCode.trim())
         ? `ticket:${r.ticketCode.trim().toUpperCase()}`
@@ -2083,6 +2156,22 @@ class ChapterDatabase {
         phone: bestPhone || "0300-0000000",
         degreeProgram: incoming.degreeProgram || existing.degreeProgram,
         department: incoming.department || existing.department || "Computer Science",
+        teamName: incoming.teamName || existing.teamName,
+        projectTitle: incoming.projectTitle || existing.projectTitle,
+        memberCount: incoming.memberCount || existing.memberCount,
+        teamMembers: incoming.teamMembers && incoming.teamMembers.length > 0 ? incoming.teamMembers : existing.teamMembers,
+        projectDomain: incoming.projectDomain || existing.projectDomain,
+        projectSummary: incoming.projectSummary || existing.projectSummary,
+        posterUrl: incoming.posterUrl || existing.posterUrl,
+        videoDemoUrl: incoming.videoDemoUrl || existing.videoDemoUrl,
+        teamLeaderPhone: incoming.teamLeaderPhone || existing.teamLeaderPhone,
+        teamLeaderCnic: incoming.teamLeaderCnic || existing.teamLeaderCnic,
+        semester: incoming.semester || existing.semester,
+        city: incoming.city || existing.city,
+        receiptId: incoming.receiptId || existing.receiptId,
+        bankName: incoming.bankName || existing.bankName,
+        prizeBankName: incoming.prizeBankName || existing.prizeBankName,
+        prizeAccountNumber: incoming.prizeAccountNumber || existing.prizeAccountNumber,
       };
     };
 

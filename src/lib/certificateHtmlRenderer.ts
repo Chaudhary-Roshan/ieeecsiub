@@ -72,6 +72,13 @@ export async function renderCertificateHtml(
     ? `<img src="${eventLogo}" alt="Event / Partner Logo" style="max-height: 52px; max-width: 140px; object-fit: contain; display: inline-block;" />`
     : "";
 
+  // Team & Project Members extraction
+  const membersList = cert.teamMembers && cert.teamMembers.length > 0 ? cert.teamMembers : [cert.recipientName];
+  const m1 = membersList[0] || cert.recipientName;
+  const m2 = membersList[1] || "";
+  const m3 = membersList[2] || "";
+  const m4 = membersList[3] || "";
+
   // 4. Perform dynamic placeholders replacement
   let rendered = rawHtml
     // Recipient and Event Details
@@ -90,10 +97,14 @@ export async function renderCertificateHtml(
     // Team & Project (Projects Expo templates)
     .replace(/{{team_name}}/g, cert.teamName || cert.recipientName)
     .replace(/{{project_title}}/g, cert.projectTitle || cert.eventTitle)
-    .replace(/{{member_1}}/g, cert.recipientName)
-    .replace(/{{member_2}}/g, "")
-    .replace(/{{member_3}}/g, "")
-    .replace(/{{member_4}}/g, "")
+    .replace(/<div[^>]*>{{member_1}}<\/div>/g, m1 ? `<div style="padding: 4px 10px; border: 1.5px solid #00629B; background: #FFFFFF; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 12px; color: #002855">${m1}</div>` : "")
+    .replace(/<div[^>]*>{{member_2}}<\/div>/g, m2 ? `<div style="padding: 4px 10px; border: 1.5px solid #00629B; background: #FFFFFF; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 12px; color: #002855">${m2}</div>` : "")
+    .replace(/<div[^>]*>{{member_3}}<\/div>/g, m3 ? `<div style="padding: 4px 10px; border: 1.5px solid #00629B; background: #FFFFFF; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 12px; color: #002855">${m3}</div>` : "")
+    .replace(/<div[^>]*>{{member_4}}<\/div>/g, m4 ? `<div style="padding: 4px 10px; border: 1.5px solid #00629B; background: #FFFFFF; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 12px; color: #002855">${m4}</div>` : "")
+    .replace(/{{member_1}}/g, m1)
+    .replace(/{{member_2}}/g, m2)
+    .replace(/{{member_3}}/g, m3)
+    .replace(/{{member_4}}/g, m4)
 
     // Signatures
     .replace(/{{chair_signature}}/g, chairSigHtml)

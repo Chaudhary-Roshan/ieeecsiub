@@ -103,6 +103,8 @@ export interface CertificateRecord {
   templateId?: string;
   teamName?: string;
   projectTitle?: string;
+  teamMembers?: string[];
+  projectDomain?: string;
   replacedByCode?: string;
   replacementReason?: string;
   revocationDate?: string;
@@ -150,6 +152,23 @@ export interface Registration {
   ticketCode?: string;
   checkedInAt?: string;
   paymentId?: string;
+  // Hackathon & Project Expo Fields
+  teamName?: string;
+  projectTitle?: string;
+  memberCount?: number;
+  teamMembers?: string[];
+  projectDomain?: string;
+  projectSummary?: string;
+  posterUrl?: string;
+  videoDemoUrl?: string;
+  teamLeaderPhone?: string;
+  teamLeaderCnic?: string;
+  semester?: string;
+  city?: string;
+  receiptId?: string;
+  bankName?: string;
+  prizeBankName?: string;
+  prizeAccountNumber?: string;
   createdAt: string;
 }
 
@@ -207,6 +226,10 @@ export interface AttendanceRecord {
   attended: boolean;
   certificateCode?: string;
   checkedInAt?: string;
+  teamName?: string;
+  projectTitle?: string;
+  teamMembers?: string[];
+  projectDomain?: string;
 }
 
 export interface ChapterSettings {

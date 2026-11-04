@@ -177,6 +177,62 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
           </div>
         </div>
 
+        {/* Team & Technical Project Details */}
+        {(certificate.teamName || certificate.projectTitle) && (
+          <div className="p-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-amber-50/70 border border-blue-200/80 rounded-xl space-y-3 shadow-xs">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="bg-ieee-navy text-white text-[10px] font-bold px-2 py-0.5 rounded font-montserrat tracking-wider uppercase">
+                Technical Project & Team Credential
+              </span>
+              {certificate.projectDomain && (
+                <span className="bg-ieee-blue/10 text-ieee-blue text-[10px] font-bold px-2 py-0.5 rounded">
+                  {certificate.projectDomain}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              {certificate.teamName && (
+                <div>
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block">Team Name</span>
+                  <span className="font-montserrat font-extrabold text-base text-ieee-navy">{certificate.teamName}</span>
+                </div>
+              )}
+              {certificate.projectTitle && (
+                <div>
+                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block">Project Title</span>
+                  <span className="font-montserrat font-bold text-sm text-ieee-blue">{certificate.projectTitle}</span>
+                </div>
+              )}
+            </div>
+
+            {certificate.teamMembers && certificate.teamMembers.length > 0 && (
+              <div className="pt-2 border-t border-blue-100">
+                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-1.5">
+                  Certified Team Members ({certificate.teamMembers.length})
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {certificate.teamMembers.map((member, i) => {
+                    const isRecipient = member.trim().toLowerCase() === certificate.recipientName.trim().toLowerCase();
+                    return (
+                      <span
+                        key={i}
+                        className={`px-2.5 py-1 rounded text-xs border transition-all ${
+                          isRecipient
+                            ? "bg-ieee-blue text-white border-ieee-blue font-bold shadow-xs"
+                            : "bg-white text-gray-800 border-gray-200 font-medium"
+                        }`}
+                      >
+                        {member} {isRecipient ? "★ (Recipient)" : ""}
+                      </span>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 2-Column Details Table */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
           <div className="space-y-4">
