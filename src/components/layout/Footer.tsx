@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ChapterLogo } from "./ChapterLogo";
 import { CHAPTER_INFO } from "@/lib/constants";
 import {
-  ShieldCheck,
   Mail,
   MapPin,
   ExternalLink,
@@ -14,8 +13,8 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-ieee-navy text-white font-openSans text-sm pt-14 pb-8 border-t border-white/10">
       <div className="max-w-7xl mx-auto px-4 sm:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 pb-12 border-b border-white/10">
-          {/* Column 1: Chapter Brand & Affiliation */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 pb-12 border-b border-white/10">
+          {/* Column 1: Chapter Brand & Two Official Campus Addresses */}
           <div className="space-y-4">
             <ChapterLogo theme="dark" />
             <p className="text-gray-300 text-xs leading-relaxed mt-4">
@@ -24,14 +23,20 @@ export const Footer: React.FC = () => {
               (Asia-Pacific). Dedicated to advancing technological innovation and
               excellence in computing.
             </p>
-            <div className="pt-2 text-xs text-gray-400">
-              <p className="flex items-start gap-2">
-                <MapPin size={14} className="text-ieee-cyan flex-shrink-0 mt-0.5" />
-                <span>
-                  Department of Computer Science & Engineering, UCET,
-                  Baghdad-ul-Jadeed Campus, Bahawalpur, Pakistan.
+
+            <div className="pt-2 text-xs text-gray-300 space-y-2.5">
+              <div className="flex items-start gap-2">
+                <MapPin size={15} className="text-ieee-cyan flex-shrink-0 mt-0.5" />
+                <span className="leading-relaxed">
+                  <strong>Address 1:</strong> Room No. 1.25, Department of Information &amp; Communication Engineering, Old Engineering Building, UCET, The Islamia University of Bahawalpur, Punjab, Pakistan.
                 </span>
-              </p>
+              </div>
+              <div className="flex items-start gap-2">
+                <MapPin size={15} className="text-ieee-cyan flex-shrink-0 mt-0.5" />
+                <span className="leading-relaxed">
+                  <strong>Address 2:</strong> Room No. 105, Faculty of Engineering, IUB, Baghdad-ul-Jadeed Campus, Bahawalpur, Punjab, Pakistan.
+                </span>
+              </div>
             </div>
 
             {/* Quick Social & WhatsApp Icons */}
@@ -102,7 +107,7 @@ export const Footer: React.FC = () => {
             <h4 className="font-montserrat font-bold text-white uppercase tracking-wider text-xs mb-4 text-ieee-cyan">
               IEEE Organization
             </h4>
-            <ul className="space-y-2 text-xs text-gray-300">
+            <ul className="space-y-2.5 text-xs text-gray-300">
               <li>
                 <a
                   href="https://www.ieee.org"
@@ -135,6 +140,16 @@ export const Footer: React.FC = () => {
               </li>
               <li>
                 <a
+                  href="https://ieeebahawalpurssection.org/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-ieee-orange transition-colors flex items-center justify-between font-semibold text-white"
+                >
+                  IEEE Bahawalpur Section <ExternalLink size={12} className="text-ieee-cyan" />
+                </a>
+              </li>
+              <li>
+                <a
                   href="https://site.ieee.org/lahore/"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -156,62 +171,13 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Column 3: Quick Links & Transparency */}
+          {/* Column 3: Verification & Official Desk */}
           <div>
             <h4 className="font-montserrat font-bold text-white uppercase tracking-wider text-xs mb-4 text-ieee-cyan">
-              Quick Links & Policy
-            </h4>
-            <ul className="space-y-2 text-xs text-gray-300">
-              <li>
-                <Link
-                  href="/verify"
-                  className="hover:text-ieee-orange transition-colors flex items-center gap-1.5 font-semibold text-white"
-                >
-                  <ShieldCheck size={14} className="text-ieee-cyan" />
-                  Verify Certificate
-                </Link>
-              </li>
-              <li>
-                <Link href="/about" className="hover:text-ieee-orange transition-colors">
-                  About Chapter & History
-                </Link>
-              </li>
-              <li>
-                <Link href="/events" className="hover:text-ieee-orange transition-colors">
-                  All Events & Reports
-                </Link>
-              </li>
-              <li>
-                <Link href="/team" className="hover:text-ieee-orange transition-colors">
-                  Leadership & Advisors
-                </Link>
-              </li>
-              <li>
-                <Link href="/membership" className="hover:text-ieee-orange transition-colors">
-                  Membership Options
-                </Link>
-              </li>
-              <li>
-                <Link href="/policy" className="hover:text-ieee-orange transition-colors">
-                  Certificate Policy & Ethics
-                </Link>
-              </li>
-              <li>
-                <Link href="/privacy" className="hover:text-ieee-orange transition-colors">
-                  Data Privacy (GDPR-aligned)
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* Column 4: Verification Contact & Notice */}
-          <div>
-            <h4 className="font-montserrat font-bold text-white uppercase tracking-wider text-xs mb-4 text-ieee-cyan">
-              Certificate Queries
+              Certificate &amp; Official Desk
             </h4>
             <p className="text-xs text-gray-300 leading-relaxed mb-3">
-              For verification disputes, historical records lookup, or spelling
-              rectifications, write to the chapter&apos;s designated verification desk:
+              For verification queries, name spelling rectifications, or executive chapter inquiries, contact our designated communications desk:
             </p>
             <a
               href={`mailto:${CHAPTER_INFO.contacts.verify}`}
@@ -220,14 +186,6 @@ export const Footer: React.FC = () => {
               <Mail size={14} />
               {CHAPTER_INFO.contacts.verify}
             </a>
-
-            <div className="mt-4 p-3 bg-white/5 rounded-lg border border-white/10 text-[11px] text-gray-300">
-              <span className="font-bold text-white block mb-1">
-                Official Credential Notice:
-              </span>
-              Chapter certificates indicate participation and merit; formal CEU / PDH
-              credentials are provided exclusively by the IEEE Credentialing Program.
-            </div>
           </div>
         </div>
 

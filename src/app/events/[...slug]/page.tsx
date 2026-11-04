@@ -424,12 +424,6 @@ export default function EventDetailPage() {
                           <span className="text-[11px] font-mono bg-blue-50 text-ieee-blue font-semibold px-2.5 py-1 rounded-full border border-blue-200 shadow-xs">
                             {event.galleryImages.length} Official Photos
                           </span>
-                          <Link
-                            href="/admin/events"
-                            className="text-[11px] font-montserrat font-semibold text-gray-400 hover:text-ieee-blue hover:underline hidden sm:inline"
-                          >
-                            Manage Photos
-                          </Link>
                         </div>
                       )}
                     </div>

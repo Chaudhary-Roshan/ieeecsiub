@@ -486,9 +486,6 @@ export default async function HomePage() {
           <div className="font-montserrat font-bold text-gray-700 text-sm">
             IEEE Bahawalpur Subsection
           </div>
-          <div className="font-montserrat font-bold text-gray-700 text-sm">
-            EnlivenAI (Technical Partner)
-          </div>
         </div>
       </section>
     </div>

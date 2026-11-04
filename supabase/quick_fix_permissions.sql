@@ -2,7 +2,7 @@
 -- IEEE CS UCET-IUB Quick Fix & Security Hardening (Phase 0)
 -- ====================================================================
 
--- 1. Ensure all essential tables exist
+-- 1. Ensure all essential tables and columns exist
 CREATE TABLE IF NOT EXISTS public.event_teams (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     event_id TEXT NOT NULL REFERENCES public.events(id) ON DELETE CASCADE,
@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS public.event_teams (
     placement TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE IF EXISTS public.certificates ADD COLUMN IF NOT EXISTS template_id TEXT;
+ALTER TABLE IF EXISTS public.certificates ADD COLUMN IF NOT EXISTS team_name TEXT;
+ALTER TABLE IF EXISTS public.certificates ADD COLUMN IF NOT EXISTS project_title TEXT;
+NOTIFY pgrst, 'reload schema';
 
 -- 2. Revoke all permissions from anon
 DO $$

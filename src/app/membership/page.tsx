@@ -38,28 +38,22 @@ export default function MembershipPage() {
             Chapter Membership Options
           </h1>
           <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            We maintain total transparency: join our university chapter activities completely
-            free, or obtain international IEEE Computer Society professional membership.
+            We maintain total transparency: join our university chapter activities, or obtain international IEEE Computer Society professional membership.
           </p>
         </div>
 
         {/* 2 Separated Columns Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-          {/* Column 1: Local Chapter Participation (Free) */}
+          {/* Column 1: Local Chapter Participation */}
           <div className="bg-white border-2 border-ieee-blue rounded-card p-8 md:p-10 shadow-sm flex flex-col justify-between space-y-6">
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <span className="text-xs font-montserrat font-bold text-ieee-blue uppercase tracking-wider block">
-                    Campus Level
-                  </span>
-                  <h2 className="text-2xl font-montserrat font-extrabold text-ieee-navy">
-                    Join Chapter Activities
-                  </h2>
-                </div>
-                <span className="bg-[#E6F4EA] text-[#00843D] text-xs font-bold px-3 py-1 rounded-full">
-                  100% Free
+              <div>
+                <span className="text-xs font-montserrat font-bold text-ieee-blue uppercase tracking-wider block">
+                  Campus Level
                 </span>
+                <h2 className="text-2xl font-montserrat font-extrabold text-ieee-navy">
+                  Join Chapter Activities
+                </h2>
               </div>
 
               <p className="text-xs text-gray-600 leading-relaxed">
@@ -175,7 +169,7 @@ export default function MembershipPage() {
                     </div>
 
                     <Button type="submit" variant="accent" size="md" className="w-full">
-                      <Send size={14} className="mr-2" /> Submit Free Interest Form
+                      <Send size={14} className="mr-2" /> Submit Interest Form
                     </Button>
                   </form>
                 )}

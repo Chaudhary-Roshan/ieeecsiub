@@ -319,16 +319,18 @@ export default function ContactPage() {
                 <MapPin size={20} />
               </div>
               <h3 className="font-montserrat font-bold text-base text-ieee-navy">
-                Campus Location
+                Campus Locations
               </h3>
-              <p className="text-xs text-gray-600 leading-relaxed">
-                Department of Computer Science & Engineering,
-                <br />
-                University College of Engineering & Technology (UCET),
-                <br />
-                Baghdad-ul-Jadeed Campus, The Islamia University of Bahawalpur,
-                Punjab 63100, Pakistan.
-              </p>
+              <div className="space-y-2 text-xs text-gray-600 leading-relaxed">
+                <div>
+                  <strong className="text-gray-800 block">Location 1:</strong>
+                  Room No. 1.25, Department of Information &amp; Communication Engineering, Old Engineering Building, UCET, The Islamia University of Bahawalpur.
+                </div>
+                <div>
+                  <strong className="text-gray-800 block">Location 2:</strong>
+                  Room No. 105, Faculty of Engineering, IUB, Baghdad-ul-Jadeed Campus, Bahawalpur, Punjab, Pakistan.
+                </div>
+              </div>
               <div className="pt-1">
                 <span className="text-[11px] text-gray-500 font-semibold flex items-center gap-1">
                   <Clock size={12} className="text-ieee-blue" />

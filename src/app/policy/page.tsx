@@ -62,7 +62,7 @@ export default function CertificatePolicyPage() {
                 2. Joint Partner Recognition
               </span>
               <p className="text-gray-600 leading-relaxed">
-                Awarded in collaboration with industrial partners (such as EnlivenAI) or
+                Awarded in collaboration with industrial partners or
                 academic departments. Displays the co-branded partner logo and joint
                 signatory role.
               </p>
