@@ -19,6 +19,8 @@ export async function registerForEventAction(params: RegisterForEventParams) {
   try {
     const supabase = await createClient();
 
+    const cleanRoll = params.rollNumber ? params.rollNumber.trim().toUpperCase() : null;
+
     // 1. Try atomic register_for_event RPC
     try {
       const { data, error } = await supabase.rpc("register_for_event", {
@@ -26,7 +28,7 @@ export async function registerForEventAction(params: RegisterForEventParams) {
         p_full_name: params.fullName,
         p_email: params.email,
         p_phone: params.phone,
-        p_roll_number: params.rollNumber || null,
+        p_roll_number: cleanRoll,
         p_department: params.department || "Computer Science",
         p_is_ieee_member: Boolean(params.isIeeeMember),
         p_ieee_number: params.ieeeNumber || null,
@@ -62,7 +64,7 @@ export async function registerForEventAction(params: RegisterForEventParams) {
         name_display_preference: "FULL_NAME",
         email: params.email,
         phone: params.phone,
-        roll_number: params.rollNumber || null,
+        roll_number: cleanRoll,
         department: params.department || "Computer Science",
         degree_program: params.degreeProgram || null,
         is_ieee_member: Boolean(params.isIeeeMember),
@@ -141,7 +143,7 @@ export async function saveRegistrationAction(reg: any) {
       name_display_preference: reg.namePreference || "FULL_NAME",
       email: reg.email,
       phone: reg.phone,
-      roll_number: reg.rollNumber,
+      roll_number: reg.rollNumber ? reg.rollNumber.trim().toUpperCase() : null,
       department: reg.department,
       degree_program: reg.degreeProgram || null,
       is_ieee_member: Boolean(reg.isIeeeMember),

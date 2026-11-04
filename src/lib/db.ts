@@ -603,7 +603,7 @@ class ChapterDatabase {
           return {
             code: cleanCode,
             recipient_name: cert.recipientName || "Participant",
-            recipient_roll_number: cert.recipientRollNumber || null,
+            recipient_roll_number: cert.recipientRollNumber ? cert.recipientRollNumber.trim().toUpperCase() : null,
             recipient_email: cert.recipientEmail || null,
             public_name_format: cert.publicNameFormat || "FULL_NAME",
             event_id: cert.eventId || null,
@@ -1983,8 +1983,8 @@ class ChapterDatabase {
     const mergeRecord = (existing: Registration, incoming: Registration): Registration => {
       // Pick best roll number: avoid empty or "N/A"
       const bestRoll = (incoming.rollNumber && incoming.rollNumber.trim() && incoming.rollNumber !== "N/A" && incoming.rollNumber !== "N / A")
-        ? incoming.rollNumber.trim()
-        : existing.rollNumber;
+        ? incoming.rollNumber.trim().toUpperCase()
+        : (existing.rollNumber ? existing.rollNumber.trim().toUpperCase() : existing.rollNumber);
 
       // Pick best phone: avoid empty or fallback dummy "0300-0000000"
       const bestPhone = (incoming.phone && incoming.phone.trim() && !incoming.phone.includes("0300-0000000") && incoming.phone !== "N/A")
@@ -2101,7 +2101,7 @@ class ChapterDatabase {
         seen.set(emailKey, r);
       } else {
         const existing = seen.get(emailKey)!;
-        const bestRoll = (r.rollNumber && r.rollNumber !== "N/A" && r.rollNumber !== "N / A") ? r.rollNumber : existing.rollNumber;
+        const bestRoll = (r.rollNumber && r.rollNumber !== "N/A" && r.rollNumber !== "N / A") ? r.rollNumber.trim().toUpperCase() : existing.rollNumber;
         const bestPhone = (r.phone && r.phone !== "0300-0000000" && r.phone !== "N/A") ? r.phone : existing.phone;
         seen.set(emailKey, {
           ...existing,
@@ -2118,22 +2118,25 @@ class ChapterDatabase {
   }
 
   async addRegistration(reg: Registration): Promise<void> {
+    const cleanRoll = reg.rollNumber && reg.rollNumber !== "N/A" ? reg.rollNumber.trim().toUpperCase() : reg.rollNumber;
+    const sanitizedReg = { ...reg, rollNumber: cleanRoll };
+
     const list = this.getRegistrations();
     const existingIdx = list.findIndex(
       (r) =>
-        r.id === reg.id ||
-        (reg.ticketCode && r.ticketCode === reg.ticketCode) ||
-        (r.eventId === reg.eventId && r.email.toLowerCase() === reg.email.toLowerCase())
+        r.id === sanitizedReg.id ||
+        (sanitizedReg.ticketCode && r.ticketCode === sanitizedReg.ticketCode) ||
+        (r.eventId === sanitizedReg.eventId && r.email.toLowerCase() === sanitizedReg.email.toLowerCase())
     );
     if (existingIdx >= 0) {
       list[existingIdx] = {
         ...list[existingIdx],
-        ...reg,
-        rollNumber: (reg.rollNumber && reg.rollNumber !== "N/A") ? reg.rollNumber : list[existingIdx].rollNumber,
-        phone: (reg.phone && reg.phone !== "0300-0000000") ? reg.phone : list[existingIdx].phone,
+        ...sanitizedReg,
+        rollNumber: (sanitizedReg.rollNumber && sanitizedReg.rollNumber !== "N/A") ? sanitizedReg.rollNumber : list[existingIdx].rollNumber,
+        phone: (sanitizedReg.phone && sanitizedReg.phone !== "0300-0000000") ? sanitizedReg.phone : list[existingIdx].phone,
       };
     } else {
-      list.unshift(reg);
+      list.unshift(sanitizedReg);
     }
     this.setItem("registrations", list);
 
@@ -2141,13 +2144,13 @@ class ChapterDatabase {
     if (client) {
       try {
         const { error } = await client.from("registrations").upsert({
-          id: reg.id,
-          event_id: reg.eventId,
-          full_name: reg.fullName,
-          name_display_preference: reg.namePreference || "FULL_NAME",
-          email: reg.email,
-          phone: reg.phone,
-          roll_number: reg.rollNumber,
+          id: sanitizedReg.id,
+          event_id: sanitizedReg.eventId,
+          full_name: sanitizedReg.fullName,
+          name_display_preference: sanitizedReg.namePreference || "FULL_NAME",
+          email: sanitizedReg.email,
+          phone: sanitizedReg.phone,
+          roll_number: cleanRoll || null,
           department: reg.department,
           degree_program: reg.degreeProgram || null,
           is_ieee_member: reg.isIeeeMember,

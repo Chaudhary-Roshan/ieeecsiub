@@ -98,10 +98,10 @@ export default function CertificateWizardPage() {
   const downloadSamplePersonCSV = () => {
     const csvContent = "data:text/csv;charset=utf-8," + 
       "recipient_name,email,roll_number,attended,team_name,is_leader,project_title,placement\n" +
-      "Muhammad Ali,ali@example.com,FA22-BSE-001,yes,CyberGuard,true,AI Network Sentinel,1st Position\n" +
-      "Fatima Zahra,fatima@example.com,FA22-BSE-002,yes,CyberGuard,false,AI Network Sentinel,1st Position\n" +
-      "Hamza Khan,hamza@example.com,FA22-BCS-045,yes,BioSensor,true,Smart Agriculture IoT,Participant\n" +
-      "Usman Tariq,usman@example.com,FA22-BSE-019,no,BioSensor,false,Smart Agriculture IoT,Participant";
+      "Muhammad Ali,ali@example.com,S23BINCE1M40414,yes,CyberGuard,true,AI Network Sentinel,1st Position\n" +
+      "Fatima Zahra,fatima@example.com,S23BINCE1M40415,yes,CyberGuard,false,AI Network Sentinel,1st Position\n" +
+      "Hamza Khan,hamza@example.com,F22BCSE1M01045,yes,BioSensor,true,Smart Agriculture IoT,Participant\n" +
+      "Usman Tariq,usman@example.com,F22BCSE1M01019,no,BioSensor,false,Smart Agriculture IoT,Participant";
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement("a");
     link.setAttribute("href", encodedUri);
@@ -177,7 +177,7 @@ export default function CertificateWizardPage() {
       const name = r.recipient_name || r.name || r.Recipient || r.Name || r.team_leader || "";
       const teamName = r.team_name || r.Team || r.TeamName || "";
       const email = r.email || r.Email || "";
-      const rollNumber = r.roll_number || r.RollNumber || r.roll || "";
+      const rollNumber = String(r.roll_number || r.RollNumber || r.roll || "").trim().toUpperCase();
       const isLeader = r.is_leader === true || r.is_leader === "true" || r.is_leader === "yes" || r.is_leader === "1";
       const projectTitle = r.project_title || r.Project || r.project || "";
       const placement = r.placement || r.position || r.Placement || "";

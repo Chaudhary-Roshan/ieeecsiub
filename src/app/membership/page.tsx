@@ -152,9 +152,9 @@ export default function MembershipPage() {
                       <input
                         type="text"
                         value={roll}
-                        onChange={(e) => setRoll(e.target.value)}
-                        placeholder="FA23-BCS-042 (Computer Science)"
-                        className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                        onChange={(e) => setRoll(e.target.value.toUpperCase())}
+                        placeholder="S23BINCE1M40414 (Computer Science)"
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none uppercase font-mono"
                       />
                     </div>
 

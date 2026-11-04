@@ -115,7 +115,7 @@ export default function EventDetailPage() {
         fullName: fullName.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        rollNumber: rollNumber.trim() || undefined,
+        rollNumber: rollNumber.trim().toUpperCase() || undefined,
         department: department.trim() || "Computer Science",
         degreeProgram: degreeProgram.trim() || undefined,
         isIeeeMember,
@@ -130,7 +130,7 @@ export default function EventDetailPage() {
         namePreference: namePref,
         email: email.trim(),
         phone: phone.trim(),
-        rollNumber: rollNumber.trim(),
+        rollNumber: rollNumber.trim().toUpperCase(),
         isIeeeMember,
         ieeeMembershipNumber: ieeeNumber.trim() || undefined,
         department: department.trim() || "Computer Science",
@@ -608,9 +608,9 @@ export default function EventDetailPage() {
                           <input
                             type="text"
                             value={rollNumber}
-                            onChange={(e) => setRollNumber(e.target.value)}
-                            placeholder="e.g. FA23-BCS-001"
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                            onChange={(e) => setRollNumber(e.target.value.toUpperCase())}
+                            placeholder="e.g. S23BINCE1M40414"
+                            className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none uppercase font-mono"
                           />
                         </div>
 

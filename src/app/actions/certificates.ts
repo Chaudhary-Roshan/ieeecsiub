@@ -377,7 +377,7 @@ export async function bulkSaveCertificatesAction(
     const payload = certs.map((cert) => ({
       code: cert.code.trim().toUpperCase(),
       recipient_name: cert.recipientName || "Participant",
-      recipient_roll_number: cert.recipientRollNumber || null,
+      recipient_roll_number: cert.recipientRollNumber ? cert.recipientRollNumber.trim().toUpperCase() : null,
       recipient_email: cert.recipientEmail || null,
       public_name_format: cert.publicNameFormat || "FULL_NAME",
       event_id: cert.eventId || null,

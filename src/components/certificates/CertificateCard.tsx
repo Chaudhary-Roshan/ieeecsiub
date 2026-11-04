@@ -144,7 +144,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
           {(certificate.recipientRollNumber || certificate.recipientEmail) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {certificate.recipientRollNumber && (
-                <span className="bg-ieee-blue/10 text-ieee-blue font-mono font-bold text-xs px-2.5 py-1 rounded-md">
+                <span className="bg-ieee-blue/10 text-ieee-blue font-mono font-bold text-xs px-2.5 py-1 rounded-md uppercase">
                   Roll No: {certificate.recipientRollNumber}
                 </span>
               )}

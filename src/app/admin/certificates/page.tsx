@@ -165,7 +165,7 @@ export default function AdminCertificatesPage() {
       await db.updateCertificate(editingCert.code, {
         code: codeChanged ? cleanNewCode : undefined,
         recipientName: editName.trim(),
-        recipientRollNumber: editRoll.trim() || undefined,
+        recipientRollNumber: editRoll.trim().toUpperCase() || undefined,
         recipientEmail: editEmail.trim() || undefined,
         eventTitle: editEventTitle.trim() || editingCert.eventTitle,
         certificateType: editCertType.trim() || editingCert.certificateType,
@@ -447,7 +447,7 @@ export default function AdminCertificatesPage() {
                       <div>{cert.recipientName}</div>
                       {(cert.recipientRollNumber || cert.recipientEmail) && (
                         <div className="text-[11px] font-normal text-gray-500 space-x-1.5 mt-0.5">
-                          {cert.recipientRollNumber && <span className="font-mono text-ieee-navy font-semibold">{cert.recipientRollNumber}</span>}
+                          {cert.recipientRollNumber && <span className="font-mono text-ieee-navy font-semibold uppercase">{cert.recipientRollNumber}</span>}
                           {cert.recipientRollNumber && cert.recipientEmail && <span>•</span>}
                           {cert.recipientEmail && <span>{cert.recipientEmail}</span>}
                         </div>
@@ -690,9 +690,9 @@ export default function AdminCertificatesPage() {
                     <input
                       type="text"
                       value={editRoll}
-                      onChange={(e) => setEditRoll(e.target.value)}
-                      placeholder="e.g. FA21-BCS-042"
-                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono"
+                      onChange={(e) => setEditRoll(e.target.value.toUpperCase())}
+                      placeholder="e.g. S23BINCE1M40414"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono uppercase"
                     />
                   </div>
 

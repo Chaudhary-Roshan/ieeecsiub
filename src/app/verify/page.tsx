@@ -80,13 +80,13 @@ export default function VerifyPage() {
               <input
                 id="cert-code-input"
                 type="text"
-                placeholder="e.g. CSIUB-26-7K3M-Q9TC, Roll Number, or paste link"
+                placeholder="e.g. CSIUB-26-7K3M-Q9TC, S23BINCE1M40414, or paste link"
                 value={inputCode}
                 onChange={(e) => {
-                  setInputCode(e.target.value);
+                  setInputCode(e.target.value.toUpperCase());
                   setErrorMsg("");
                 }}
-                className="w-full pl-12 pr-4 py-3.5 text-base md:text-lg font-mono tracking-wider border border-gray-300 rounded-xl focus:ring-2 focus:ring-ieee-blue focus:border-ieee-blue outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400"
+                className="w-full pl-12 pr-4 py-3.5 text-base md:text-lg font-mono uppercase tracking-wider border border-gray-300 rounded-xl focus:ring-2 focus:ring-ieee-blue focus:border-ieee-blue outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400"
               />
             </div>
 

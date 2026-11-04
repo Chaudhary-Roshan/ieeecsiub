@@ -122,7 +122,7 @@ function extractFieldFromRow(row: any, aliases: string[], type?: "text" | "phone
       const normK = cleanStr(k);
       if (normK.includes("name") || normK.includes("email") || normK.includes("phone") || normK.includes("time") || normK.includes("date") || normK.includes("dept") || normK.includes("program")) continue;
       const val = String(row[k] || "").trim();
-      if (/^[A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}$/i.test(val) || /^[A-Za-z]{2,4}\d{2}[A-Za-z0-9\-]+$/i.test(val)) {
+      if (/^[SFsf]\d{2}[A-Za-z0-9]{4,14}$/i.test(val) || /^[A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}$/i.test(val) || /^[A-Za-z]{1,4}\d{2}[A-Za-z0-9\-]+$/i.test(val)) {
         return formatExtractedValue(val, "roll");
       }
     }
@@ -236,7 +236,7 @@ export default function AdminRegistrationsPage() {
         fullName: editName.trim(),
         email: editEmail.trim().toLowerCase(),
         phone: editPhone.trim() || undefined,
-        rollNumber: editRoll.trim() || "",
+        rollNumber: editRoll.trim().toUpperCase() || "",
         department: editDept.trim() || "Computer Science",
         degreeProgram: editDegreeProgram.trim() || undefined,
         status: editStatus,
@@ -251,7 +251,7 @@ export default function AdminRegistrationsPage() {
               fullName: editName.trim(),
               email: editEmail.trim().toLowerCase(),
               phone: editPhone.trim() || undefined,
-              rollNumber: editRoll.trim() || "",
+              rollNumber: editRoll.trim().toUpperCase() || "",
               department: editDept.trim() || "Computer Science",
               degreeProgram: editDegreeProgram.trim() || undefined,
               status: editStatus,
@@ -308,7 +308,7 @@ export default function AdminRegistrationsPage() {
         namePreference: "FULL_NAME",
         email: addEmail.trim().toLowerCase(),
         phone: addPhone.trim() || undefined,
-        rollNumber: addRoll.trim() || "",
+        rollNumber: addRoll.trim().toUpperCase() || "",
         department: addDept.trim() || "Computer Science",
         degreeProgram: addDegreeProgram.trim() || undefined,
         isIeeeMember: addIsIeee,
@@ -910,7 +910,7 @@ export default function AdminRegistrationsPage() {
                           </div>
                           <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
                             {reg.rollNumber && (
-                              <span className="font-mono text-ieee-navy font-semibold bg-gray-100 px-1.5 py-0.5 rounded">
+                              <span className="font-mono text-ieee-navy font-semibold bg-gray-100 px-1.5 py-0.5 rounded uppercase">
                                 {reg.rollNumber}
                               </span>
                             )}
@@ -1076,9 +1076,9 @@ export default function AdminRegistrationsPage() {
                     <input
                       type="text"
                       value={editRoll}
-                      onChange={(e) => setEditRoll(e.target.value)}
-                      placeholder="e.g. FA21-BCS-042"
-                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono"
+                      onChange={(e) => setEditRoll(e.target.value.toUpperCase())}
+                      placeholder="e.g. S23BINCE1M40414"
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono uppercase"
                     />
                   </div>
 
@@ -1238,10 +1238,10 @@ export default function AdminRegistrationsPage() {
                     <label className="font-semibold text-gray-700 block mb-1">Roll / Student ID</label>
                     <input
                       type="text"
-                      placeholder="e.g. FA21-BCS-042"
+                      placeholder="e.g. S23BINCE1M40414"
                       value={addRoll}
-                      onChange={(e) => setAddRoll(e.target.value)}
-                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono"
+                      onChange={(e) => setAddRoll(e.target.value.toUpperCase())}
+                      className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono uppercase"
                     />
                   </div>
 

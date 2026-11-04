@@ -115,7 +115,7 @@ function extractFieldFromRow(row: any, aliases: string[], type?: "text" | "phone
       const normK = cleanStr(k);
       if (normK.includes("name") || normK.includes("email") || normK.includes("phone") || normK.includes("time") || normK.includes("date")) continue;
       const val = String(row[k] || "").trim();
-      if (/^[A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}$/i.test(val) || /^[A-Za-z]{2,4}\d{2}[A-Za-z0-9\-]+$/i.test(val)) {
+      if (/^[SFsf]\d{2}[A-Za-z0-9]{4,14}$/i.test(val) || /^[A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}[-\/][A-Za-z0-9]{1,6}$/i.test(val) || /^[A-Za-z]{1,4}\d{2}[A-Za-z0-9\-]+$/i.test(val)) {
         return formatExtractedValue(val, "roll");
       }
     }
@@ -425,19 +425,19 @@ export default function AdminAttendancePage() {
     const sampleData = [
       {
         "Full Name": "Muhammad Roshan Ashraf",
-        "Roll Number": "FA21-BCS-042",
+        "Roll Number": "S23BINCE1M40414",
         "Email": "chshan407@gmail.com",
         "Attended": "Yes",
       },
       {
         "Full Name": "Ali Ahmed",
-        "Roll Number": "FA21-BCS-015",
+        "Roll Number": "F22BCSE1M01015",
         "Email": "ali.ahmed@example.com",
         "Attended": "Yes",
       },
       {
         "Full Name": "Fatima Noor",
-        "Roll Number": "FA22-BSE-089",
+        "Roll Number": "S23BITE1M40089",
         "Email": "fatima.noor@example.com",
         "Attended": "No",
       },
@@ -658,7 +658,7 @@ export default function AdminAttendancePage() {
 
     const currentEvent = events.find((ev) => ev.id === selectedEventId);
     const name = newAttendeeName.trim();
-    const rollNumber = newAttendeeRoll.trim();
+    const rollNumber = newAttendeeRoll.trim().toUpperCase();
     const email = newAttendeeEmail.trim();
 
     let assignedCode: string | undefined = undefined;
@@ -724,7 +724,7 @@ export default function AdminAttendancePage() {
     if (!editingRecord) return;
 
     const trimmedName = editName.trim() || editingRecord.name;
-    const trimmedRoll = editRoll.trim();
+    const trimmedRoll = editRoll.trim().toUpperCase();
     const trimmedEmail = editEmail.trim();
 
     setIsSavingEdit(true);
@@ -1187,10 +1187,10 @@ export default function AdminAttendancePage() {
                   <label className="font-semibold text-gray-700 block mb-1">Roll Number / Student ID</label>
                   <input
                     type="text"
-                    placeholder="e.g. FA21-BCS-042"
+                    placeholder="e.g. S23BINCE1M40414"
                     value={newAttendeeRoll}
-                    onChange={(e) => setNewAttendeeRoll(e.target.value)}
-                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono"
+                    onChange={(e) => setNewAttendeeRoll(e.target.value.toUpperCase())}
+                    className="w-full p-2 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono uppercase"
                   />
                 </div>
 
@@ -1274,9 +1274,9 @@ export default function AdminAttendancePage() {
                   <input
                     type="text"
                     value={editRoll}
-                    onChange={(e) => setEditRoll(e.target.value)}
-                    placeholder="e.g. FA21-BCS-042"
-                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono"
+                    onChange={(e) => setEditRoll(e.target.value.toUpperCase())}
+                    placeholder="e.g. S23BINCE1M40414"
+                    className="w-full p-2.5 border rounded-lg focus:outline-none focus:ring-1 focus:ring-ieee-blue font-mono uppercase"
                   />
                 </div>
 
@@ -1655,7 +1655,7 @@ export default function AdminAttendancePage() {
 
                         {/* Roll & Email */}
                         <td className="p-4 text-gray-600 space-y-0.5">
-                          <div className="font-semibold text-ieee-navy font-mono">{rec.rollNumber || "No Roll No"}</div>
+                          <div className="font-semibold text-ieee-navy font-mono uppercase">{rec.rollNumber || "No Roll No"}</div>
                           <div className="text-[11px] text-gray-500">{rec.email || "No Email"}</div>
                         </td>
 
