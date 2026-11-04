@@ -1365,6 +1365,93 @@ class ChapterDatabase {
     this.setItem("attendance_records", stored);
   }
 
+  async fetchAttendance(eventId: string, eventTitle?: string): Promise<AttendanceRecord[]> {
+    const local = this.getAttendance(eventId);
+    const certs = await this.fetchCertificates();
+    const regs = await this.fetchRegistrations(eventId);
+
+    const cleanId = (eventId || "").trim();
+    const cleanTitle = (eventTitle || "").trim().toLowerCase();
+
+    // 1. Filter certificates for this event
+    const eventCerts = certs.filter((c) => {
+      const matchId = cleanId && c.eventId && c.eventId === cleanId;
+      const matchTitle = cleanTitle && c.eventTitle && c.eventTitle.trim().toLowerCase() === cleanTitle;
+      const looseTitle = cleanTitle && c.eventTitle && (cleanTitle.includes("packet") && c.eventTitle.toLowerCase().includes("packet"));
+      return matchId || matchTitle || looseTitle;
+    });
+
+    const map = new Map<string, AttendanceRecord>();
+
+    // 2. Add local records first
+    local.forEach((rec) => {
+      const key = (rec.rollNumber?.trim().toLowerCase() || rec.email?.trim().toLowerCase() || rec.name.trim().toLowerCase());
+      if (key) map.set(key, rec);
+    });
+
+    // 3. Merge registrations
+    regs.forEach((reg) => {
+      const key = (reg.rollNumber?.trim().toLowerCase() || reg.email?.trim().toLowerCase() || reg.fullName.trim().toLowerCase());
+      if (key) {
+        const existing = map.get(key);
+        if (existing) {
+          if (!existing.rollNumber && reg.rollNumber) existing.rollNumber = reg.rollNumber;
+          if (!existing.email && reg.email) existing.email = reg.email;
+        } else {
+          map.set(key, {
+            id: `att-reg-${reg.id}`,
+            eventId,
+            name: reg.fullName,
+            rollNumber: reg.rollNumber || undefined,
+            email: reg.email || undefined,
+            attended: reg.status === "ATTENDED" || reg.status === "CONFIRMED",
+            certificateCode: undefined,
+            checkedInAt: reg.checkedInAt,
+          });
+        }
+      }
+    });
+
+    // 4. Hydrate from already generated certificates in the cloud database
+    eventCerts.forEach((cert) => {
+      const normRoll = (cert.recipientRollNumber || "").trim().toLowerCase();
+      const normEmail = (cert.recipientEmail || "").trim().toLowerCase();
+      const normName = cert.recipientName.trim().toLowerCase();
+
+      let matchKey: string | undefined;
+      if (normRoll && map.has(normRoll)) matchKey = normRoll;
+      else if (normEmail && map.has(normEmail)) matchKey = normEmail;
+      else if (normName && map.has(normName)) matchKey = normName;
+
+      if (matchKey) {
+        const record = map.get(matchKey)!;
+        record.attended = true;
+        record.certificateCode = cert.code;
+        if (!record.rollNumber && cert.recipientRollNumber) record.rollNumber = cert.recipientRollNumber;
+        if (!record.email && cert.recipientEmail) record.email = cert.recipientEmail;
+      } else {
+        const newRecord: AttendanceRecord = {
+          id: `att-cert-${cert.id || cert.code}`,
+          eventId,
+          name: cert.recipientName,
+          rollNumber: cert.recipientRollNumber || undefined,
+          email: cert.recipientEmail || undefined,
+          attended: true,
+          certificateCode: cert.code,
+          checkedInAt: cert.createdAt || cert.issueDate || new Date().toISOString(),
+        };
+        const recordKey = normRoll || normEmail || normName;
+        map.set(recordKey, newRecord);
+      }
+    });
+
+    const unifiedList = Array.from(map.values());
+    if (unifiedList.length > 0) {
+      this.saveAttendance(eventId, unifiedList);
+    }
+    return unifiedList;
+  }
+
   clearAttendance(eventId: string): void {
     const stored = this.getItem<Record<string, AttendanceRecord[]>>("attendance_records", {});
     stored[eventId] = [];

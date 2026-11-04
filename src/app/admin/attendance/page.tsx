@@ -174,28 +174,52 @@ export default function AdminAttendancePage() {
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isLoadingAttendance, setIsLoadingAttendance] = useState(false);
+
+  const loadAttendance = async (eventId: string, eventTitle?: string) => {
+    // 1. Immediately show cached records if any to avoid flicker
+    const local = db.getAttendance(eventId);
+    if (local && local.length > 0) {
+      setAttendanceList(local);
+    }
+    // 2. Hydrate from cloud certificates & registrations
+    setIsLoadingAttendance(true);
+    try {
+      const records = await db.fetchAttendance(eventId, eventTitle);
+      setAttendanceList(records);
+    } catch (err) {
+      console.warn("fetchAttendance error:", err);
+    } finally {
+      setIsLoadingAttendance(false);
+    }
+  };
 
   useEffect(() => {
     async function init() {
+      setIsLoadingAttendance(true);
       const allEvents = await db.fetchEvents();
       setEvents(allEvents);
       if (allEvents.length > 0) {
-        const defaultId = allEvents[0].id;
-        setSelectedEventId(defaultId);
-        loadAttendance(defaultId);
+        const defaultEvt = allEvents[0];
+        setSelectedEventId(defaultEvt.id);
+        await loadAttendance(defaultEvt.id, defaultEvt.title);
       }
+      setIsLoadingAttendance(false);
     }
     init();
   }, []);
 
-  const loadAttendance = (eventId: string) => {
-    const records = db.getAttendance(eventId);
-    setAttendanceList(records);
+  const handleEventChange = async (eventId: string) => {
+    setSelectedEventId(eventId);
+    const ev = events.find((e) => e.id === eventId);
+    await loadAttendance(eventId, ev?.title);
   };
 
-  const handleEventChange = (eventId: string) => {
-    setSelectedEventId(eventId);
-    loadAttendance(eventId);
+  const handleRefreshFromCloud = async () => {
+    const ev = events.find((e) => e.id === selectedEventId) || events[0];
+    if (ev) {
+      await loadAttendance(ev.id, ev.title);
+    }
   };
 
   const handleToggleAttendance = (recordId: string) => {
@@ -1008,6 +1032,17 @@ export default function AdminAttendancePage() {
               onChange={handleFileUpload}
               className="hidden"
             />
+            {/* Sync Cloud Data */}
+            <button
+              onClick={handleRefreshFromCloud}
+              disabled={isLoadingAttendance}
+              className="px-3 py-2 border border-emerald-300 bg-emerald-50 text-emerald-800 text-xs font-semibold rounded-lg hover:bg-emerald-100 flex items-center gap-1.5 shadow-xs"
+              title="Synchronize attendees with already generated cloud credentials"
+            >
+              <RefreshCw size={13} className={isLoadingAttendance ? "animate-spin text-emerald-600" : "text-emerald-700"} />
+              <span>{isLoadingAttendance ? "Syncing..." : "Sync Cloud Data"}</span>
+            </button>
+
             {/* 1. Upload Sheet */}
             <button
               onClick={() => fileInputRef.current?.click()}
@@ -1579,9 +1614,24 @@ export default function AdminAttendancePage() {
 
         {/* Attendance Table */}
         <div className="bg-white border border-gray-200 rounded-card overflow-hidden shadow-sm">
-          {filteredList.length === 0 ? (
-            <div className="p-12 text-center text-gray-500 text-xs">
-              No attendance records found. Click "Upload Sheet" or "Add Attendee" to begin!
+          {isLoadingAttendance ? (
+            <div className="p-12 text-center text-gray-500 text-xs space-y-2">
+              <RefreshCw size={22} className="animate-spin text-ieee-blue mx-auto" />
+              <p className="font-semibold text-gray-700">Loading attendees & generated verification credentials...</p>
+              <p className="text-[11px] text-gray-400">Synchronizing with live cloud database.</p>
+            </div>
+          ) : filteredList.length === 0 ? (
+            <div className="p-12 text-center text-gray-500 text-xs space-y-3">
+              <p>No attendance records found for this event in this browser session.</p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshFromCloud}
+                className="text-xs font-semibold inline-flex items-center gap-1.5"
+              >
+                <RefreshCw size={13} />
+                <span>Fetch Generated Data from Cloud Database</span>
+              </Button>
             </div>
           ) : (
             <div className="overflow-x-auto">
