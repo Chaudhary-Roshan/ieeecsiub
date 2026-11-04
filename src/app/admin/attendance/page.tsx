@@ -5,6 +5,7 @@ import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
 import { EventItem, AttendanceRecord, CertificateRecord } from "@/types";
 import { generateCertificateCode, generateQrPngDataUrl } from "@/lib/codeGenerator";
+import { generateTeamIssuerStatement } from "@/lib/teamCertUtils";
 import { saveEventAction } from "@/app/actions/events";
 import { Button } from "@/components/ui/Button";
 import * as XLSX from "xlsx";
@@ -305,6 +306,11 @@ export default function AdminAttendancePage() {
           "Contact Email", "EmailAddress", "G-Mail"
         ], "email");
 
+        const teamName = extractFieldFromRow(row, ["Team Name", "Team", "Team Title", "Project Team"]);
+        const projectTitle = extractFieldFromRow(row, ["Project Title", "Project Name", "Project", "Title of Project"]);
+        const membersRaw = extractFieldFromRow(row, ["Team Members", "Members", "Team Members & Contributors", "Contributor Names"]);
+        const teamMembers = membersRaw ? membersRaw.split(/[,;\n•]+/).map((s: string) => s.trim()).filter(Boolean) : undefined;
+
         const attendedRaw = extractFieldFromRow(row, [
           "Attended", "Attendance", "Status", "Present", "Attended?"
         ]).toLowerCase();
@@ -352,13 +358,23 @@ export default function AdminAttendancePage() {
             eventTitle: currentEvent?.title || "UCET IUB Technical Event",
             certificateType: currentEvent?.certificateType || "Certificate of Participation",
             recognitionLevel: "CHAPTER_RECOGNITION",
-            issuerStatement: "In recognition of active participation and successful completion.",
+            issuerStatement: teamName
+              ? generateTeamIssuerStatement(
+                  teamName,
+                  teamMembers && teamMembers.length > 0 ? teamMembers : [name],
+                  projectTitle || "",
+                  currentEvent?.title || "IEEE DigitalFest 2026 Projects Expo"
+                )
+              : "In recognition of active participation and successful completion.",
             activityDate: currentEvent?.startDate ? currentEvent.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
             issueDate: new Date().toISOString().slice(0, 10),
             approverName: "Muhammad Roshan Ashraf",
             approverRole: "Chapter Chair",
             status: "ACTIVE",
             source: "IN_SITE_GENERATED",
+            teamName: teamName || undefined,
+            projectTitle: projectTitle || undefined,
+            teamMembers: teamMembers || undefined,
             createdAt: new Date().toISOString(),
           };
           newCertificates.push(certRecord);
@@ -373,6 +389,9 @@ export default function AdminAttendancePage() {
           attended,
           certificateCode: attended ? assignedCode : undefined,
           checkedInAt: attended ? new Date().toISOString() : undefined,
+          teamName: teamName || undefined,
+          projectTitle: projectTitle || undefined,
+          teamMembers: teamMembers || undefined,
         });
       }
 
@@ -588,7 +607,14 @@ export default function AdminAttendancePage() {
           eventTitle: currentEvent.title,
           certificateType: currentEvent.certificateType || "Certificate of Participation",
           recognitionLevel: "CHAPTER_RECOGNITION",
-          issuerStatement: "In recognition of active participation and successful completion.",
+          issuerStatement: rec.teamName
+            ? generateTeamIssuerStatement(
+                rec.teamName,
+                rec.teamMembers && rec.teamMembers.length > 0 ? rec.teamMembers : [rec.name],
+                rec.projectTitle || "",
+                currentEvent.title || "IEEE DigitalFest 2026 Projects Expo"
+              )
+            : "In recognition of active participation and successful completion.",
           activityDate: currentEvent.startDate ? currentEvent.startDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
           issueDate: new Date().toISOString().slice(0, 10),
           approverName: "Muhammad Roshan Ashraf",

@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { generateCertificateCode } from "@/lib/codeGenerator";
 import { CertificateRecord, CertificateStatus } from "@/types";
+import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_TEAMS } from "@/lib/digitalFestData";
+import { generateTeamIssuerStatement } from "@/lib/teamCertUtils";
 
 export interface GenerateWizardRow {
   recipientName: string;
@@ -473,8 +475,43 @@ export async function verifyCertificateAction(
       }
     );
 
+    const enrichServerCert = (certObj: CertificateRecord): CertificateRecord => {
+      const cCode = (certObj.code || "").toUpperCase().trim();
+      const cName = (certObj.recipientName || "").toLowerCase().trim();
+      const dfMatch = DIGITALFEST_PARTICIPANTS.find(
+        (p) =>
+          (p.certificateCode && p.certificateCode.toUpperCase().trim() === cCode) ||
+          (p.name && p.name.toLowerCase().trim() === cName)
+      );
+      if (dfMatch) {
+        if (!certObj.teamName) certObj.teamName = dfMatch.teamName;
+        if (!certObj.projectTitle) certObj.projectTitle = dfMatch.projectTitle;
+        if (!certObj.semester) certObj.semester = dfMatch.semester;
+      }
+      if (certObj.teamName) {
+        const teamMatch = DIGITALFEST_TEAMS.find(
+          (t) => t.teamName.toLowerCase().trim() === (certObj.teamName || "").toLowerCase().trim()
+        );
+        if (teamMatch) {
+          if (!certObj.teamMembers || certObj.teamMembers.length === 0) certObj.teamMembers = teamMatch.members;
+          if (!certObj.projectDomain) certObj.projectDomain = `${teamMatch.semester} Semester`;
+          if (!certObj.semester) certObj.semester = teamMatch.semester;
+          if (!certObj.department) certObj.department = "Department of Computer Science & IT / UCET";
+        }
+        if (!certObj.department) certObj.department = "Department of Computer Science & IT / UCET";
+        const members = certObj.teamMembers && certObj.teamMembers.length > 0 ? certObj.teamMembers : [certObj.recipientName];
+        certObj.issuerStatement = generateTeamIssuerStatement(
+          certObj.teamName,
+          members,
+          certObj.projectTitle || "",
+          certObj.eventTitle || "IEEE DigitalFest 2026 Projects Expo"
+        );
+      }
+      return certObj;
+    };
+
     if (rpcData && !rpcErr && rpcData.found) {
-      return {
+      return enrichServerCert({
         id: rpcData.code,
         code: rpcData.code,
         recipientName: rpcData.recipient_name || rpcData.recipientName,
@@ -515,7 +552,7 @@ export async function verifyCertificateAction(
         sha256Fingerprint: rpcData.sha256_hash || undefined,
         pdfUrl: rpcData.pdf_url || undefined,
         createdAt: rpcData.issue_date || new Date().toISOString(),
-      };
+      });
     }
 
     // 2. Direct select fallback by code, roll number, or email
@@ -535,7 +572,7 @@ export async function verifyCertificateAction(
     }
 
     if (row) {
-      return {
+      return enrichServerCert({
         id: row.id,
         code: row.code,
         recipientName: row.recipient_name,
@@ -566,7 +603,7 @@ export async function verifyCertificateAction(
         sha256Fingerprint: row.sha256_fingerprint || undefined,
         pdfUrl: row.pdf_url || undefined,
         createdAt: row.created_at || new Date().toISOString(),
-      };
+      });
     }
 
     return null;

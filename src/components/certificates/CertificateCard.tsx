@@ -6,6 +6,7 @@ import { Badge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { CHAPTER_INFO } from "@/lib/constants";
 import { formatPKTDateOnly } from "@/lib/sha256";
+import { formatTeamMembersBullets, formatTeamMembersProse } from "@/lib/teamCertUtils";
 import {
   ShieldCheck,
   AlertTriangle,
@@ -136,11 +137,16 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
             </span>
           </div>
           <span className="text-xs uppercase tracking-wider font-semibold text-ieee-muted block mb-1">
-            Certified Recipient
+            {certificate.teamName ? "THIS CERTIFICATE IS PROUDLY PRESENTED TO" : "Certified Recipient"}
           </span>
           <h2 className="text-2xl md:text-3xl font-montserrat font-extrabold text-ieee-navy">
-            {certificate.recipientName}
+            {certificate.teamName ? `TEAM ${certificate.teamName.toUpperCase()}` : certificate.recipientName}
           </h2>
+          {certificate.teamName && certificate.recipientName && (
+            <div className="mt-1 text-sm text-gray-600 font-medium">
+              Registered Attendee: <span className="font-semibold text-gray-800">{certificate.recipientName}</span>
+            </div>
+          )}
           {(certificate.recipientRollNumber || certificate.recipientEmail) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
               {certificate.recipientRollNumber && (
@@ -171,7 +177,7 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
               {certificate.source === "UPLOAD_REGISTRY"
                 ? "Official Batch Registry"
                 : certificate.source === "IN_SITE_GENERATED"
-                ? "In-Site Generated"
+                ? "In-Site Generated System Verification"
                 : "Legacy Archive"}
             </span>
           </div>
@@ -179,55 +185,63 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
 
         {/* Team & Technical Project Details */}
         {(certificate.teamName || certificate.projectTitle) && (
-          <div className="p-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-amber-50/70 border border-blue-200/80 rounded-xl space-y-3 shadow-xs">
+          <div className="p-5 bg-gradient-to-r from-blue-50/90 via-indigo-50/50 to-amber-50/70 border border-blue-200/90 rounded-2xl space-y-4 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <span className="bg-ieee-navy text-white text-[10px] font-bold px-2 py-0.5 rounded font-montserrat tracking-wider uppercase">
-                Technical Project & Team Credential
+              <span className="bg-ieee-navy text-white text-[10px] font-bold px-2.5 py-1 rounded font-montserrat tracking-wider uppercase">
+                Technical Project &amp; Team Credential
               </span>
-              {certificate.projectDomain && (
-                <span className="bg-ieee-blue/10 text-ieee-blue text-[10px] font-bold px-2 py-0.5 rounded">
-                  {certificate.projectDomain}
+              <span className="bg-amber-100 text-amber-900 border border-amber-300 text-[10px] font-bold px-2.5 py-0.5 rounded font-mono">
+                {certificate.semester ? `${certificate.semester} Semester` : (certificate.projectDomain || "UCET IUB")}
+              </span>
+            </div>
+
+            {/* Team Members & Contributors */}
+            <div>
+              <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block mb-1">
+                Team Members &amp; Contributors
+              </span>
+              <div className="font-montserrat font-bold text-base text-gray-900 leading-snug">
+                {formatTeamMembersBullets(certificate.teamMembers || [certificate.recipientName])}
+              </div>
+              <p className="text-xs text-gray-600 mt-1 font-medium">
+                ({certificate.semester ? `${certificate.semester} Semester, ` : ""}{certificate.department || "Department of Computer Science & IT / UCET"})
+              </p>
+            </div>
+
+            {/* In Recognition of Their Technical Project */}
+            {certificate.projectTitle && (
+              <div className="pt-3 border-t border-blue-200/70">
+                <span className="text-[11px] font-bold text-ieee-blue uppercase tracking-wider block mb-1">
+                  In Recognition of Their Technical Project
                 </span>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-              {certificate.teamName && (
-                <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block">Team Name</span>
-                  <span className="font-montserrat font-extrabold text-base text-ieee-navy">{certificate.teamName}</span>
+                <div className="font-montserrat font-extrabold text-lg text-ieee-navy">
+                  &ldquo;{certificate.projectTitle}&rdquo;
                 </div>
-              )}
-              {certificate.projectTitle && (
-                <div>
-                  <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block">Project Title</span>
-                  <span className="font-montserrat font-bold text-sm text-ieee-blue">{certificate.projectTitle}</span>
-                </div>
-              )}
-            </div>
+                <p className="text-xs text-gray-600 mt-1">
+                  Presented at the <strong className="text-gray-900 font-semibold">{certificate.eventTitle}</strong> on <strong className="text-gray-900 font-semibold">{formatPKTDateOnly(certificate.activityDate)}</strong>.
+                </p>
+              </div>
+            )}
 
+            {/* Certified Team Member Badges */}
             {certificate.teamMembers && certificate.teamMembers.length > 0 && (
-              <div className="pt-2 border-t border-blue-100">
-                <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wide block mb-1.5">
-                  Certified Team Members ({certificate.teamMembers.length})
-                </span>
-                <div className="flex flex-wrap gap-1.5">
-                  {certificate.teamMembers.map((member, i) => {
-                    const isRecipient = member.trim().toLowerCase() === certificate.recipientName.trim().toLowerCase();
-                    return (
-                      <span
-                        key={i}
-                        className={`px-2.5 py-1 rounded text-xs border transition-all ${
-                          isRecipient
-                            ? "bg-ieee-blue text-white border-ieee-blue font-bold shadow-xs"
-                            : "bg-white text-gray-800 border-gray-200 font-medium"
-                        }`}
-                      >
-                        {member} {isRecipient ? "★ (Recipient)" : ""}
-                      </span>
-                    );
-                  })}
-                </div>
+              <div className="pt-2 flex flex-wrap gap-1.5 items-center">
+                <span className="text-[10px] font-bold text-gray-500 uppercase mr-1">Roster:</span>
+                {certificate.teamMembers.map((member, i) => {
+                  const isRecipient = member.trim().toLowerCase() === certificate.recipientName.trim().toLowerCase();
+                  return (
+                    <span
+                      key={i}
+                      className={`px-2.5 py-0.5 rounded text-xs border transition-all ${
+                        isRecipient
+                          ? "bg-ieee-blue text-white border-ieee-blue font-bold shadow-2xs"
+                          : "bg-white text-gray-800 border-gray-200 font-medium"
+                      }`}
+                    >
+                      {member} {isRecipient ? "★ (Queried Recipient)" : ""}
+                    </span>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -309,14 +323,25 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
         </div>
 
         {/* Official Issuer Recognition Statement */}
-        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-600 space-y-1">
-          <p className="font-semibold text-gray-800">Official Issuer Statement:</p>
-          <p className="italic">
+        <div className="p-4 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-700 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="font-bold text-ieee-navy font-montserrat uppercase tracking-wider text-[11px]">
+              ISSUER STATEMENT
+            </span>
+            <span className="text-[10px] text-gray-500 font-mono">
+              IEEE Computer Society SBC UCET
+            </span>
+          </div>
+          <p className="italic text-sm text-gray-800 leading-relaxed font-serif">
             &ldquo;{certificate.issuerStatement || CHAPTER_INFO.issuerStatementDefault}&rdquo;
           </p>
-          <p className="text-[11px] text-gray-500 pt-1">
-            {CHAPTER_INFO.credentialDisclaimer}
-          </p>
+          <div className="pt-2 border-t border-gray-200/80 flex flex-wrap items-center justify-between gap-2 text-[11px] text-gray-600">
+            <div>
+              <span className="font-semibold text-gray-800 font-montserrat">{certificate.approverName || "Muhammad Roshan Ashraf"}</span>
+              <span className="text-gray-500 ml-1.5">Chapter Chair, IEEE CS UCET-IUB</span>
+            </div>
+            <span className="text-[10px] text-gray-400">{CHAPTER_INFO.credentialDisclaimer}</span>
+          </div>
         </div>
 
         {/* Actions Bar */}

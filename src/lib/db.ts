@@ -28,6 +28,7 @@ import {
 import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_REGISTRATIONS, DIGITALFEST_TEAMS } from "./digitalFestData";
 import { normalizeVerificationCode } from "./codeGenerator";
 import { parseLearningObjectives } from "./sha256";
+import { generateTeamIssuerStatement } from "./teamCertUtils";
 
 // Seed Templates
 const SEED_TEMPLATES: CertificateTemplate[] = [
@@ -210,6 +211,69 @@ class ChapterDatabase {
     return combined;
   }
 
+  public enrichTeamCertificate(mapped: CertificateRecord): CertificateRecord {
+    if (!mapped) return mapped;
+    const cleanCode = (mapped.code || "").toUpperCase().trim();
+    const cleanName = (mapped.recipientName || "").toLowerCase().trim();
+
+    // 1. Check DIGITALFEST_PARTICIPANTS
+    const dfMatch = DIGITALFEST_PARTICIPANTS.find(
+      (p) =>
+        (p.certificateCode && p.certificateCode.toUpperCase().trim() === cleanCode) ||
+        (p.name && p.name.toLowerCase().trim() === cleanName)
+    );
+    if (dfMatch) {
+      if (!mapped.teamName) mapped.teamName = dfMatch.teamName;
+      if (!mapped.projectTitle) mapped.projectTitle = dfMatch.projectTitle;
+      if (!mapped.semester) mapped.semester = dfMatch.semester;
+    }
+
+    // 2. Check DIGITALFEST_TEAMS
+    if (mapped.teamName) {
+      const teamMatch = DIGITALFEST_TEAMS.find(
+        (t) => t.teamName.toLowerCase().trim() === (mapped.teamName || "").toLowerCase().trim()
+      );
+      if (teamMatch) {
+        if (!mapped.teamMembers || mapped.teamMembers.length === 0) mapped.teamMembers = teamMatch.members;
+        if (!mapped.projectDomain) mapped.projectDomain = `${teamMatch.semester} Semester`;
+        if (!mapped.semester) mapped.semester = teamMatch.semester;
+        if (!mapped.department) mapped.department = "Department of Computer Science & IT / UCET";
+      }
+    }
+
+    // 3. Check local storage certificates cache
+    const localMatch = this.getCertificates().find((c) => c.code && c.code.toUpperCase().trim() === cleanCode);
+    if (localMatch) {
+      if (!mapped.teamName && localMatch.teamName) mapped.teamName = localMatch.teamName;
+      if (!mapped.projectTitle && localMatch.projectTitle) mapped.projectTitle = localMatch.projectTitle;
+      if ((!mapped.teamMembers || mapped.teamMembers.length === 0) && localMatch.teamMembers) mapped.teamMembers = localMatch.teamMembers;
+      if (!mapped.projectDomain && localMatch.projectDomain) mapped.projectDomain = localMatch.projectDomain;
+      if (!mapped.semester && localMatch.semester) mapped.semester = localMatch.semester;
+      if (!mapped.department && localMatch.department) mapped.department = localMatch.department;
+    }
+
+    // 4. Fallback defaults for team certificates
+    if (mapped.teamName) {
+      if (!mapped.department) mapped.department = "Department of Computer Science & IT / UCET";
+      const members = mapped.teamMembers && mapped.teamMembers.length > 0 ? mapped.teamMembers : [mapped.recipientName];
+      if (
+        !mapped.issuerStatement ||
+        mapped.issuerStatement === CHAPTER_INFO.issuerStatementDefault ||
+        mapped.issuerStatement.includes("not an IEEE credential") ||
+        mapped.issuerStatement.includes("In recognition of active participation and successful completion")
+      ) {
+        mapped.issuerStatement = generateTeamIssuerStatement(
+          mapped.teamName,
+          members,
+          mapped.projectTitle || "",
+          mapped.eventTitle || "IEEE DigitalFest 2026 Projects Expo"
+        );
+      }
+    }
+
+    return mapped;
+  }
+
   getCertificateByCode(query: string): CertificateRecord | undefined {
     if (!query) return undefined;
     const list = this.getCertificates();
@@ -218,7 +282,7 @@ class ChapterDatabase {
 
     // 1. Exact code match
     let match = list.find((c) => c.code && c.code.trim().toUpperCase() === clean);
-    if (match) return match;
+    if (match) return this.enrichTeamCertificate(match);
 
     // 2. Alphanumeric stripped code match (ignoring dashes, spaces)
     if (cleanAlpha.length >= 8) {
@@ -227,7 +291,7 @@ class ChapterDatabase {
         const cAlpha = c.code.replace(/[^A-Z0-9]/g, "").toUpperCase();
         return cAlpha === cleanAlpha;
       });
-      if (match) return match;
+      if (match) return this.enrichTeamCertificate(match);
     }
 
     // 3. Roll number match
@@ -238,13 +302,13 @@ class ChapterDatabase {
       const rAlpha = rClean.replace(/[^A-Z0-9]/g, "");
       return rAlpha.length >= 4 && rAlpha === cleanAlpha;
     });
-    if (match) return match;
+    if (match) return this.enrichTeamCertificate(match);
 
     // 4. Email match
     const queryLower = query.trim().toLowerCase();
     if (queryLower.includes("@")) {
       match = list.find((c) => c.recipientEmail?.trim().toLowerCase() === queryLower);
-      if (match) return match;
+      if (match) return this.enrichTeamCertificate(match);
     }
 
     // 5. Direct search in attendance_records as fallback
@@ -267,7 +331,7 @@ class ChapterDatabase {
           ) {
             const events = this.getEvents();
             const ev = events.find((e) => e.id === eventId);
-            return {
+            const createdCert: CertificateRecord = {
               id: `cert-${rec.id || recCode}`,
               code: recCode,
               recipientName: rec.name || "Participant",
@@ -285,8 +349,13 @@ class ChapterDatabase {
               approverRole: "Chapter Chair",
               status: "ACTIVE",
               source: "IN_SITE_GENERATED",
+              teamName: rec.teamName || undefined,
+              projectTitle: rec.projectTitle || undefined,
+              teamMembers: rec.teamMembers || undefined,
+              projectDomain: rec.projectDomain || undefined,
               createdAt: rec.checkedInAt || new Date().toISOString(),
             };
+            return this.enrichTeamCertificate(createdCert);
           }
         }
       }
@@ -349,7 +418,7 @@ class ChapterDatabase {
               sha256Fingerprint: rpcData.sha256_hash || undefined,
               createdAt: rpcData.issue_date || new Date().toISOString(),
             };
-            return { certificate: mapped, status: "FOUND" };
+            return { certificate: this.enrichTeamCertificate(mapped), status: "FOUND" };
           }
         }
 
@@ -396,29 +465,7 @@ class ChapterDatabase {
               createdAt: data.created_at || new Date().toISOString(),
             };
 
-            // Enrich with team / project expo metadata if matched
-            const dfMatch = DIGITALFEST_PARTICIPANTS.find(
-              (p) => p.certificateCode.toUpperCase() === mapped.code.toUpperCase() || p.name.toLowerCase() === mapped.recipientName.toLowerCase()
-            );
-            if (dfMatch) {
-              if (!mapped.teamName) mapped.teamName = dfMatch.teamName;
-              if (!mapped.projectTitle) mapped.projectTitle = dfMatch.projectTitle;
-              const teamMatch = DIGITALFEST_TEAMS.find((t) => t.teamName.toLowerCase() === dfMatch.teamName.toLowerCase());
-              if (teamMatch) {
-                if (!mapped.teamMembers) mapped.teamMembers = teamMatch.members;
-                if (!mapped.projectDomain) mapped.projectDomain = `${teamMatch.semester} Semester`;
-              }
-            }
-
-            const localMatch = this.getCertificates().find((c) => c.code.toUpperCase() === clean);
-            if (localMatch) {
-              if (!mapped.teamName && localMatch.teamName) mapped.teamName = localMatch.teamName;
-              if (!mapped.projectTitle && localMatch.projectTitle) mapped.projectTitle = localMatch.projectTitle;
-              if (!mapped.teamMembers && localMatch.teamMembers) mapped.teamMembers = localMatch.teamMembers;
-              if (!mapped.projectDomain && localMatch.projectDomain) mapped.projectDomain = localMatch.projectDomain;
-            }
-
-            return { certificate: mapped, status: "FOUND" };
+            return { certificate: this.enrichTeamCertificate(mapped), status: "FOUND" };
           }
         }
 
@@ -431,27 +478,28 @@ class ChapterDatabase {
             .ilike("recipient_email", queryLower)
             .maybeSingle();
           if (emailData && !emailError) {
+            const mapped: CertificateRecord = {
+              id: emailData.id,
+              code: emailData.code,
+              recipientName: emailData.recipient_name,
+              recipientRollNumber: emailData.recipient_roll_number || emailData.roll_number || undefined,
+              recipientEmail: emailData.recipient_email || emailData.email || undefined,
+              publicNameFormat: (emailData.public_name_format as any) || "FULL_NAME",
+              eventId: emailData.event_id || "",
+              eventTitle: emailData.event_title || emailData.event_name || "IEEE Technical Session",
+              certificateType: emailData.certificate_type || "Certificate of Participation",
+              recognitionLevel: (emailData.recognition_level as any) || "CHAPTER_RECOGNITION",
+              issuerStatement: emailData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+              activityDate: emailData.activity_date || emailData.event_date || "",
+              issueDate: emailData.issue_date || "",
+              approverName: emailData.approver_name || "Chapter Chair",
+              approverRole: emailData.approver_role || "Chapter Chair",
+              status: emailData.status,
+              source: emailData.source || "IN_SITE_GENERATED",
+              createdAt: emailData.created_at || new Date().toISOString(),
+            };
             return {
-              certificate: {
-                id: emailData.id,
-                code: emailData.code,
-                recipientName: emailData.recipient_name,
-                recipientRollNumber: emailData.recipient_roll_number || emailData.roll_number || undefined,
-                recipientEmail: emailData.recipient_email || emailData.email || undefined,
-                publicNameFormat: (emailData.public_name_format as any) || "FULL_NAME",
-                eventId: emailData.event_id || "",
-                eventTitle: emailData.event_title || emailData.event_name || "IEEE Technical Session",
-                certificateType: emailData.certificate_type || "Certificate of Participation",
-                recognitionLevel: (emailData.recognition_level as any) || "CHAPTER_RECOGNITION",
-                issuerStatement: emailData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
-                activityDate: emailData.activity_date || emailData.event_date || "",
-                issueDate: emailData.issue_date || "",
-                approverName: emailData.approver_name || "Chapter Chair",
-                approverRole: emailData.approver_role || "Chapter Chair",
-                status: emailData.status,
-                source: emailData.source || "IN_SITE_GENERATED",
-                createdAt: emailData.created_at || new Date().toISOString(),
-              },
+              certificate: this.enrichTeamCertificate(mapped),
               status: "FOUND",
             };
           }
@@ -462,27 +510,28 @@ class ChapterDatabase {
             .ilike("recipient_roll_number", clean)
             .maybeSingle();
           if (rollData && !rollError) {
+            const mapped: CertificateRecord = {
+              id: rollData.id,
+              code: rollData.code,
+              recipientName: rollData.recipient_name,
+              recipientRollNumber: rollData.recipient_roll_number || rollData.roll_number || undefined,
+              recipientEmail: rollData.recipient_email || rollData.email || undefined,
+              publicNameFormat: (rollData.public_name_format as any) || "FULL_NAME",
+              eventId: rollData.event_id || "",
+              eventTitle: rollData.event_title || rollData.event_name || "IEEE Technical Session",
+              certificateType: rollData.certificate_type || "Certificate of Participation",
+              recognitionLevel: (rollData.recognition_level as any) || "CHAPTER_RECOGNITION",
+              issuerStatement: rollData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
+              activityDate: rollData.activity_date || rollData.event_date || "",
+              issueDate: rollData.issue_date || "",
+              approverName: rollData.approver_name || "Chapter Chair",
+              approverRole: rollData.approver_role || "Chapter Chair",
+              status: rollData.status,
+              source: rollData.source || "IN_SITE_GENERATED",
+              createdAt: rollData.created_at || new Date().toISOString(),
+            };
             return {
-              certificate: {
-                id: rollData.id,
-                code: rollData.code,
-                recipientName: rollData.recipient_name,
-                recipientRollNumber: rollData.recipient_roll_number || rollData.roll_number || undefined,
-                recipientEmail: rollData.recipient_email || rollData.email || undefined,
-                publicNameFormat: (rollData.public_name_format as any) || "FULL_NAME",
-                eventId: rollData.event_id || "",
-                eventTitle: rollData.event_title || rollData.event_name || "IEEE Technical Session",
-                certificateType: rollData.certificate_type || "Certificate of Participation",
-                recognitionLevel: (rollData.recognition_level as any) || "CHAPTER_RECOGNITION",
-                issuerStatement: rollData.issuer_statement || CHAPTER_INFO.issuerStatementDefault,
-                activityDate: rollData.activity_date || rollData.event_date || "",
-                issueDate: rollData.issue_date || "",
-                approverName: rollData.approver_name || "Chapter Chair",
-                approverRole: rollData.approver_role || "Chapter Chair",
-                status: rollData.status,
-                source: rollData.source || "IN_SITE_GENERATED",
-                createdAt: rollData.created_at || new Date().toISOString(),
-              },
+              certificate: this.enrichTeamCertificate(mapped),
               status: "FOUND",
             };
           }
@@ -496,7 +545,7 @@ class ChapterDatabase {
     // Fallback to Server Action to verify against live database with full server session
     try {
       const saResult = await verifyCertificateAction(clean);
-      if (saResult) return { certificate: saResult, status: "FOUND" };
+      if (saResult) return { certificate: this.enrichTeamCertificate(saResult), status: "FOUND" };
       queryExecutedSuccessfully = true;
     } catch (saErr: any) {
       console.warn("verifyCertificateAction server action notice:", saErr);
@@ -507,7 +556,7 @@ class ChapterDatabase {
 
     const localCert = this.getCertificateByCode(clean) || this.getCertificateByCode(query);
     if (localCert) {
-      return { certificate: localCert, status: "FOUND" };
+      return { certificate: this.enrichTeamCertificate(localCert), status: "FOUND" };
     }
 
     // If a database error or network failure prevented verifying, report ERROR

@@ -105,6 +105,8 @@ export interface CertificateRecord {
   projectTitle?: string;
   teamMembers?: string[];
   projectDomain?: string;
+  semester?: string;
+  department?: string;
   replacedByCode?: string;
   replacementReason?: string;
   revocationDate?: string;

@@ -4,6 +4,17 @@ import { db } from "./db";
 import { CHAPTER_INFO } from "./constants";
 import { formatPKTDateOnly } from "./sha256";
 
+import {
+  formatTeamMembersProse,
+  formatTeamMembersBullets,
+  generateTeamIssuerStatement,
+} from "./teamCertUtils";
+export {
+  formatTeamMembersProse,
+  formatTeamMembersBullets,
+  generateTeamIssuerStatement,
+};
+
 export async function renderCertificateHtml(
   cert: CertificateRecord,
   customTemplate?: CertificateTemplate
@@ -79,6 +90,21 @@ export async function renderCertificateHtml(
   const m3 = membersList[2] || "";
   const m4 = membersList[3] || "";
 
+  const teamMembersBullet = formatTeamMembersBullets(membersList);
+  const teamMembersProse = formatTeamMembersProse(membersList);
+  const academicAffiliation = cert.semester
+    ? `${cert.semester} Semester, ${cert.department || "Department of Computer Science & IT / UCET"}`
+    : (cert.department || "Department of Computer Science & IT / UCET");
+
+  const effectiveIssuerStatement = cert.teamName
+    ? generateTeamIssuerStatement(
+        cert.teamName,
+        membersList,
+        cert.projectTitle || "",
+        cert.eventTitle || "IEEE DigitalFest 2026 Projects Expo"
+      )
+    : (cert.issuerStatement || CHAPTER_INFO.issuerStatementDefault);
+
   // 4. Perform dynamic placeholders replacement
   let rendered = rawHtml
     // Recipient and Event Details
@@ -92,11 +118,16 @@ export async function renderCertificateHtml(
     .replace(/{{qr_code}}/g, qrDataUri)
     .replace(/{{society_code}}/g, "SBC12345")
     .replace(/{{chapter_website}}/g, "ieeecsiub.vercel.app")
-    .replace(/{{issuer_statement}}/g, cert.issuerStatement || CHAPTER_INFO.issuerStatementDefault)
+    .replace(/{{issuer_statement}}/g, effectiveIssuerStatement)
 
     // Team & Project (Projects Expo templates)
     .replace(/{{team_name}}/g, cert.teamName || cert.recipientName)
     .replace(/{{project_title}}/g, cert.projectTitle || cert.eventTitle)
+    .replace(/{{team_members_bulleted}}/g, teamMembersBullet)
+    .replace(/{{team_members_prose}}/g, teamMembersProse)
+    .replace(/{{academic_affiliation}}/g, academicAffiliation)
+    .replace(/{{semester}}/g, cert.semester || "")
+    .replace(/{{department}}/g, cert.department || "Department of Computer Science & IT / UCET")
     .replace(/<div[^>]*>{{member_1}}<\/div>/g, m1 ? `<div style="padding: 4px 10px; border: 1.5px solid #00629B; background: #FFFFFF; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 12px; color: #002855">${m1}</div>` : "")
     .replace(/<div[^>]*>{{member_2}}<\/div>/g, m2 ? `<div style="padding: 4px 10px; border: 1.5px solid #00629B; background: #FFFFFF; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 12px; color: #002855">${m2}</div>` : "")
     .replace(/<div[^>]*>{{member_3}}<\/div>/g, m3 ? `<div style="padding: 4px 10px; border: 1.5px solid #00629B; background: #FFFFFF; font-family: Montserrat, sans-serif; font-weight: 600; font-size: 12px; color: #002855">${m3}</div>` : "")
