@@ -197,7 +197,15 @@ class ChapterDatabase {
       }
     });
 
-    const combined = Array.from(certMap.values());
+    const combined = Array.from(certMap.values()).filter(
+      (c) =>
+        c &&
+        c.code &&
+        !c.code.startsWith("TEST-") &&
+        !c.code.includes("TEST") &&
+        c.recipientName !== "Test Name" &&
+        c.recipientName !== "Safe Attendee"
+    );
     return combined;
   }
 
@@ -531,22 +539,31 @@ class ChapterDatabase {
             createdAt: d.created_at,
           }));
 
-          const mergedMap = new Map<string, CertificateRecord>();
-          localCerts.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
-          list.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
-
-          const missingInCloud = localCerts.filter(
-            (lc) => lc && lc.code && !list.some((rc) => rc.code.toUpperCase() === lc.code.toUpperCase())
+          const cleanList = list.filter(
+            (c) =>
+              c.code &&
+              !c.code.startsWith("TEST-") &&
+              !c.code.includes("TEST") &&
+              c.recipientName !== "Test Name" &&
+              c.recipientName !== "Safe Attendee"
           );
-          if (missingInCloud.length > 0) {
-            bulkSaveCertificatesAction(missingInCloud).catch((e) =>
-              console.warn("Auto-sync local certs notice:", e)
-            );
-          }
 
-          const merged = Array.from(mergedMap.values());
-          this.setItem("certificates", merged);
-          return merged;
+          const cleanLocal = localCerts.filter(
+            (c) =>
+              c.code &&
+              !c.code.startsWith("TEST-") &&
+              !c.code.includes("TEST") &&
+              c.recipientName !== "Test Name" &&
+              c.recipientName !== "Safe Attendee"
+          );
+
+          const mergedMap = new Map<string, CertificateRecord>();
+          cleanLocal.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
+          cleanList.forEach((c) => mergedMap.set(c.code.toUpperCase(), c));
+
+          const cleanMerged = Array.from(mergedMap.values());
+          this.setItem("certificates", cleanMerged);
+          return cleanMerged;
         }
       } catch (err) {
         console.warn("Supabase fetchCertificates error:", err);
@@ -794,7 +811,15 @@ class ChapterDatabase {
 
   // --- Events ---
   getEvents(): EventItem[] {
-    return this.getItem("events", SEED_EVENTS);
+    const list = this.getItem("events", SEED_EVENTS);
+    return list.filter(
+      (e) =>
+        e &&
+        e.title &&
+        e.title.trim().length > 1 &&
+        !["r", "q", "test"].includes(e.title.toLowerCase().trim()) &&
+        !["2026/r", "2026/q"].includes(e.slug.toLowerCase().trim())
+    );
   }
 
   async fetchEvents(): Promise<EventItem[]> {
@@ -833,9 +858,18 @@ class ChapterDatabase {
             isRegistrationOpen: d.is_registration_open !== null && d.is_registration_open !== undefined ? Boolean(d.is_registration_open) : (d.status === "UPCOMING"),
           }));
 
+          const cleanEvents = mapped.filter(
+            (e) =>
+              e &&
+              e.title &&
+              e.title.trim().length > 1 &&
+              !["r", "q", "test"].includes(e.title.toLowerCase().trim()) &&
+              !["2026/r", "2026/q"].includes(e.slug.toLowerCase().trim())
+          );
+
           // Remote is the single source of truth
-          this.setItem("events", mapped);
-          return mapped;
+          this.setItem("events", cleanEvents);
+          return cleanEvents;
         }
       } catch (err) {
         console.warn("Supabase fetchEvents error:", err);

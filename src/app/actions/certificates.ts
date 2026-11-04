@@ -342,6 +342,31 @@ export async function replaceCertificateAction(
   return { success: true, newCode };
 }
 
+export async function deleteCertificateAction(code: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!code) return { success: false, error: "Code is required" };
+    const clean = code.trim().toUpperCase();
+    const supabase = await createClient();
+
+    const { error } = await supabase.from("certificates").delete().eq("code", clean);
+    if (error) {
+      console.warn("deleteCertificateAction warning:", error.message);
+      return { success: false, error: error.message };
+    }
+
+    try {
+      revalidatePath("/verify");
+      revalidatePath("/admin/certificates");
+      revalidateTag("certificates");
+    } catch {}
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("deleteCertificateAction error:", err);
+    return { success: false, error: err?.message || "Failed to delete" };
+  }
+}
+
 export async function bulkSaveCertificatesAction(
   certs: CertificateRecord[]
 ): Promise<{ success: boolean; count: number; error?: string }> {
