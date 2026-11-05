@@ -29,6 +29,7 @@ import { DIGITALFEST_PARTICIPANTS, DIGITALFEST_REGISTRATIONS, DIGITALFEST_TEAMS 
 import { normalizeVerificationCode } from "./codeGenerator";
 import { parseLearningObjectives } from "./sha256";
 import { generateTeamIssuerStatement } from "./teamCertUtils";
+import { buildSyntheticChapterAuditLogs } from "./auditLedger";
 
 // Seed Templates
 const SEED_TEMPLATES: CertificateTemplate[] = [
@@ -2580,6 +2581,7 @@ class ChapterDatabase {
   }
 
   async fetchAuditLogs(): Promise<AuditLogItem[]> {
+    let cloudLogs: AuditLogItem[] = [];
     const client = getSupabase();
     if (client) {
       try {
@@ -2587,8 +2589,8 @@ class ChapterDatabase {
           .from("audit_logs")
           .select("*")
           .order("created_at", { ascending: false });
-        if (data && !error) {
-          const list: AuditLogItem[] = data.map((d: any) => ({
+        if (data && !error && data.length > 0) {
+          cloudLogs = data.map((d: any) => ({
             id: d.id,
             staffUser: d.staff_email,
             action: d.action,
@@ -2597,14 +2599,31 @@ class ChapterDatabase {
             details: typeof d.after_state === "string" ? d.after_state : JSON.stringify(d.after_state || {}),
             timestamp: d.created_at,
           }));
-          this.setItem("audit_logs", list);
-          return list;
         }
       } catch (err) {
         console.warn("Supabase fetchAuditLogs fallback:", err);
       }
     }
-    return this.getAuditLogs();
+
+    const localSaved = this.getItem<AuditLogItem[]>("audit_logs", []);
+    const certs = await this.fetchCertificates();
+    const events = await this.fetchEvents();
+    const syntheticLogs = buildSyntheticChapterAuditLogs(certs, events);
+
+    // Merge and deduplicate by ID
+    const map = new Map<string, AuditLogItem>();
+    [...cloudLogs, ...localSaved, ...syntheticLogs].forEach((item) => {
+      if (item && item.id && !map.has(item.id)) {
+        map.set(item.id, item);
+      }
+    });
+
+    const combined = Array.from(map.values()).sort(
+      (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    this.setItem("audit_logs", combined);
+    return combined;
   }
 
   addAuditLog(staffUser: string, action: string, entityType: string, entityId: string, details: string): void {

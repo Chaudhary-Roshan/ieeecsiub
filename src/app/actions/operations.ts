@@ -424,3 +424,27 @@ export async function wipeAllCertificatesAction() {
   return { success: true };
 }
 
+export async function logAuditEventAction(params: {
+  staffUser: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  details: string;
+}) {
+  const supabase = await createClient();
+  try {
+    await supabase.from("audit_logs").insert({
+      staff_email: params.staffUser,
+      action: params.action,
+      entity_type: params.entityType,
+      entity_id: params.entityId,
+      after_state: { details: params.details },
+    });
+  } catch (e) {
+    console.warn("logAuditEventAction insert notice:", e);
+  }
+  revalidatePath("/admin/audit");
+  return { success: true };
+}
+
+

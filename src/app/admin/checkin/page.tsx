@@ -9,9 +9,6 @@ import { Button } from "@/components/ui/Button";
 import * as XLSX from "xlsx";
 import {
   QrCode,
-  Camera,
-  CameraOff,
-  SwitchCamera,
   Upload,
   Download,
   FileSpreadsheet,
@@ -91,13 +88,9 @@ export default function MobileCheckinPage() {
   const [registrations, setRegistrations] = useState<Registration[]>([]);
   const [currentUser, setCurrentUser] = useState<StaffUser | null>(null);
 
-  // Scanner State
+  // Ticket Check-in State
   const [ticketInput, setTicketInput] = useState("");
-  const [isCameraActive, setIsCameraActive] = useState(false);
-  const [cameraFacing, setCameraFacing] = useState<"environment" | "user">("environment");
   const [soundEnabled, setSoundEnabled] = useState(true);
-  const html5QrCodeRef = useRef<any>(null);
-  const scannerContainerId = "mobile-qr-reader";
 
   // Result & Alerts
   const [resultMsg, setResultMsg] = useState<{
@@ -110,7 +103,6 @@ export default function MobileCheckinPage() {
   // Sheet Operations State
   const [sheetUploadStatus, setSheetUploadStatus] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const qrImageInputRef = useRef<HTMLInputElement>(null);
 
   // Table Filter & Search
   const [searchQuery, setSearchQuery] = useState("");
@@ -139,96 +131,9 @@ export default function MobileCheckinPage() {
       }
     }
     loadData();
-
-    return () => {
-      stopCameraScanner();
-    };
   }, []);
 
-  // Cleanup scanner on unmount
-  const stopCameraScanner = async () => {
-    if (html5QrCodeRef.current) {
-      try {
-        if (html5QrCodeRef.current.isScanning) {
-          await html5QrCodeRef.current.stop();
-        }
-        await html5QrCodeRef.current.clear();
-      } catch (err) {
-        console.warn("Stop scanner error:", err);
-      }
-      html5QrCodeRef.current = null;
-    }
-    setIsCameraActive(false);
-  };
-
-  // Start Camera QR Scanner
-  const startCameraScanner = async () => {
-    try {
-      await stopCameraScanner();
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const scanner = new Html5Qrcode(scannerContainerId);
-      html5QrCodeRef.current = scanner;
-
-      await scanner.start(
-        { facingMode: cameraFacing },
-        {
-          fps: 12,
-          qrbox: { width: 240, height: 240 },
-          aspectRatio: 1.0,
-        },
-        (decodedText: string) => {
-          handleProcessTicketCode(decodedText);
-        },
-        () => {
-          // Ignore individual frame non-decodes
-        }
-      );
-      setIsCameraActive(true);
-    } catch (err) {
-      console.error("Camera scanner start error:", err);
-      alert("Unable to open camera. Please grant camera permissions or use manual entry/image upload.");
-      setIsCameraActive(false);
-    }
-  };
-
-  // Switch between front and back camera
-  const handleToggleCameraFacing = async () => {
-    const nextFacing = cameraFacing === "environment" ? "user" : "environment";
-    setCameraFacing(nextFacing);
-    if (isCameraActive) {
-      await stopCameraScanner();
-      setTimeout(() => {
-        startCameraScanner();
-      }, 200);
-    }
-  };
-
-  // Scan QR from an image file
-  const handleScanFromImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    try {
-      const { Html5Qrcode } = await import("html5-qrcode");
-      const tempId = "temp-qr-file-container";
-      let container = document.getElementById(tempId);
-      if (!container) {
-        container = document.createElement("div");
-        container.id = tempId;
-        container.style.display = "none";
-        document.body.appendChild(container);
-      }
-
-      const fileScanner = new Html5Qrcode(tempId);
-      const decodedText = await fileScanner.scanFile(file, true);
-      handleProcessTicketCode(decodedText);
-      fileScanner.clear();
-    } catch (err) {
-      alert("No valid QR code was detected in the selected image.");
-    }
-  };
-
-  // Process ticket code from QR or text entry via atomic database RPC with offline fallback
+  // Process ticket code from text entry or USB barcode scanner via atomic database RPC with offline fallback
   const handleProcessTicketCode = async (rawCode: string) => {
     const cleanCode = cleanScannedCode(rawCode);
     if (!cleanCode) return;
@@ -539,37 +444,18 @@ export default function MobileCheckinPage() {
                 type="button"
                 onClick={() => setSoundEnabled(!soundEnabled)}
                 className="text-xs text-gray-500 hover:text-ieee-blue flex items-center gap-1"
-                title={soundEnabled ? "Mute scanner audio feedback" : "Enable scanner audio feedback"}
+                title={soundEnabled ? "Mute audio feedback" : "Enable audio feedback"}
               >
                 {soundEnabled ? <Volume2 size={14} className="text-emerald-600" /> : <VolumeX size={14} />}
                 <span className="text-[11px]">{soundEnabled ? "Audio On" : "Audio Muted"}</span>
               </button>
             </div>
             <h1 className="text-2xl sm:text-3xl font-montserrat font-extrabold text-ieee-navy mt-1">
-              Mobile QR Ticket Check-in Scanner
+              Ticket Code Attendance &amp; Check-in Hub
             </h1>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">
-              Real-time camera barcode scanner, live event attendance categorization, and bulk Excel/CSV sheet manager.
+              Real-time ticket code verification, live attendance categorization, and bulk Excel/CSV sheet operations.
             </p>
-          </div>
-
-          {/* Quick Demo Pre-filled Links */}
-          <div className="flex items-center gap-2 text-xs">
-            <span className="text-gray-400 text-[11px]">Quick Test:</span>
-            <button
-              type="button"
-              onClick={() => handleProcessTicketCode("TCK-DF26-0001")}
-              className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-ieee-navy font-mono text-[11px] rounded border transition-colors"
-            >
-              ByteForge Leader
-            </button>
-            <button
-              type="button"
-              onClick={() => handleProcessTicketCode("TCK-DF26-0002")}
-              className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-ieee-navy font-mono text-[11px] rounded border transition-colors"
-            >
-              Meta Hunters
-            </button>
           </div>
         </div>
 
@@ -701,108 +587,54 @@ export default function MobileCheckinPage() {
           )}
         </div>
 
-        {/* 3. Main Scanner & Verification Station */}
+        {/* 3. Ticket Code Verification Station */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* Left Column: Camera QR Viewfinder & Manual Input (7 cols) */}
+          {/* Left Column: Direct Ticket Code Entry (7 cols) */}
           <div className="lg:col-span-7 space-y-4">
-            <div className="bg-white border border-gray-200 rounded-card p-5 shadow-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="font-montserrat font-bold text-xs uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
-                  <Camera size={15} className="text-ieee-blue" />
-                  Live Camera QR Scanner
+            <div className="bg-white border border-gray-200 rounded-card p-6 shadow-sm space-y-5">
+              <div className="space-y-1">
+                <span className="text-[11px] font-montserrat font-bold text-ieee-blue uppercase tracking-wider block">
+                  Entrance Verification
                 </span>
-
-                <div className="flex items-center gap-2">
-                  {isCameraActive && (
-                    <button
-                      type="button"
-                      onClick={handleToggleCameraFacing}
-                      className="text-xs bg-gray-100 hover:bg-gray-200 px-2 py-1 rounded text-gray-700 flex items-center gap-1 transition-colors"
-                      title="Flip camera front/back"
-                    >
-                      <SwitchCamera size={13} />
-                      <span className="text-[11px] capitalize">{cameraFacing}</span>
-                    </button>
-                  )}
-
-                  <input
-                    ref={qrImageInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleScanFromImage}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => qrImageInputRef.current?.click()}
-                    className="text-xs text-ieee-blue hover:underline flex items-center gap-1"
-                    title="Upload QR photo from gallery"
-                  >
-                    <Upload size={12} /> Scan Image
-                  </button>
-                </div>
+                <h3 className="font-montserrat font-extrabold text-lg text-ieee-navy">
+                  Ticket Code Attendance Check-in
+                </h3>
+                <p className="text-xs text-gray-500">
+                  Enter participant ticket code, verification code, or student roll number to verify registration and record attendance.
+                </p>
               </div>
 
-              {/* Camera Scanner Viewport */}
-              <div className="relative w-full aspect-video sm:aspect-[4/3] rounded-xl overflow-hidden bg-gray-950 flex flex-col items-center justify-center border-2 border-dashed border-gray-300">
-                <div id={scannerContainerId} className="w-full h-full" />
-
-                {!isCameraActive && (
-                  <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-3 bg-gradient-to-b from-gray-900/90 to-gray-950/95 text-white">
-                    <div className="w-14 h-14 rounded-full bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400">
-                      <QrCode size={28} />
-                    </div>
-                    <div>
-                      <h4 className="font-montserrat font-bold text-sm text-white">Camera Scanner Ready</h4>
-                      <p className="text-xs text-gray-400 max-w-xs mt-1">
-                        Tap below to start your device camera for instant barcode & QR verification at entrance.
-                      </p>
-                    </div>
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={startCameraScanner}
-                      className="flex items-center gap-1.5 bg-ieee-blue hover:bg-blue-700 text-xs px-4 py-2"
-                    >
-                      <Camera size={14} /> Start Camera Scanner
-                    </Button>
-                  </div>
-                )}
-
-                {isCameraActive && (
-                  <div className="absolute bottom-3 inset-x-0 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={stopCameraScanner}
-                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-full text-xs font-semibold flex items-center gap-1 shadow-lg transition-colors"
-                    >
-                      <CameraOff size={13} /> Pause Scanner
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Manual Ticket Input */}
-              <form onSubmit={handleManualSubmit} className="space-y-2 pt-2">
-                <label className="block text-[11px] font-bold text-gray-500 uppercase">
-                  Manual Code Search / USB Scanner:
-                </label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                      <QrCode size={18} />
-                    </div>
+              {/* Fast Input Form */}
+              <form onSubmit={handleManualSubmit} className="space-y-4 pt-2">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-gray-700 font-montserrat uppercase tracking-wider">
+                    Ticket Code, Verification Code, or Roll Number:
+                  </label>
+                  <div className="relative">
                     <input
                       type="text"
-                      placeholder="e.g. TCK-DF26-0001 or CSIUB-26-DF01"
+                      autoFocus
+                      placeholder="e.g. TCK-DF26-0001, CSIUB-26-AXNE-UX4T, or S23BINCE1M40414"
                       value={ticketInput}
                       onChange={(e) => setTicketInput(e.target.value)}
-                      className="w-full pl-9 pr-3 py-2 text-sm font-mono tracking-wider uppercase border border-gray-300 rounded-lg focus:outline-none focus:border-ieee-blue"
+                      className="w-full px-4 py-3 text-base font-mono tracking-wider uppercase border-2 border-gray-300 rounded-xl focus:border-ieee-blue focus:ring-2 focus:ring-ieee-blue/20 outline-none transition-all placeholder:normal-case placeholder:font-sans placeholder:text-gray-400"
                     />
                   </div>
-                  <Button type="submit" variant="primary" size="sm" className="px-4">
-                    Verify
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <Button type="submit" variant="primary" size="md" className="flex-1 py-3 text-sm font-montserrat font-bold uppercase tracking-wider">
+                    <CheckCircle2 size={16} className="mr-2" /> Verify &amp; Mark Present
                   </Button>
+                  {ticketInput && (
+                    <button
+                      type="button"
+                      onClick={() => setTicketInput("")}
+                      className="px-4 py-3 rounded-xl border border-gray-300 bg-white text-gray-600 hover:bg-gray-100 text-xs font-semibold"
+                    >
+                      Clear
+                    </button>
+                  )}
                 </div>
               </form>
             </div>
