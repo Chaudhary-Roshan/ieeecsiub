@@ -32,7 +32,7 @@ export const VerifySearchClient: React.FC = () => {
             htmlFor="cert-code-input"
             className="block font-montserrat font-bold text-xs uppercase tracking-wider text-gray-700"
           >
-            Verification Code, Roll Number, or Link
+            Verification Code, Roll Number, CNIC, or Passport Number
           </label>
 
           <div className="relative">
@@ -42,7 +42,7 @@ export const VerifySearchClient: React.FC = () => {
             <input
               id="cert-code-input"
               type="text"
-              placeholder="e.g. CSIUB-26-AXNE-UX4T, S23BINCE1M40414, or paste link"
+              placeholder="e.g. CSIUB-26-AXNE-UX4T, 31202-1234567-1, PA1234567, or Roll No"
               value={inputCode}
               onChange={(e) => {
                 setInputCode(e.target.value.toUpperCase());

@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
-import { EventItem, AttendanceRecord, CertificateRecord } from "@/types";
+import { EventItem, AttendanceRecord, CertificateRecord, IdentityType } from "@/types";
 import { generateCertificateCode, generateQrPngDataUrl } from "@/lib/codeGenerator";
 import { generateTeamIssuerStatement } from "@/lib/teamCertUtils";
 import { saveEventAction } from "@/app/actions/events";
@@ -262,6 +262,8 @@ export default function AdminAttendancePage() {
 
       const codeByName = new Map<string, string>();
       const codeByRoll = new Map<string, string>();
+      const codeByCnic = new Map<string, string>();
+      const codeByPassport = new Map<string, string>();
       const codeByEmail = new Map<string, string>();
 
       // 1. Index all permanently issued certificates
@@ -269,6 +271,9 @@ export default function AdminAttendancePage() {
         if (c.code) {
           const cCode = c.code.trim();
           if (c.recipientName) codeByName.set(c.recipientName.trim().toLowerCase(), cCode);
+          if (c.recipientRollNumber) codeByRoll.set(c.recipientRollNumber.trim().toLowerCase(), cCode);
+          if (c.cnic) codeByCnic.set(c.cnic.trim().toLowerCase().replace(/[^0-9]/g, ""), cCode);
+          if (c.passport) codeByPassport.set(c.passport.trim().toLowerCase(), cCode);
         }
       });
 
@@ -278,6 +283,8 @@ export default function AdminAttendancePage() {
           const aCode = a.certificateCode.trim();
           if (a.name) codeByName.set(a.name.trim().toLowerCase(), aCode);
           if (a.rollNumber) codeByRoll.set(a.rollNumber.trim().toLowerCase(), aCode);
+          if (a.cnic) codeByCnic.set(a.cnic.trim().toLowerCase().replace(/[^0-9]/g, ""), aCode);
+          if (a.passport) codeByPassport.set(a.passport.trim().toLowerCase(), aCode);
           if (a.email) codeByEmail.set(a.email.trim().toLowerCase(), aCode);
         }
       });
@@ -301,6 +308,34 @@ export default function AdminAttendancePage() {
           "Registration", "Roll", "Reg", "ID", "Student ID", "RollNumber", "RegNumber", "Roll_Number"
         ], "roll");
 
+        const cnic = extractFieldFromRow(row, [
+          "CNIC", "CNIC Number", "CNIC No", "CNIC No.", "National ID", "B-Form", "B Form", "ID Card", "ID Card Number", "NIC"
+        ], "text");
+
+        const passport = extractFieldFromRow(row, [
+          "Passport", "Passport Number", "Passport No", "Passport No.", "PassportNumber", "Passport_No"
+        ], "text");
+
+        let identityType: IdentityType = "ROLL_NUMBER";
+        let identityNumber = rollNumber;
+
+        if (passport && !rollNumber) {
+          identityType = "PASSPORT";
+          identityNumber = passport.trim().toUpperCase();
+        } else if (cnic && !rollNumber) {
+          identityType = "CNIC";
+          identityNumber = cnic.trim();
+        } else if (rollNumber) {
+          identityType = "ROLL_NUMBER";
+          identityNumber = rollNumber.trim().toUpperCase();
+        } else if (passport) {
+          identityType = "PASSPORT";
+          identityNumber = passport.trim().toUpperCase();
+        } else if (cnic) {
+          identityType = "CNIC";
+          identityNumber = cnic.trim();
+        }
+
         const email = extractFieldFromRow(row, [
           "Email Address", "Email", "Gmail", "E-mail", "Student Email", "Mail", "Email / Gmail", "E-Mail Address",
           "Contact Email", "EmailAddress", "G-Mail"
@@ -319,12 +354,18 @@ export default function AdminAttendancePage() {
 
         const normName = name.toLowerCase();
         const normRoll = rollNumber.toLowerCase();
+        const normCnic = cnic ? cnic.toLowerCase().replace(/[^0-9]/g, "") : "";
+        const normPassport = passport ? passport.toLowerCase() : "";
         const normEmail = email.toLowerCase();
 
-        // 2. Multi-key idempotency lookup: Match existing code by Roll Number, Email, OR Name
+        // 2. Multi-key idempotency lookup: Match existing code by Roll Number, CNIC, Passport, Email, OR Name
         let assignedCode: string | undefined = undefined;
         if (normRoll && codeByRoll.has(normRoll)) {
           assignedCode = codeByRoll.get(normRoll);
+        } else if (normCnic && codeByCnic.has(normCnic)) {
+          assignedCode = codeByCnic.get(normCnic);
+        } else if (normPassport && codeByPassport.has(normPassport)) {
+          assignedCode = codeByPassport.get(normPassport);
         } else if (normEmail && codeByEmail.has(normEmail)) {
           assignedCode = codeByEmail.get(normEmail);
         } else if (normName && codeByName.has(normName)) {
@@ -343,15 +384,21 @@ export default function AdminAttendancePage() {
             // Register in lookup maps to avoid duplicates within same file
             if (normName) codeByName.set(normName, assignedCode);
             if (normRoll) codeByRoll.set(normRoll, assignedCode);
+            if (normCnic) codeByCnic.set(normCnic, assignedCode);
+            if (normPassport) codeByPassport.set(normPassport, assignedCode);
             if (normEmail) codeByEmail.set(normEmail, assignedCode);
           }
 
-          // Permanently record/upsert the verification record in DB with full roll number and email
+          // Permanently record/upsert the verification record in DB with full identifier and email
           const certRecord: CertificateRecord = {
             id: `cert-${Date.now()}-${idx}`,
             code: assignedCode,
             recipientName: name,
-            recipientRollNumber: rollNumber || undefined,
+            recipientRollNumber: identityType === "ROLL_NUMBER" ? (identityNumber || rollNumber || undefined) : (rollNumber || undefined),
+            identityType,
+            identityNumber: identityNumber || undefined,
+            cnic: cnic || (identityType === "CNIC" ? identityNumber : undefined),
+            passport: passport || (identityType === "PASSPORT" ? identityNumber : undefined),
             recipientEmail: email || undefined,
             publicNameFormat: "FULL_NAME",
             eventId: selectedEventId,
@@ -384,7 +431,11 @@ export default function AdminAttendancePage() {
           id: `att-${Date.now()}-${idx}`,
           eventId: selectedEventId,
           name,
-          rollNumber,
+          rollNumber: identityType === "ROLL_NUMBER" ? (identityNumber || rollNumber || undefined) : (rollNumber || undefined),
+          identityType,
+          identityNumber: identityNumber || undefined,
+          cnic: cnic || (identityType === "CNIC" ? identityNumber : undefined),
+          passport: passport || (identityType === "PASSPORT" ? identityNumber : undefined),
           email,
           attended,
           certificateCode: attended ? assignedCode : undefined,
@@ -1036,11 +1087,18 @@ export default function AdminAttendancePage() {
       (filterMode === "ISSUED" && Boolean(item.certificateCode)) ||
       (filterMode === "PENDING" && !item.certificateCode && item.attended);
 
+    const q = searchQuery.toLowerCase().trim();
+    const qClean = q.replace(/[^a-z0-9]/g, "");
     const matchesSearch =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.rollNumber && item.rollNumber.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.email && item.email.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.certificateCode && item.certificateCode.toLowerCase().includes(searchQuery.toLowerCase()));
+      item.name.toLowerCase().includes(q) ||
+      (item.rollNumber && item.rollNumber.toLowerCase().includes(q)) ||
+      (item.cnic && (item.cnic.toLowerCase().includes(q) || (qClean && item.cnic.replace(/[^0-9]/g, "").includes(qClean)))) ||
+      (item.passport && item.passport.toLowerCase().includes(q)) ||
+      (item.identityNumber && item.identityNumber.toLowerCase().includes(q)) ||
+      (item.email && item.email.toLowerCase().includes(q)) ||
+      (item.teamName && item.teamName.toLowerCase().includes(q)) ||
+      (item.projectTitle && item.projectTitle.toLowerCase().includes(q)) ||
+      (item.certificateCode && item.certificateCode.toLowerCase().includes(q));
 
     return matchesFilter && matchesSearch;
   });
@@ -1739,7 +1797,7 @@ export default function AdminAttendancePage() {
                     </th>
                     <th className="p-4 w-12 text-center">Status</th>
                     <th className="p-4">Participant Name</th>
-                    <th className="p-4">Roll No & Email</th>
+                    <th className="p-4">Identification &amp; Email</th>
                     <th className="p-4">Verification Code & QR</th>
                     <th className="p-4 text-right">Actions</th>
                   </tr>
@@ -1837,9 +1895,36 @@ export default function AdminAttendancePage() {
                           )}
                         </td>
 
-                        {/* Roll & Email */}
-                        <td className="p-4 text-gray-600 space-y-0.5">
-                          <div className="font-semibold text-ieee-navy font-mono uppercase">{rec.rollNumber || "No Roll No"}</div>
+                        {/* Identification & Email */}
+                        <td className="p-4 text-gray-600 space-y-1">
+                          {rec.passport || rec.identityType === "PASSPORT" ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="bg-purple-100 text-purple-800 font-bold px-1.5 py-0.5 rounded text-[10px] font-mono">
+                                🛂 PASS
+                              </span>
+                              <span className="font-semibold text-gray-900 font-mono text-xs">
+                                {rec.passport || rec.identityNumber}
+                              </span>
+                            </div>
+                          ) : rec.cnic || rec.identityType === "CNIC" ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded text-[10px] font-mono">
+                                🪪 CNIC
+                              </span>
+                              <span className="font-semibold text-gray-900 font-mono text-xs">
+                                {rec.cnic || rec.identityNumber}
+                              </span>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="bg-blue-100 text-ieee-blue font-bold px-1.5 py-0.5 rounded text-[10px] font-mono">
+                                🎓 ROLL
+                              </span>
+                              <span className="font-semibold text-ieee-navy font-mono text-xs uppercase">
+                                {rec.rollNumber || rec.identityNumber || "No Roll No"}
+                              </span>
+                            </div>
+                          )}
                           <div className="text-[11px] text-gray-500">{rec.email || "No Email"}</div>
                         </td>
 

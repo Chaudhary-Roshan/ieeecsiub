@@ -226,13 +226,31 @@ export async function generateVerificationSummaryPdf(
     : cert.recipientName;
   doc.text(recipientTitle, marginX + 4, currentY + 11);
 
-  // Roll Number
+  // Identification Document (Roll Number, CNIC, or Passport)
   const rollY = currentY + 16;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(90, 95, 105);
+
+  let idLabel = "Roll Number";
+  let idValue = cert.recipientRollNumber;
+
+  if (cert.passport || cert.identityType === "PASSPORT") {
+    idLabel = "Passport No";
+    idValue = cert.passport || cert.identityNumber;
+  } else if (cert.cnic || cert.identityType === "CNIC") {
+    idLabel = "CNIC Number";
+    idValue = cert.cnic || cert.identityNumber;
+  } else if (cert.recipientRollNumber) {
+    idLabel = "Roll Number";
+    idValue = cert.recipientRollNumber;
+  } else if (cert.identityNumber) {
+    idLabel = "Identification ID";
+    idValue = cert.identityNumber;
+  }
+
   doc.text(
-    `Roll Number: ${cert.recipientRollNumber || "Not recorded in this credential"}`,
+    `${idLabel}: ${idValue || "Not recorded in this credential"}`,
     marginX + 4,
     rollY
   );

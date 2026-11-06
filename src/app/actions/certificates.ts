@@ -11,6 +11,10 @@ export interface GenerateWizardRow {
   recipientName: string;
   email?: string;
   rollNumber?: string;
+  identityType?: "ROLL_NUMBER" | "CNIC" | "PASSPORT";
+  identityNumber?: string;
+  cnic?: string;
+  passport?: string;
   teamName?: string;
   isLeader?: boolean;
   projectTitle?: string;
@@ -98,10 +102,11 @@ export async function generateCertificatesAction(payload: GenerateCertificatesPa
     }
 
     const code = generateCertificateCode(eventYear.toString().slice(-2));
+    const rawId = row.identityNumber || row.rollNumber || row.cnic || row.passport;
     const certPayload = {
       code,
       recipient_name: recipientName || teamName,
-      recipient_roll_number: row.rollNumber ? row.rollNumber.trim().toUpperCase() : null,
+      recipient_roll_number: rawId ? rawId.trim().toUpperCase() : null,
       recipient_email: row.email || null,
       event_id: eventId || null,
       event_title: eventName,
@@ -577,6 +582,10 @@ export async function verifyCertificateAction(
         code: row.code,
         recipientName: row.recipient_name,
         recipientRollNumber: row.recipient_roll_number || undefined,
+        identityType: row.identity_type || (row.cnic ? "CNIC" : row.passport ? "PASSPORT" : (row.recipient_roll_number ? "ROLL_NUMBER" : undefined)),
+        identityNumber: row.identity_number || row.cnic || row.passport || row.recipient_roll_number || undefined,
+        cnic: row.cnic || undefined,
+        passport: row.passport || undefined,
         recipientEmail: row.recipient_email || undefined,
         publicNameFormat: (row.public_name_format as any) || "FULL_NAME",
         eventId: row.event_id || "",

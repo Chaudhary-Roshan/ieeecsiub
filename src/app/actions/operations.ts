@@ -8,6 +8,10 @@ export interface RegisterForEventParams {
   fullName: string;
   email: string;
   phone: string;
+  identityType?: "ROLL_NUMBER" | "CNIC" | "PASSPORT";
+  identityNumber?: string;
+  cnic?: string;
+  passport?: string;
   rollNumber?: string;
   department?: string;
   degreeProgram?: string;
@@ -19,7 +23,17 @@ export async function registerForEventAction(params: RegisterForEventParams) {
   try {
     const supabase = await createClient();
 
-    const cleanRoll = params.rollNumber ? params.rollNumber.trim().toUpperCase() : null;
+    // Determine normalized identification number based on identityType
+    let cleanIdNumber: string | null = null;
+    if (params.identityType === "PASSPORT" || params.passport) {
+      cleanIdNumber = (params.passport || params.identityNumber || "").trim().toUpperCase();
+    } else if (params.identityType === "CNIC" || params.cnic) {
+      cleanIdNumber = (params.cnic || params.identityNumber || "").trim();
+    } else if (params.rollNumber || params.identityNumber) {
+      cleanIdNumber = (params.rollNumber || params.identityNumber || "").trim().toUpperCase();
+    }
+
+    const cleanRoll = cleanIdNumber || (params.rollNumber ? params.rollNumber.trim().toUpperCase() : null);
 
     // 1. Try atomic register_for_event RPC
     try {
@@ -64,7 +78,7 @@ export async function registerForEventAction(params: RegisterForEventParams) {
         name_display_preference: "FULL_NAME",
         email: params.email,
         phone: params.phone,
-        roll_number: cleanRoll,
+        roll_number: cleanRoll || "N/A",
         department: params.department || "Computer Science",
         degree_program: params.degreeProgram || null,
         is_ieee_member: Boolean(params.isIeeeMember),

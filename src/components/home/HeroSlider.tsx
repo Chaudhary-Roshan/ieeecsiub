@@ -249,3 +249,4 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
     </section>
   );
 };
+

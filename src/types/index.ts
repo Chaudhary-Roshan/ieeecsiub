@@ -1,6 +1,8 @@
 export type CertificateStatus = "ACTIVE" | "REVOKED" | "REPLACED";
 export type CertificateSource = "UPLOAD_REGISTRY" | "IN_SITE_GENERATED" | "LEGACY_IMPORT";
 
+export type IdentityType = "ROLL_NUMBER" | "CNIC" | "PASSPORT";
+
 export type EventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "POSTPONED" | "CANCELLED";
 
 export type StaffRole = "ADMIN" | "SITE_ADMIN";
@@ -85,6 +87,10 @@ export interface CertificateRecord {
   code: string; // e.g. "CSIUB-26-7K3M-Q9TD"
   recipientName: string;
   recipientRollNumber?: string;
+  identityType?: IdentityType;
+  identityNumber?: string;
+  cnic?: string;
+  passport?: string;
   recipientEmail?: string;
   publicNameFormat: "FULL_NAME" | "FIRST_INITIAL";
   eventId: string;
@@ -145,6 +151,10 @@ export interface Registration {
   email: string;
   phone?: string;
   rollNumber: string;
+  identityType?: IdentityType;
+  identityNumber?: string;
+  cnic?: string;
+  passport?: string;
   degreeProgram?: string; // e.g. "BS Computer Science", "BS Software Engineering"
   isIeeeMember: boolean;
   ieeeMembershipNumber?: string;
@@ -224,6 +234,10 @@ export interface AttendanceRecord {
   eventId: string;
   name: string;
   rollNumber?: string;
+  identityType?: IdentityType;
+  identityNumber?: string;
+  cnic?: string;
+  passport?: string;
   email?: string;
   attended: boolean;
   certificateCode?: string;

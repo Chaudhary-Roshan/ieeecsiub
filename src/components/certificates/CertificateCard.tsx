@@ -163,13 +163,27 @@ export const CertificateCard: React.FC<CertificateCardProps> = ({
               Registered Attendee: <span className="font-semibold text-gray-800">{certificate.recipientName}</span>
             </div>
           )}
-          {(certificate.recipientRollNumber || certificate.recipientEmail) && (
+          {(certificate.recipientRollNumber || certificate.cnic || certificate.passport || certificate.identityNumber || certificate.recipientEmail) && (
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              {certificate.recipientRollNumber && (
-                <span className="bg-ieee-blue/10 text-ieee-blue font-mono font-bold text-xs px-2.5 py-1 rounded-md uppercase">
-                  Roll No: {certificate.recipientRollNumber}
+              {/* Identification Badge: Passport, CNIC, or Roll No */}
+              {certificate.passport || certificate.identityType === "PASSPORT" ? (
+                <span className="bg-purple-50 text-purple-800 border border-purple-200 font-mono font-bold text-xs px-2.5 py-1 rounded-md uppercase flex items-center gap-1 shadow-2xs">
+                  <span>🛂 Passport:</span> {certificate.passport || certificate.identityNumber}
                 </span>
-              )}
+              ) : certificate.cnic || certificate.identityType === "CNIC" ? (
+                <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-mono font-bold text-xs px-2.5 py-1 rounded-md flex items-center gap-1 shadow-2xs">
+                  <span>🪪 CNIC:</span> {certificate.cnic || certificate.identityNumber}
+                </span>
+              ) : certificate.recipientRollNumber ? (
+                <span className="bg-ieee-blue/10 text-ieee-blue font-mono font-bold text-xs px-2.5 py-1 rounded-md uppercase flex items-center gap-1">
+                  <span>🎓 Roll No:</span> {certificate.recipientRollNumber}
+                </span>
+              ) : certificate.identityNumber ? (
+                <span className="bg-gray-100 text-gray-800 font-mono font-bold text-xs px-2.5 py-1 rounded-md uppercase flex items-center gap-1">
+                  <span>ID:</span> {certificate.identityNumber}
+                </span>
+              ) : null}
+
               {certificate.recipientEmail && (
                 <span className="bg-gray-100 text-gray-700 text-xs px-2.5 py-1 rounded-md">
                   Email: {certificate.recipientEmail}

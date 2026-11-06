@@ -767,10 +767,16 @@ export default function AdminRegistrationsPage() {
 
     const query = searchQuery.toLowerCase().trim();
     const ev = eventMap.get(r.eventId);
+    const queryClean = query.replace(/[^a-z0-9]/g, "");
     const matchesSearch =
       !query ||
       r.fullName.toLowerCase().includes(query) ||
       (r.rollNumber && r.rollNumber.toLowerCase().includes(query)) ||
+      (r.cnic && (r.cnic.toLowerCase().includes(query) || (queryClean && r.cnic.replace(/[^0-9]/g, "").includes(queryClean)))) ||
+      (r.passport && r.passport.toLowerCase().includes(query)) ||
+      (r.identityNumber && r.identityNumber.toLowerCase().includes(query)) ||
+      (r.teamName && r.teamName.toLowerCase().includes(query)) ||
+      (r.projectTitle && r.projectTitle.toLowerCase().includes(query)) ||
       r.email.toLowerCase().includes(query) ||
       (r.phone && r.phone.toLowerCase().includes(query)) ||
       (r.ticketCode && r.ticketCode.toLowerCase().includes(query)) ||
@@ -1103,11 +1109,19 @@ export default function AdminRegistrationsPage() {
                                 {reg.fullName}
                               </div>
                               <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
-                                {reg.rollNumber && (
-                                  <span className="font-mono text-ieee-navy font-semibold bg-gray-100 px-1.5 py-0.5 rounded uppercase">
-                                    {reg.rollNumber}
+                                {reg.passport || reg.identityType === "PASSPORT" ? (
+                                  <span className="font-mono text-purple-800 font-bold bg-purple-50 border border-purple-200 px-1.5 py-0.5 rounded text-[10px]">
+                                    🛂 PASS: {reg.passport || reg.identityNumber}
                                   </span>
-                                )}
+                                ) : reg.cnic || reg.identityType === "CNIC" ? (
+                                  <span className="font-mono text-emerald-800 font-bold bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded text-[10px]">
+                                    🪪 CNIC: {reg.cnic || reg.identityNumber}
+                                  </span>
+                                ) : reg.rollNumber && reg.rollNumber !== "N/A" ? (
+                                  <span className="font-mono text-ieee-navy font-semibold bg-gray-100 px-1.5 py-0.5 rounded uppercase text-[10px]">
+                                    🎓 ROLL: {reg.rollNumber}
+                                  </span>
+                                ) : null}
                                 <span>{reg.email}</span>
                                 {reg.phone && (
                                   <>

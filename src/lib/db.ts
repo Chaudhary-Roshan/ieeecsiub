@@ -305,6 +305,28 @@ class ChapterDatabase {
     });
     if (match) return this.enrichTeamCertificate(match);
 
+    // 3b. CNIC match (with or without hyphens e.g. 31202-1234567-1 or 3120212345671)
+    match = list.find((c) => {
+      const cnicVal = c.cnic || (c.identityType === "CNIC" ? c.identityNumber : undefined);
+      if (!cnicVal) return false;
+      const cClean = cnicVal.trim().toUpperCase();
+      if (cClean === clean) return true;
+      const cAlpha = cClean.replace(/[^A-Z0-9]/g, "");
+      return cAlpha.length >= 8 && cAlpha === cleanAlpha;
+    });
+    if (match) return this.enrichTeamCertificate(match);
+
+    // 3c. Passport number match
+    match = list.find((c) => {
+      const passVal = c.passport || (c.identityType === "PASSPORT" ? c.identityNumber : undefined);
+      if (!passVal) return false;
+      const pClean = passVal.trim().toUpperCase();
+      if (pClean === clean) return true;
+      const pAlpha = pClean.replace(/[^A-Z0-9]/g, "");
+      return pAlpha.length >= 5 && pAlpha === cleanAlpha;
+    });
+    if (match) return this.enrichTeamCertificate(match);
+
     // 4. Email match
     const queryLower = query.trim().toLowerCase();
     if (queryLower.includes("@")) {
@@ -320,6 +342,8 @@ class ChapterDatabase {
           if (!rec.certificateCode) continue;
           const recCode = rec.certificateCode.trim().toUpperCase();
           const recRoll = (rec.rollNumber || "").trim().toUpperCase();
+          const recCnic = (rec.cnic || (rec.identityType === "CNIC" ? rec.identityNumber : "") || "").trim().toUpperCase();
+          const recPassport = (rec.passport || (rec.identityType === "PASSPORT" ? rec.identityNumber : "") || "").trim().toUpperCase();
           const recEmail = (rec.email || "").trim().toLowerCase();
           const recAlpha = recCode.replace(/[^A-Z0-9]/g, "");
 
@@ -328,6 +352,10 @@ class ChapterDatabase {
             (cleanAlpha.length >= 8 && recAlpha === cleanAlpha) ||
             (recRoll && recRoll === clean) ||
             (recRoll && cleanAlpha.length >= 4 && recRoll.replace(/[^A-Z0-9]/g, "") === cleanAlpha) ||
+            (recCnic && recCnic === clean) ||
+            (recCnic && cleanAlpha.length >= 8 && recCnic.replace(/[^A-Z0-9]/g, "") === cleanAlpha) ||
+            (recPassport && recPassport === clean) ||
+            (recPassport && cleanAlpha.length >= 5 && recPassport.replace(/[^A-Z0-9]/g, "") === cleanAlpha) ||
             (recEmail && queryLower.includes("@") && recEmail === queryLower)
           ) {
             const events = this.getEvents();
@@ -588,6 +616,10 @@ class ChapterDatabase {
             code: d.code,
             recipientName: d.recipient_name,
             recipientRollNumber: d.recipient_roll_number || d.roll_number || undefined,
+            identityType: d.identity_type || (d.cnic ? "CNIC" : d.passport ? "PASSPORT" : (d.recipient_roll_number || d.roll_number ? "ROLL_NUMBER" : undefined)),
+            identityNumber: d.identity_number || d.cnic || d.passport || d.recipient_roll_number || d.roll_number || undefined,
+            cnic: d.cnic || undefined,
+            passport: d.passport || undefined,
             recipientEmail: d.recipient_email || d.email || undefined,
             publicNameFormat: (d.public_name_format as any) || "FULL_NAME",
             eventId: d.event_id || "",
@@ -1458,17 +1490,35 @@ class ChapterDatabase {
 
     // 2. Add local records first
     local.forEach((rec) => {
-      const key = (rec.rollNumber?.trim().toLowerCase() || rec.email?.trim().toLowerCase() || rec.name.trim().toLowerCase());
+      const key = (
+        rec.rollNumber?.trim().toLowerCase() ||
+        rec.cnic?.trim().toLowerCase() ||
+        rec.passport?.trim().toLowerCase() ||
+        rec.identityNumber?.trim().toLowerCase() ||
+        rec.email?.trim().toLowerCase() ||
+        rec.name.trim().toLowerCase()
+      );
       if (key) map.set(key, rec);
     });
 
     // 3. Merge registrations
     regs.forEach((reg) => {
-      const key = (reg.rollNumber?.trim().toLowerCase() || reg.email?.trim().toLowerCase() || reg.fullName.trim().toLowerCase());
+      const key = (
+        reg.rollNumber?.trim().toLowerCase() ||
+        reg.cnic?.trim().toLowerCase() ||
+        reg.passport?.trim().toLowerCase() ||
+        reg.identityNumber?.trim().toLowerCase() ||
+        reg.email?.trim().toLowerCase() ||
+        reg.fullName.trim().toLowerCase()
+      );
       if (key) {
         const existing = map.get(key);
         if (existing) {
           if (!existing.rollNumber && reg.rollNumber) existing.rollNumber = reg.rollNumber;
+          if (!existing.identityType && reg.identityType) existing.identityType = reg.identityType;
+          if (!existing.identityNumber && reg.identityNumber) existing.identityNumber = reg.identityNumber;
+          if (!existing.cnic && reg.cnic) existing.cnic = reg.cnic;
+          if (!existing.passport && reg.passport) existing.passport = reg.passport;
           if (!existing.email && reg.email) existing.email = reg.email;
           if (!existing.teamName && reg.teamName) existing.teamName = reg.teamName;
           if (!existing.projectTitle && reg.projectTitle) existing.projectTitle = reg.projectTitle;
@@ -1480,6 +1530,10 @@ class ChapterDatabase {
             eventId,
             name: reg.fullName,
             rollNumber: reg.rollNumber || undefined,
+            identityType: reg.identityType || (reg.cnic ? "CNIC" : reg.passport ? "PASSPORT" : "ROLL_NUMBER"),
+            identityNumber: reg.identityNumber || reg.cnic || reg.passport || reg.rollNumber || undefined,
+            cnic: reg.cnic,
+            passport: reg.passport,
             email: reg.email || undefined,
             attended: reg.status === "ATTENDED" || reg.status === "CONFIRMED",
             certificateCode: undefined,

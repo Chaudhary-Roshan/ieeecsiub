@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { registerForEventAction, submitPaymentAction } from "@/app/actions/operations";
-import { EventItem, Registration } from "@/types";
+import { EventItem, Registration, IdentityType } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import clsx from "clsx";
@@ -49,6 +49,8 @@ export default function EventDetailPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [identityType, setIdentityType] = useState<IdentityType>("ROLL_NUMBER");
+  const [identityNumber, setIdentityNumber] = useState("");
   const [rollNumber, setRollNumber] = useState("");
   const [department, setDepartment] = useState("");
   const [degreeProgram, setDegreeProgram] = useState("");
@@ -109,13 +111,22 @@ export default function EventDetailPage() {
       return;
     }
 
+    const activeId = identityNumber.trim() || rollNumber.trim();
+    const finalRoll = identityType === "ROLL_NUMBER" ? activeId : undefined;
+    const finalCnic = identityType === "CNIC" ? activeId : undefined;
+    const finalPassport = identityType === "PASSPORT" ? activeId : undefined;
+
     try {
       const res = await registerForEventAction({
         eventId: event.id,
         fullName: fullName.trim(),
         email: email.trim(),
         phone: phone.trim(),
-        rollNumber: rollNumber.trim().toUpperCase() || undefined,
+        identityType,
+        identityNumber: activeId.toUpperCase(),
+        rollNumber: finalRoll?.toUpperCase(),
+        cnic: finalCnic,
+        passport: finalPassport?.toUpperCase(),
         department: department.trim() || "Computer Science",
         degreeProgram: degreeProgram.trim() || undefined,
         isIeeeMember,
@@ -130,7 +141,11 @@ export default function EventDetailPage() {
         namePreference: namePref,
         email: email.trim(),
         phone: phone.trim(),
-        rollNumber: rollNumber.trim().toUpperCase(),
+        identityType,
+        identityNumber: activeId.toUpperCase(),
+        rollNumber: finalRoll?.toUpperCase() || activeId.toUpperCase() || "N/A",
+        cnic: finalCnic,
+        passport: finalPassport?.toUpperCase(),
         isIeeeMember,
         ieeeMembershipNumber: ieeeNumber.trim() || undefined,
         department: department.trim() || "Computer Science",
@@ -594,33 +609,134 @@ export default function EventDetailPage() {
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="block font-semibold text-gray-700 mb-1">
-                            Student Roll Number
-                          </label>
-                          <input
-                            type="text"
-                            value={rollNumber}
-                            onChange={(e) => setRollNumber(e.target.value.toUpperCase())}
-                            placeholder="e.g. S23BINCE1M40414"
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none uppercase font-mono"
-                          />
+                      {/* Identification Document Selection */}
+                      <div className="space-y-1.5 p-3 bg-gray-50/80 rounded-xl border border-gray-200">
+                        <label className="block font-semibold text-gray-700 text-xs">
+                          Identification Document (for Certificate Verification) *
+                        </label>
+                        <div className="grid grid-cols-3 gap-1.5 p-1 bg-white rounded-lg border text-[11px] font-semibold text-gray-600 mb-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIdentityType("ROLL_NUMBER");
+                              setIdentityNumber(rollNumber);
+                            }}
+                            className={clsx(
+                              "py-1.5 px-2 rounded-md transition-all text-center flex items-center justify-center gap-1",
+                              identityType === "ROLL_NUMBER"
+                                ? "bg-ieee-navy text-white shadow-xs font-bold"
+                                : "hover:text-gray-900"
+                            )}
+                          >
+                            <span>🎓 Roll No</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIdentityType("CNIC");
+                              setIdentityNumber("");
+                            }}
+                            className={clsx(
+                              "py-1.5 px-2 rounded-md transition-all text-center flex items-center justify-center gap-1",
+                              identityType === "CNIC"
+                                ? "bg-ieee-navy text-white shadow-xs font-bold"
+                                : "hover:text-gray-900"
+                            )}
+                          >
+                            <span>🪪 CNIC</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIdentityType("PASSPORT");
+                              setIdentityNumber("");
+                            }}
+                            className={clsx(
+                              "py-1.5 px-2 rounded-md transition-all text-center flex items-center justify-center gap-1",
+                              identityType === "PASSPORT"
+                                ? "bg-ieee-navy text-white shadow-xs font-bold"
+                                : "hover:text-gray-900"
+                            )}
+                          >
+                            <span>🛂 Passport</span>
+                          </button>
                         </div>
 
-                        <div>
-                          <label className="block font-semibold text-gray-700 mb-1">
-                            Department *
-                          </label>
-                          <input
-                            type="text"
-                            required
-                            value={department}
-                            onChange={(e) => setDepartment(e.target.value)}
-                            placeholder="e.g. Computer Science"
-                            className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                          />
-                        </div>
+                        {identityType === "ROLL_NUMBER" && (
+                          <div>
+                            <input
+                              type="text"
+                              required
+                              value={identityNumber}
+                              onChange={(e) => {
+                                const val = e.target.value.toUpperCase();
+                                setIdentityNumber(val);
+                                setRollNumber(val);
+                              }}
+                              placeholder="Student Roll No (e.g. S23BINCE1M40414)"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none uppercase font-mono bg-white"
+                            />
+                            <span className="text-[10px] text-gray-500 mt-0.5 block">
+                              For university/college students and alumni.
+                            </span>
+                          </div>
+                        )}
+
+                        {identityType === "CNIC" && (
+                          <div>
+                            <input
+                              type="text"
+                              required
+                              value={identityNumber}
+                              onChange={(e) => {
+                                let val = e.target.value.replace(/[^0-9]/g, "");
+                                if (val.length > 13) val = val.slice(0, 13);
+                                if (val.length > 5 && val.length <= 12) {
+                                  val = `${val.slice(0, 5)}-${val.slice(5)}`;
+                                } else if (val.length > 12) {
+                                  val = `${val.slice(0, 5)}-${val.slice(5, 12)}-${val.slice(12)}`;
+                                }
+                                setIdentityNumber(val);
+                              }}
+                              placeholder="CNIC / B-Form Number (e.g. 31202-1234567-1)"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono bg-white"
+                            />
+                            <span className="text-[10px] text-gray-500 mt-0.5 block">
+                              For Pakistani citizens, professionals, faculty, and national delegates.
+                            </span>
+                          </div>
+                        )}
+
+                        {identityType === "PASSPORT" && (
+                          <div>
+                            <input
+                              type="text"
+                              required
+                              value={identityNumber}
+                              onChange={(e) => setIdentityNumber(e.target.value.toUpperCase())}
+                              placeholder="Passport Number (e.g. PA1234567)"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none uppercase font-mono bg-white"
+                            />
+                            <span className="text-[10px] text-gray-500 mt-0.5 block">
+                              For international participants and overseas delegates.
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Department */}
+                      <div>
+                        <label className="block font-semibold text-gray-700 mb-1">
+                          Department / Organization *
+                        </label>
+                        <input
+                          type="text"
+                          required
+                          value={department}
+                          onChange={(e) => setDepartment(e.target.value)}
+                          placeholder="e.g. Computer Science & IT / UCET"
+                          className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                        />
                       </div>
 
                       {/* Program / Degree */}
