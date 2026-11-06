@@ -264,6 +264,16 @@ export default function AdminRegistrationsPage() {
     setTimeout(() => setCopiedTicket(null), 2000);
   };
 
+  // Clear All Test Registrations from Database & Local Cache
+  const handleClearAll = async () => {
+    if (confirm("Are you sure you want to clear all test registrations from the database and local cache? This will reset the table so you can receive clean real-time registrations.")) {
+      setIsLoading(true);
+      await db.clearAllRegistrations();
+      setRegistrations([]);
+      setIsLoading(false);
+    }
+  };
+
   // Open Edit Modal
   const handleOpenEdit = (reg: Registration) => {
     setEditingReg(reg);
@@ -918,6 +928,15 @@ export default function AdminRegistrationsPage() {
               title="Refresh and sync latest registrations from database"
             >
               <RefreshCw size={14} className={isLoading ? "animate-spin text-ieee-blue" : "text-gray-600"} /> Refresh
+            </button>
+
+            <button
+              onClick={handleClearAll}
+              disabled={isLoading || registrations.length === 0}
+              className="px-3 py-2 border border-red-300 bg-red-50 text-red-700 text-xs font-semibold rounded-lg hover:bg-red-100 flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-40"
+              title="Clear all registrations from database and cache"
+            >
+              <Trash2 size={14} className="text-red-600" /> Clear Data
             </button>
 
             <button

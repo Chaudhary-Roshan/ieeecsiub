@@ -2198,18 +2198,6 @@ class ChapterDatabase {
     const raw = this.getItem<Registration[]>("registrations", []);
     let list = Array.isArray(raw) ? [...raw] : [];
 
-    // Seed official DigitalFest 61 Expo teams if not yet present
-    const hasDigitalFest = list.some(
-      (r) =>
-        r.eventId === "3f6311ca-f0d0-4ac3-89fc-13d25a3f8e7f" ||
-        r.eventId === "evt-digitalfest-2026" ||
-        (r.teamName && r.teamName.length > 0)
-    );
-    if (!hasDigitalFest && DIGITALFEST_REGISTRATIONS.length > 0) {
-      list = [...list, ...DIGITALFEST_REGISTRATIONS];
-      this.setItem("registrations", list);
-    }
-
     // Deduplicate in memory by ticketCode and eventId+email
     const seen = new Set<string>();
     const deduplicated: Registration[] = [];
@@ -2226,78 +2214,23 @@ class ChapterDatabase {
     return deduplicated;
   }
 
-  async fetchRegistrations(eventId?: string): Promise<Registration[]> {
-    const localList = this.getRegistrations();
-    // Use unique primary key: ticketCode, or id, or (eventId + email)
-    const regMap = new Map<string, Registration>();
-    const emailIndex = new Map<string, string>(); // eventId_email -> primaryKey
-
-    const getKeys = (r: Partial<Registration>) => {
-      const primaryKey = (r.ticketCode && r.ticketCode.trim())
-        ? `TCK:${r.ticketCode.trim().toUpperCase()}`
-        : (r.id ? `ID:${r.id}` : `AUTO:${Math.random()}`);
-      const emailKey = (r.eventId && r.email)
-        ? `${r.eventId}:${r.email.trim().toLowerCase()}`
-        : null;
-      return { primaryKey, emailKey };
-    };
-
-    const mergeRecord = (existing: Registration, incoming: Registration): Registration => {
-      // Pick best roll number: avoid empty or "N/A"
-      const bestRoll = (incoming.rollNumber && incoming.rollNumber.trim() && incoming.rollNumber !== "N/A" && incoming.rollNumber !== "N / A")
-        ? incoming.rollNumber.trim().toUpperCase()
-        : (existing.rollNumber ? existing.rollNumber.trim().toUpperCase() : existing.rollNumber);
-
-      // Pick best phone: avoid empty or fallback dummy "0300-0000000"
-      const bestPhone = (incoming.phone && incoming.phone.trim() && !incoming.phone.includes("0300-0000000") && incoming.phone !== "N/A")
-        ? incoming.phone.trim()
-        : existing.phone;
-
-      return {
-        ...existing,
-        ...incoming,
-        rollNumber: bestRoll || "N/A",
-        phone: bestPhone || "0300-0000000",
-        degreeProgram: incoming.degreeProgram || existing.degreeProgram,
-        department: incoming.department || existing.department || "Computer Science",
-        teamName: incoming.teamName || existing.teamName,
-        projectTitle: incoming.projectTitle || existing.projectTitle,
-        memberCount: incoming.memberCount || existing.memberCount,
-        teamMembers: incoming.teamMembers && incoming.teamMembers.length > 0 ? incoming.teamMembers : existing.teamMembers,
-        projectDomain: incoming.projectDomain || existing.projectDomain,
-        projectSummary: incoming.projectSummary || existing.projectSummary,
-        posterUrl: incoming.posterUrl || existing.posterUrl,
-        videoDemoUrl: incoming.videoDemoUrl || existing.videoDemoUrl,
-        teamLeaderPhone: incoming.teamLeaderPhone || existing.teamLeaderPhone,
-        teamLeaderCnic: incoming.teamLeaderCnic || existing.teamLeaderCnic,
-        semester: incoming.semester || existing.semester,
-        profession: incoming.profession || existing.profession,
-        organization: incoming.organization || existing.organization,
-        designation: incoming.designation || existing.designation,
-        university: incoming.university || existing.university,
-        city: incoming.city || existing.city,
-        receiptId: incoming.receiptId || existing.receiptId,
-        bankName: incoming.bankName || existing.bankName,
-        prizeBankName: incoming.prizeBankName || existing.prizeBankName,
-        prizeAccountNumber: incoming.prizeAccountNumber || existing.prizeAccountNumber,
-      };
-    };
-
-    localList.forEach((r) => {
-      const { primaryKey, emailKey } = getKeys(r);
-      if (emailKey && emailIndex.has(emailKey)) {
-        const existingKey = emailIndex.get(emailKey)!;
-        const existing = regMap.get(existingKey);
-        if (existing) {
-          regMap.set(existingKey, mergeRecord(existing, r));
-          return;
-        }
+  async clearAllRegistrations(): Promise<void> {
+    this.setItem("registrations", []);
+    if (typeof localStorage !== "undefined") {
+      localStorage.removeItem("registrations");
+      localStorage.removeItem("ieee_cs_registrations");
+    }
+    const client = getSupabase();
+    if (client) {
+      try {
+        await client.from("registrations").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+      } catch (err) {
+        console.warn("Supabase clearAllRegistrations error:", err);
       }
+    }
+  }
 
-      regMap.set(primaryKey, r);
-      if (emailKey) emailIndex.set(emailKey, primaryKey);
-    });
-
+  async fetchRegistrations(eventId?: string): Promise<Registration[]> {
     const client = getSupabase();
     if (client) {
       try {
@@ -2311,8 +2244,8 @@ class ChapterDatabase {
         }
 
         const { data, error } = await query;
-        if (data && !error && data.length > 0) {
-          data.forEach((d: any) => {
+        if (!error && Array.isArray(data)) {
+          const liveList: Registration[] = data.map((d: any) => {
             let dept = d.department || "Computer Science";
             let prog = d.degree_program || d.program_degree;
             if (!prog && dept.includes(" • ")) {
@@ -2323,7 +2256,7 @@ class ChapterDatabase {
 
             const ticketCode = d.ticket_code || (d.private_token && d.private_token.startsWith("TCK-") ? d.private_token : undefined) || `TCK-${(d.id || "").slice(-6).toUpperCase()}`;
 
-            const mapped: Registration = {
+            return {
               id: d.id,
               eventId: d.event_id || eventId || "",
               privateToken: d.private_token,
@@ -2346,41 +2279,20 @@ class ChapterDatabase {
               ticketCode,
               createdAt: d.created_at,
             };
-
-            const { primaryKey, emailKey } = getKeys(mapped);
-            if (emailKey && emailIndex.has(emailKey)) {
-              const existingKey = emailIndex.get(emailKey)!;
-              const existing = regMap.get(existingKey);
-              if (existing) {
-                regMap.set(existingKey, mergeRecord(existing, mapped));
-                return;
-              }
-            }
-
-            if (regMap.has(primaryKey)) {
-              const existing = regMap.get(primaryKey)!;
-              regMap.set(primaryKey, mergeRecord(existing, mapped));
-            } else {
-              regMap.set(primaryKey, mapped);
-              if (emailKey) emailIndex.set(emailKey, primaryKey);
-            }
           });
+
+          // Cloud database is the authoritative live source of truth
+          this.setItem("registrations", liveList);
+          return eventId ? liveList.filter((r) => r.eventId === eventId) : liveList;
         }
       } catch (err) {
         console.warn("Supabase fetchRegistrations fallback:", err);
       }
     }
 
-    const merged = Array.from(regMap.values()).sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
-
-    this.setItem("registrations", merged);
-
-    if (eventId) {
-      return merged.filter((r) => r.eventId === eventId);
-    }
-    return merged;
+    // Offline / local cache fallback
+    const localList = this.getRegistrations();
+    return eventId ? localList.filter((r) => r.eventId === eventId) : localList;
   }
 
   saveRegistrations(regs: Registration[]): void {
