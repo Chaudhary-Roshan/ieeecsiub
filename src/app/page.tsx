@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { HeroSlider, HeroSlide } from "@/components/home/HeroSlider";
 import { getEvents } from "@/lib/data/events";
 import { formatPKTDateOnly, formatPKTDateTime } from "@/lib/sha256";
 import {
@@ -27,61 +28,53 @@ export default async function HomePage() {
   const upcomingEvents = events.filter((e) => e.status === "UPCOMING" || e.status === "ONGOING").slice(0, 3);
   const completedEvents = events.filter((e) => e.status === "COMPLETED").slice(0, 3);
 
+  // Extract real past event images from completed chapter activities for the 5-second rotating hero slider
+  const pastEvents = events.filter(
+    (e) => e.status === "COMPLETED" || (e.startDate && new Date(e.startDate) < new Date())
+  );
+
+  const pastEventSlides: HeroSlide[] = [];
+
+  pastEvents.forEach((evt) => {
+    // Collect all gallery images
+    if (evt.galleryImages && Array.isArray(evt.galleryImages)) {
+      evt.galleryImages.forEach((imgUrl, i) => {
+        if (imgUrl && typeof imgUrl === "string" && imgUrl.length > 50) {
+          pastEventSlides.push({
+            id: `${evt.id}-gallery-${i}`,
+            imageUrl: imgUrl,
+            eventTitle: evt.title,
+            eventDate: evt.startDate,
+            venue: evt.venue,
+            slug: evt.slug,
+          });
+        }
+      });
+    }
+
+    // Collect featured image if distinct from default logo
+    if (
+      evt.featuredImage &&
+      typeof evt.featuredImage === "string" &&
+      evt.featuredImage.length > 50 &&
+      evt.featuredImage !== "/ieee-cs-logo.png" &&
+      evt.featuredImage !== "/ieee-cs-logo-white.png"
+    ) {
+      pastEventSlides.push({
+        id: `${evt.id}-featured`,
+        imageUrl: evt.featuredImage,
+        eventTitle: evt.title,
+        eventDate: evt.startDate,
+        venue: evt.venue,
+        slug: evt.slug,
+      });
+    }
+  });
+
   return (
     <div className="flex flex-col w-full">
-      {/* 1. Hero Section with Brand IEEE Navy Gradient */}
-      <section className="relative min-h-[520px] md:min-h-[580px] flex items-center justify-center overflow-hidden bg-gradient-to-br from-[#001733] via-ieee-navy to-[#003B73]">
-        {/* Subtle geometric grid backdrop */}
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
-
-        {/* Content Container */}
-        <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-8 py-20 text-center text-white space-y-6">
-          <div className="flex justify-center mb-2">
-            <Image
-              src="/ieee-cs-logo-white.png"
-              alt="IEEE Computer Society"
-              width={240}
-              height={73}
-              priority
-              className="h-12 sm:h-14 md:h-16 w-auto object-contain drop-shadow-md"
-            />
-          </div>
-          <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 px-4 py-1.5 rounded-full text-xs font-montserrat font-semibold tracking-wide text-ieee-cyan">
-            <Sparkles size={14} />
-            Official Student Branch Chapter • UCET, IUB
-          </div>
-
-          <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold tracking-tight leading-tight font-montserrat max-w-4xl mx-auto">
-            IEEE Computer Society at{" "}
-            <span className="text-ieee-orange underline decoration-ieee-cyan decoration-4 underline-offset-8">
-              UCET-IUB
-            </span>
-          </h1>
-
-          <p className="text-base sm:text-lg md:text-xl text-gray-200 max-w-3xl mx-auto font-openSans font-normal leading-relaxed">
-            Empowering engineers and computing students through hands-on technical
-            workshops, cutting-edge hackathons, mentorship, and cryptographic,
-            tamper-evident credential verification.
-          </p>
-
-          {/* Three Pill Buttons */}
-          <div className="pt-4 flex flex-wrap items-center justify-center gap-4">
-            <Button href="/events" variant="primary" size="lg">
-              <Calendar size={18} className="mr-2" />
-              Upcoming Events
-            </Button>
-
-            <Button href="/verify" variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-ieee-navy">
-              <ShieldCheck size={18} className="mr-2 text-ieee-cyan" />
-              Verify QR Credential
-            </Button>
-
-            <Button href="/membership" variant="accent" size="lg">
-              Join the Chapter
-            </Button>
-          </div>
-        </div>
-      </section>
+      {/* 1. Dynamic Past Events Hero Showcase Slider (Auto-rotates every 5 seconds) */}
+      <HeroSlider slides={pastEventSlides} />
 
       {/* 2. Statistics Band: IEEE Blue (#00629B) with Process Cyan (#00B5E2) highlight numbers */}
       <section className="bg-ieee-blue text-white py-10 px-4 sm:px-8 border-y border-white/10 shadow-inner">

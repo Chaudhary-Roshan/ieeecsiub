@@ -9,6 +9,12 @@
   --font-opensans: 'Open Sans', sans-serif;
 }
 
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+  scroll-behavior: smooth;
+}
+
 body {
   font-family: var(--font-opensans);
   color: #000000;
@@ -18,6 +24,32 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-montserrat);
+}
+
+/* Custom sleek scrollers for responsive tables & scroll containers */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 #f8fafc;
+  -webkit-overflow-scrolling: touch;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #00629B;
 }
 
 /* Custom transitions and styling */

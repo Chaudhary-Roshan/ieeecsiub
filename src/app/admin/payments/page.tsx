@@ -184,8 +184,8 @@ export default function AdminPaymentsQueuePage() {
             Reconciled History
           </h2>
 
-          <div className="overflow-x-auto text-xs">
-            <table className="w-full text-left">
+          <div className="overflow-x-auto custom-scrollbar text-xs">
+            <table className="w-full min-w-[650px] text-left">
               <thead className="bg-gray-50 text-gray-500 uppercase text-[10px]">
                 <tr>
                   <th className="p-3">Attendee</th>

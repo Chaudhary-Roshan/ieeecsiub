@@ -429,8 +429,12 @@ export default function AdminCertificatesPage() {
 
         {/* Table of Certificates */}
         <div className="bg-white border border-gray-200 rounded-card overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+          <div className="md:hidden px-4 py-1.5 bg-sky-50 border-b border-sky-100 text-[11px] text-ieee-blue flex items-center justify-between">
+            <span>↔ Scroll horizontally to view credentials &amp; actions</span>
+            <span className="font-semibold">{filteredCerts.length} credentials</span>
+          </div>
+          <div className="overflow-x-auto custom-scrollbar w-full">
+            <table className="w-full min-w-[800px] text-left text-xs">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-montserrat uppercase tracking-wider text-[10px]">
                 <tr>
                   <th className="p-4">Certificate Code</th>

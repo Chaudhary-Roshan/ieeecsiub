@@ -250,8 +250,13 @@ export default function AdminAuditLogPage() {
               <p className="text-gray-400">Try adjusting your search criteria or category filter.</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div>
+              <div className="md:hidden px-4 py-1.5 bg-sky-50 border-b border-sky-100 text-[11px] text-ieee-blue flex items-center justify-between">
+                <span>↔ Scroll horizontally to view cryptographic hashes &amp; payloads</span>
+                <span className="font-semibold">{filteredLogs.length} events</span>
+              </div>
+              <div className="overflow-x-auto custom-scrollbar w-full">
+                <table className="w-full min-w-[850px] text-left text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-montserrat uppercase tracking-wider text-[10px]">
                   <tr>
                     <th className="p-4 whitespace-nowrap">Timestamp (PKT)</th>
@@ -318,7 +323,8 @@ export default function AdminAuditLogPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
     </AdminLayout>

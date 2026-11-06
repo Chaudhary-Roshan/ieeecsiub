@@ -1719,8 +1719,13 @@ export default function AdminAttendancePage() {
               </Button>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
+            <div>
+              <div className="md:hidden px-4 py-1.5 bg-sky-50 border-b border-sky-100 text-[11px] text-ieee-blue flex items-center justify-between">
+                <span>↔ Scroll horizontally to view details &amp; actions</span>
+                <span className="font-semibold">{filteredList.length} rows</span>
+              </div>
+              <div className="overflow-x-auto custom-scrollbar w-full">
+                <table className="w-full min-w-[780px] text-left text-xs">
                 <thead className="bg-gray-50 border-b border-gray-200 font-montserrat font-bold text-gray-600 uppercase tracking-wider text-[11px]">
                   <tr>
                     <th className="p-4 w-10 text-center">
@@ -1915,7 +1920,8 @@ export default function AdminAttendancePage() {
                 </tbody>
               </table>
             </div>
-          )}
+          </div>
+        )}
         </div>
       </div>
     </AdminLayout>

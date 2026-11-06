@@ -773,8 +773,8 @@ export default function MobileCheckinPage() {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
+          <div className="overflow-x-auto custom-scrollbar w-full">
+            <table className="w-full min-w-[650px] text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 text-gray-500 uppercase text-[10px] tracking-wider bg-gray-50">
                   <th className="py-2.5 px-3">Participant</th>
