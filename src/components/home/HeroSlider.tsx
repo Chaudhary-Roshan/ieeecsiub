@@ -103,9 +103,9 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
         <div className="absolute inset-0 opacity-15 bg-[radial-gradient(#ffffff_1px,transparent_1px)] [background-size:24px_24px]" />
       )}
 
-      {/* 2. Professional Brand Overlay Gradient (ensures WCAG AA compliant readability) */}
-      <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#001428] via-[#002855]/85 to-[#001733]/90 backdrop-brightness-75" />
-      <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,20,40,0.8)_100%)]" />
+      {/* 2. Professional Brand Overlay Gradient (ensures WCAG AA compliant readability while keeping photo vivid) */}
+      <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#001428]/95 via-[#002855]/70 to-[#001733]/75 backdrop-brightness-90" />
+      <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,20,40,0.65)_100%)]" />
 
       {/* 3. Hero Content Container */}
       <div className="relative z-20 max-w-5xl mx-auto px-4 sm:px-8 py-16 sm:py-20 text-center text-white space-y-6">
@@ -192,16 +192,12 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
                 {currentSlide.isUpcoming ? (
                   <>
                     <Sparkles size={14} className="text-emerald-300 animate-spin" />
-                    <span className="text-emerald-300">
-                      Upcoming Event ({currentIndex + 1}/{totalSlides}):
-                    </span>
+                    <span className="text-emerald-300">Upcoming Event:</span>
                   </>
                 ) : (
                   <>
                     <Camera size={14} className="text-ieee-cyan" />
-                    <span className="text-ieee-orange">
-                      Past Event Spotlight ({currentIndex + 1}/{totalSlides}):
-                    </span>
+                    <span className="text-ieee-orange">Past Event Spotlight:</span>
                   </>
                 )}
               </div>
@@ -265,7 +261,7 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
               {isPaused ? <Play size={12} /> : <Pause size={12} />}
             </button>
 
-            <div className="flex items-center gap-1.5 max-w-[280px] overflow-x-auto py-1 custom-scrollbar">
+            <div className="flex items-center gap-1.5 max-w-[280px] overflow-x-auto py-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
               {slides.map((slide, idx) => {
                 const isCurrent = idx === currentIndex;
                 const isUpcoming = Boolean(slide.isUpcoming);
@@ -292,10 +288,6 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
                 );
               })}
             </div>
-
-            <span className="text-[10px] text-gray-300 font-mono hidden sm:inline ml-1">
-              5s auto-change
-            </span>
           </div>
         </>
       )}
