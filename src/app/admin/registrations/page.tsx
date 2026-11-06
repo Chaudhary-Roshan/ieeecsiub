@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { db } from "@/lib/db";
+import { getRegistrationsAction } from "@/app/actions/operations";
 import { EventItem, Registration, AttendanceRecord } from "@/types";
 import { formatPKTDateTime } from "@/lib/sha256";
 import * as XLSX from "xlsx";
@@ -185,13 +186,37 @@ export default function AdminRegistrationsPage() {
   const [isImporting, setIsImporting] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  const [dbPermissionDenied, setDbPermissionDenied] = useState(false);
+  const [copiedSql, setCopiedSql] = useState(false);
+
   const loadData = async () => {
     setIsLoading(true);
-    const [liveRegs, liveEvents] = await Promise.all([
+    const [liveRegs, liveEvents, serverRes] = await Promise.all([
       db.fetchRegistrations(),
       db.fetchEvents(),
+      getRegistrationsAction().catch(() => null),
     ]);
-    setRegistrations(liveRegs);
+
+    if (serverRes && !serverRes.success && serverRes.permissionDenied) {
+      setDbPermissionDenied(true);
+    } else if (serverRes && serverRes.success) {
+      setDbPermissionDenied(false);
+    }
+
+    // Merge server registrations if available
+    let combined = [...liveRegs];
+    if (serverRes && serverRes.success && Array.isArray(serverRes.data)) {
+      const existingKeys = new Set(combined.map((r) => (r.ticketCode ? r.ticketCode.toUpperCase() : r.id)));
+      serverRes.data.forEach((sr: any) => {
+        const key = (sr.ticketCode ? sr.ticketCode.toUpperCase() : sr.id);
+        if (!existingKeys.has(key)) {
+          combined.push(sr);
+          existingKeys.add(key);
+        }
+      });
+    }
+
+    setRegistrations(combined);
     setEvents(liveEvents);
     if (liveEvents.length > 0 && !addEventId) {
       setAddEventId(liveEvents[0].id);
@@ -201,6 +226,32 @@ export default function AdminRegistrationsPage() {
 
   useEffect(() => {
     loadData();
+
+    // Cross-tab live sync via BroadcastChannel
+    let bc: BroadcastChannel | null = null;
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        bc = new BroadcastChannel("ieee_cs_channel");
+        bc.onmessage = (event) => {
+          if (event.data?.type === "REGISTRATION_ADDED") {
+            loadData();
+          }
+        };
+      } catch {}
+    }
+
+    // LocalStorage storage event fallback for cross-tab updates
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "ieee_cs_registrations" || e.key === "registrations") {
+        loadData();
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener("storage", handleStorage);
+    };
   }, []);
 
   const eventMap = new Map<string, EventItem>();
@@ -861,6 +912,15 @@ export default function AdminRegistrationsPage() {
             </button>
 
             <button
+              onClick={() => loadData()}
+              disabled={isLoading}
+              className="px-3 py-2 border border-gray-300 bg-white text-gray-700 text-xs font-semibold rounded-lg hover:bg-gray-50 flex items-center gap-1.5 shadow-xs transition-colors disabled:opacity-50"
+              title="Refresh and sync latest registrations from database"
+            >
+              <RefreshCw size={14} className={isLoading ? "animate-spin text-ieee-blue" : "text-gray-600"} /> Refresh
+            </button>
+
+            <button
               onClick={() => setIsAddModalOpen(true)}
               className="px-3.5 py-2 bg-ieee-navy hover:bg-ieee-blue text-white text-xs font-bold rounded-lg shadow-sm flex items-center gap-1.5 transition-colors"
             >
@@ -868,6 +928,44 @@ export default function AdminRegistrationsPage() {
             </button>
           </div>
         </div>
+
+        {/* Database RLS Permission Notification Banner if Supabase SELECT is write-only */}
+        {dbPermissionDenied && (
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-sm text-amber-950 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm animate-fadeIn">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-amber-950 text-sm">
+                  Cloud Cross-Device Sync Locked in Supabase
+                </p>
+                <p className="text-xs text-amber-800 mt-1 max-w-2xl leading-relaxed">
+                  Attendee registrations submitted from external devices and public event pages are saved to the Supabase database, but public SELECT is restricted by Row-Level Security (RLS). Run this 4-line SQL grant in your Supabase SQL Editor to enable live cross-device sync.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(`ALTER TABLE public.registrations ENABLE ROW LEVEL SECURITY;\nGRANT ALL ON public.registrations TO anon, authenticated, service_role;\nDROP POLICY IF EXISTS "Allow all registrations access" ON public.registrations;\nCREATE POLICY "Allow all registrations access" ON public.registrations FOR ALL TO anon, authenticated, service_role USING (true) WITH CHECK (true);\nNOTIFY pgrst, 'reload schema';`);
+                  setCopiedSql(true);
+                  setTimeout(() => setCopiedSql(false), 2500);
+                }}
+                className="px-3 py-1.5 text-xs font-bold bg-white border border-amber-300 text-amber-900 rounded-lg hover:bg-amber-100 flex items-center gap-1.5 shadow-xs transition-colors"
+              >
+                {copiedSql ? <Check className="w-3.5 h-3.5 text-green-600" /> : <Copy className="w-3.5 h-3.5 text-amber-800" />}
+                {copiedSql ? "Copied SQL!" : "Copy SQL Fix"}
+              </button>
+              <a
+                href="https://supabase.com/dashboard/project/gbuafbcebcbwzvefqhcr/sql"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3.5 py-1.5 text-xs font-bold bg-amber-600 hover:bg-amber-700 text-white rounded-lg flex items-center gap-1.5 shadow-xs transition-colors"
+              >
+                Open SQL Editor <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
+              </a>
+            </div>
+          </div>
+        )}
 
         {/* 4 Summary Stat Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

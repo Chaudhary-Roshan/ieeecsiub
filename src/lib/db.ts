@@ -2313,6 +2313,16 @@ class ChapterDatabase {
         const { data, error } = await query;
         if (data && !error && data.length > 0) {
           data.forEach((d: any) => {
+            let dept = d.department || "Computer Science";
+            let prog = d.degree_program || d.program_degree;
+            if (!prog && dept.includes(" • ")) {
+              const parts = dept.split(" • ");
+              dept = parts[0];
+              prog = parts.slice(1).join(" • ");
+            }
+
+            const ticketCode = d.ticket_code || (d.private_token && d.private_token.startsWith("TCK-") ? d.private_token : undefined) || `TCK-${(d.id || "").slice(-6).toUpperCase()}`;
+
             const mapped: Registration = {
               id: d.id,
               eventId: d.event_id || eventId || "",
@@ -2322,10 +2332,10 @@ class ChapterDatabase {
               email: d.email,
               phone: d.phone,
               rollNumber: d.roll_number,
-              degreeProgram: d.degree_program || d.program_degree || undefined,
+              degreeProgram: prog,
               isIeeeMember: Boolean(d.is_ieee_member),
               ieeeMembershipNumber: d.ieee_membership_number,
-              department: d.department,
+              department: dept,
               profession: d.profession,
               organization: d.organization,
               designation: d.designation,
@@ -2333,7 +2343,7 @@ class ChapterDatabase {
               semester: d.semester,
               photoConsent: Boolean(d.photo_consent),
               status: d.status,
-              ticketCode: d.ticket_code,
+              ticketCode,
               createdAt: d.created_at,
             };
 
@@ -2406,7 +2416,12 @@ class ChapterDatabase {
 
   async addRegistration(reg: Registration): Promise<void> {
     const cleanRoll = reg.rollNumber && reg.rollNumber !== "N/A" ? reg.rollNumber.trim().toUpperCase() : reg.rollNumber;
-    const sanitizedReg = { ...reg, rollNumber: cleanRoll };
+    
+    // Ensure valid UUID for id
+    const isUuid = reg.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(reg.id);
+    const validId = isUuid ? reg.id : (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `reg-${Date.now()}`);
+    
+    const sanitizedReg = { ...reg, id: validId, rollNumber: cleanRoll };
 
     const list = this.getRegistrations();
     const existingIdx = list.findIndex(
@@ -2427,26 +2442,41 @@ class ChapterDatabase {
     }
     this.setItem("registrations", list);
 
+    // Notify other tabs via BroadcastChannel if available
+    if (typeof window !== "undefined" && "BroadcastChannel" in window) {
+      try {
+        const bc = new BroadcastChannel("ieee_cs_channel");
+        bc.postMessage({ type: "REGISTRATION_ADDED", reg: sanitizedReg });
+        bc.close();
+      } catch {}
+    }
+
     const client = getSupabase();
     if (client) {
       try {
-        const { error } = await client.from("registrations").upsert({
-          id: sanitizedReg.id,
+        let combinedDept = reg.department || "Computer Science";
+        if (reg.degreeProgram && !combinedDept.includes(reg.degreeProgram)) {
+          combinedDept = `${combinedDept} • ${reg.degreeProgram}`;
+        }
+
+        const payload: Record<string, any> = {
+          id: validId,
           event_id: sanitizedReg.eventId,
           full_name: sanitizedReg.fullName,
           name_display_preference: sanitizedReg.namePreference || "FULL_NAME",
           email: sanitizedReg.email,
-          phone: sanitizedReg.phone,
-          roll_number: cleanRoll || null,
-          department: reg.department,
-          degree_program: reg.degreeProgram || null,
-          is_ieee_member: reg.isIeeeMember,
-          ieee_membership_number: reg.ieeeMembershipNumber,
-          photo_consent: reg.photoConsent,
-          status: reg.status,
-          ticket_code: reg.ticketCode,
-          private_token: reg.privateToken,
-        }, { onConflict: "id" });
+          phone: sanitizedReg.phone || "0300-0000000",
+          roll_number: cleanRoll || "N/A",
+          department: combinedDept,
+          is_ieee_member: Boolean(reg.isIeeeMember),
+          ieee_membership_number: reg.ieeeMembershipNumber || null,
+          photo_consent: Boolean(reg.photoConsent),
+          data_privacy_consent: true,
+          status: reg.status || "CONFIRMED",
+          private_token: sanitizedReg.ticketCode || sanitizedReg.privateToken,
+        };
+
+        const { error } = await client.from("registrations").upsert(payload, { onConflict: "id" });
         if (error) console.warn("Supabase addRegistration sync error:", error);
       } catch (err) {
         console.warn("Supabase addRegistration error:", err);

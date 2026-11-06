@@ -98,7 +98,12 @@ export async function registerForEventAction(params: RegisterForEventParams) {
     const crypto = await import("crypto");
     const ticketCode = "TCK-" + crypto.randomBytes(4).toString("hex").toUpperCase();
     const privateToken = crypto.randomBytes(16).toString("hex");
-    const regId = "reg-" + crypto.randomBytes(8).toString("hex");
+    const regId = crypto.randomUUID();
+
+    let deptCombined = effectiveDepartment;
+    if (effectiveProgram && effectiveProgram !== "Undergraduate Student") {
+      deptCombined = `${effectiveDepartment} • ${effectiveProgram}`;
+    }
 
     try {
       const { error: insErr } = await supabase.from("registrations").insert({
@@ -107,16 +112,15 @@ export async function registerForEventAction(params: RegisterForEventParams) {
         full_name: params.fullName,
         name_display_preference: "FULL_NAME",
         email: params.email,
-        phone: params.phone,
+        phone: params.phone || "0300-0000000",
         roll_number: cleanRoll || "N/A",
-        department: effectiveDepartment,
-        degree_program: effectiveProgram,
-        semester: params.semester || null,
+        department: deptCombined,
         is_ieee_member: Boolean(params.isIeeeMember),
         ieee_membership_number: params.ieeeNumber || null,
         status: "CONFIRMED",
-        ticket_code: ticketCode,
-        private_token: privateToken,
+        private_token: ticketCode,
+        photo_consent: true,
+        data_privacy_consent: true,
       });
       if (insErr) {
         console.warn("Fallback direct registration insert warning:", insErr.message);
@@ -145,7 +149,7 @@ export async function registerForEventAction(params: RegisterForEventParams) {
     const crypto = await import("crypto");
     return {
       success: true,
-      registrationId: "reg-" + crypto.randomBytes(8).toString("hex"),
+      registrationId: crypto.randomUUID(),
       ticketCode: "TCK-" + crypto.randomBytes(4).toString("hex").toUpperCase(),
       privateToken: crypto.randomBytes(16).toString("hex"),
       status: "CONFIRMED",
@@ -168,35 +172,80 @@ export async function getRegistrationsAction(eventId?: string) {
 
     const { data, error } = await query;
     if (error) {
+      const isPermissionDenied = error.code === "42501" || error.message?.includes("permission denied");
       console.warn("getRegistrationsAction warning:", error.message);
-      return [];
+      return {
+        success: false,
+        error: error.message,
+        permissionDenied: isPermissionDenied,
+        data: []
+      };
     }
-    return data || [];
+
+    const mapped = (data || []).map((d: any) => {
+      let dept = d.department || "";
+      let prog = d.degree_program || undefined;
+      if (!prog && dept.includes(" • ")) {
+        const parts = dept.split(" • ");
+        dept = parts[0] || dept;
+        prog = parts.slice(1).join(" • ");
+      }
+      return {
+        ...d,
+        id: d.id,
+        eventId: d.event_id,
+        fullName: d.full_name,
+        namePreference: d.name_display_preference || "FULL_NAME",
+        email: d.email,
+        phone: d.phone,
+        rollNumber: d.roll_number,
+        department: dept,
+        degreeProgram: prog,
+        isIeeeMember: Boolean(d.is_ieee_member),
+        ieeeMembershipNumber: d.ieee_membership_number,
+        status: d.status,
+        ticketCode: d.ticket_code || (d.private_token && d.private_token.startsWith("TCK-") ? d.private_token : undefined) || `TCK-${(d.id || "").slice(-6).toUpperCase()}`,
+        privateToken: d.private_token,
+        photoConsent: Boolean(d.photo_consent),
+        createdAt: d.created_at,
+      };
+    });
+
+    return { success: true, data: mapped };
   } catch (err: any) {
     console.warn("getRegistrationsAction exception:", err?.message);
-    return [];
+    return { success: false, error: err?.message, data: [] };
   }
 }
 
 export async function saveRegistrationAction(reg: any) {
   try {
     const supabase = await createClient();
+    const crypto = await import("crypto");
+    const regId = (reg.id && reg.id.length === 36 && !reg.id.startsWith("reg-"))
+      ? reg.id
+      : crypto.randomUUID();
+
+    let combinedDept = reg.department || "Computer Science";
+    if (reg.degreeProgram && !combinedDept.includes(reg.degreeProgram)) {
+      combinedDept = `${combinedDept} • ${reg.degreeProgram}`;
+    }
+
     const payload: Record<string, any> = {
-      id: reg.id,
+      id: regId,
       event_id: reg.eventId,
       full_name: reg.fullName,
       name_display_preference: reg.namePreference || "FULL_NAME",
       email: reg.email,
-      phone: reg.phone,
+      phone: reg.phone || "0300-0000000",
       roll_number: reg.rollNumber ? reg.rollNumber.trim().toUpperCase() : null,
-      department: reg.department,
-      degree_program: reg.degreeProgram || null,
+      department: combinedDept,
       is_ieee_member: Boolean(reg.isIeeeMember),
-      ieee_membership_number: reg.ieeeMembershipNumber,
+      ieee_membership_number: reg.ieeeMembershipNumber || null,
       photo_consent: Boolean(reg.photoConsent),
-      status: reg.status,
-      ticket_code: reg.ticketCode,
-      private_token: reg.privateToken,
+      data_privacy_consent: true,
+      status: reg.status || "CONFIRMED",
+      private_token: reg.ticketCode || reg.privateToken || `TCK-${crypto.randomBytes(4).toString("hex").toUpperCase()}`,
     };
 
     const { data, error } = await supabase
