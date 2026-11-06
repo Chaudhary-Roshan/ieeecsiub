@@ -8,6 +8,11 @@ export interface RegisterForEventParams {
   fullName: string;
   email: string;
   phone: string;
+  profession?: "STUDENT" | "INDUSTRIAL" | "OTHER";
+  organization?: string;
+  designation?: string;
+  university?: string;
+  semester?: string;
   identityType?: "ROLL_NUMBER" | "CNIC" | "PASSPORT";
   identityNumber?: string;
   cnic?: string;
@@ -35,6 +40,31 @@ export async function registerForEventAction(params: RegisterForEventParams) {
 
     const cleanRoll = cleanIdNumber || (params.rollNumber ? params.rollNumber.trim().toUpperCase() : null);
 
+    // Compute intelligent professional affiliation for backward-compatible storage
+    let effectiveDepartment = (params.department || "").trim();
+    let effectiveProgram = (params.degreeProgram || "").trim();
+
+    if (params.profession === "INDUSTRIAL") {
+      effectiveDepartment = (params.organization || effectiveDepartment || "Corporate / Industry").trim();
+      effectiveProgram = (params.designation || effectiveProgram || "Industry Professional").trim();
+    } else if (params.profession === "OTHER") {
+      effectiveDepartment = (params.organization || effectiveDepartment || "Other Organization").trim();
+      effectiveProgram = (params.designation || effectiveProgram || "Guest / Participant").trim();
+    } else {
+      // Default: Student
+      if (!effectiveDepartment) {
+        effectiveDepartment = "Computer Science & IT / UCET";
+      }
+      if (params.semester && !effectiveProgram.includes("Semester")) {
+        effectiveProgram = effectiveProgram
+          ? `${effectiveProgram} (${params.semester})`
+          : `${params.semester} Semester`;
+      }
+      if (!effectiveProgram) {
+        effectiveProgram = "Undergraduate Student";
+      }
+    }
+
     // 1. Try atomic register_for_event RPC
     try {
       const { data, error } = await supabase.rpc("register_for_event", {
@@ -43,7 +73,7 @@ export async function registerForEventAction(params: RegisterForEventParams) {
         p_email: params.email,
         p_phone: params.phone,
         p_roll_number: cleanRoll,
-        p_department: params.department || "Computer Science",
+        p_department: effectiveDepartment,
         p_is_ieee_member: Boolean(params.isIeeeMember),
         p_ieee_number: params.ieeeNumber || null,
       });
@@ -79,8 +109,9 @@ export async function registerForEventAction(params: RegisterForEventParams) {
         email: params.email,
         phone: params.phone,
         roll_number: cleanRoll || "N/A",
-        department: params.department || "Computer Science",
-        degree_program: params.degreeProgram || null,
+        department: effectiveDepartment,
+        degree_program: effectiveProgram,
+        semester: params.semester || null,
         is_ieee_member: Boolean(params.isIeeeMember),
         ieee_membership_number: params.ieeeNumber || null,
         status: "CONFIRMED",

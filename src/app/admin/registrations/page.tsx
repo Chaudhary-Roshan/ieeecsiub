@@ -147,6 +147,7 @@ export default function AdminRegistrationsPage() {
   const [events, setEvents] = useState<EventItem[]>([]);
   const [selectedEventId, setSelectedEventId] = useState<string>("ALL");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [professionFilter, setProfessionFilter] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
@@ -764,6 +765,11 @@ export default function AdminRegistrationsPage() {
   const filteredRegistrations = registrations.filter((r) => {
     const matchesEvent = selectedEventId === "ALL" || r.eventId === selectedEventId;
     const matchesStatus = statusFilter === "ALL" || r.status === statusFilter;
+    const matchesProfession =
+      professionFilter === "ALL" ||
+      (professionFilter === "STUDENT"
+        ? !r.profession || r.profession === "STUDENT"
+        : r.profession === professionFilter);
 
     const query = searchQuery.toLowerCase().trim();
     const ev = eventMap.get(r.eventId);
@@ -781,10 +787,12 @@ export default function AdminRegistrationsPage() {
       (r.phone && r.phone.toLowerCase().includes(query)) ||
       (r.ticketCode && r.ticketCode.toLowerCase().includes(query)) ||
       (r.department && r.department.toLowerCase().includes(query)) ||
+      (r.organization && r.organization.toLowerCase().includes(query)) ||
+      (r.designation && r.designation.toLowerCase().includes(query)) ||
       (r.degreeProgram && r.degreeProgram.toLowerCase().includes(query)) ||
       (ev && ev.title.toLowerCase().includes(query));
 
-    return matchesEvent && matchesStatus && matchesSearch;
+    return matchesEvent && matchesStatus && matchesProfession && matchesSearch;
   });
 
   const confirmedCount = registrations.filter((r) => r.status === "CONFIRMED").length;
@@ -954,6 +962,20 @@ export default function AdminRegistrationsPage() {
                   {tab.label}
                 </button>
               ))}
+            </div>
+
+            {/* Profession / Category Dropdown Filter */}
+            <div className="w-full sm:w-40">
+              <select
+                value={professionFilter}
+                onChange={(e) => setProfessionFilter(e.target.value)}
+                className="w-full p-2 border border-gray-200 rounded-lg text-xs font-montserrat font-bold text-gray-700 bg-white focus:outline-none focus:ring-1 focus:ring-ieee-blue"
+              >
+                <option value="ALL">All Categories</option>
+                <option value="STUDENT">🎓 Students Only</option>
+                <option value="INDUSTRIAL">💼 Industry Only</option>
+                <option value="OTHER">🌐 Other / Faculty</option>
+              </select>
             </div>
           </div>
 
@@ -1150,10 +1172,27 @@ export default function AdminRegistrationsPage() {
                         </td>
 
                         <td className="p-4 text-gray-700">
+                          {/* Profession / Category Badge */}
+                          <div className="flex items-center gap-1.5 mb-1">
+                            {reg.profession === "INDUSTRIAL" ? (
+                              <span className="bg-blue-100 text-blue-900 border border-blue-200 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-montserrat">
+                                💼 INDUSTRY
+                              </span>
+                            ) : reg.profession === "OTHER" ? (
+                              <span className="bg-purple-100 text-purple-900 border border-purple-200 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-montserrat">
+                                🌐 OTHER
+                              </span>
+                            ) : (
+                              <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-montserrat">
+                                🎓 STUDENT
+                              </span>
+                            )}
+                          </div>
+
                           {reg.degreeProgram ? (
                             <div className="font-semibold text-gray-900">{reg.degreeProgram}</div>
                           ) : null}
-                          <div className="text-[11px] text-gray-500">{reg.department || "Computer Science"}</div>
+                          <div className="text-[11px] text-gray-500">{reg.organization || reg.department || "Computer Science"}</div>
                           {reg.isIeeeMember ? (
                             <span className="inline-block mt-0.5 text-[10px] font-bold text-ieee-blue bg-ieee-surfaceTint px-1.5 py-0.5 rounded">
                               IEEE Member {reg.ieeeMembershipNumber ? `(${reg.ieeeMembershipNumber})` : ""}

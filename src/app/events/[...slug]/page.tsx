@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { registerForEventAction, submitPaymentAction } from "@/app/actions/operations";
-import { EventItem, Registration, IdentityType } from "@/types";
+import { EventItem, Registration, IdentityType, AttendeeProfession } from "@/types";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import clsx from "clsx";
@@ -49,6 +49,11 @@ export default function EventDetailPage() {
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
+  const [profession, setProfession] = useState<AttendeeProfession>("STUDENT");
+  const [organization, setOrganization] = useState("");
+  const [designation, setDesignation] = useState("");
+  const [university, setUniversity] = useState("The Islamia University of Bahawalpur");
+  const [semester, setSemester] = useState("6th");
   const [identityType, setIdentityType] = useState<IdentityType>("ROLL_NUMBER");
   const [identityNumber, setIdentityNumber] = useState("");
   const [rollNumber, setRollNumber] = useState("");
@@ -116,19 +121,36 @@ export default function EventDetailPage() {
     const finalCnic = identityType === "CNIC" ? activeId : undefined;
     const finalPassport = identityType === "PASSPORT" ? activeId : undefined;
 
+    const effectiveDept = profession === "INDUSTRIAL"
+      ? (organization.trim() || "Corporate / Industry")
+      : profession === "OTHER"
+      ? (organization.trim() || "Other Organization")
+      : (department.trim() || "Computer Science & IT / UCET");
+
+    const effectiveProg = profession === "INDUSTRIAL"
+      ? (designation.trim() || "Industry Professional")
+      : profession === "OTHER"
+      ? (designation.trim() || "Guest / Participant")
+      : (degreeProgram.trim() || "Undergraduate Student");
+
     try {
       const res = await registerForEventAction({
         eventId: event.id,
         fullName: fullName.trim(),
         email: email.trim(),
         phone: phone.trim(),
+        profession,
+        organization: organization.trim(),
+        designation: designation.trim(),
+        university: university.trim(),
+        semester: profession === "STUDENT" ? semester : undefined,
         identityType,
         identityNumber: activeId.toUpperCase(),
         rollNumber: finalRoll?.toUpperCase(),
         cnic: finalCnic,
         passport: finalPassport?.toUpperCase(),
-        department: department.trim() || "Computer Science",
-        degreeProgram: degreeProgram.trim() || undefined,
+        department: effectiveDept,
+        degreeProgram: effectiveProg,
         isIeeeMember,
         ieeeNumber: ieeeNumber.trim() || undefined,
       });
@@ -141,15 +163,20 @@ export default function EventDetailPage() {
         namePreference: namePref,
         email: email.trim(),
         phone: phone.trim(),
+        profession,
+        organization: organization.trim(),
+        designation: designation.trim(),
+        university: university.trim(),
+        semester: profession === "STUDENT" ? semester : undefined,
         identityType,
         identityNumber: activeId.toUpperCase(),
-        rollNumber: finalRoll?.toUpperCase() || activeId.toUpperCase() || "N/A",
+        rollNumber: finalRoll?.toUpperCase() || (profession === "STUDENT" ? activeId.toUpperCase() : "N/A"),
         cnic: finalCnic,
         passport: finalPassport?.toUpperCase(),
         isIeeeMember,
         ieeeMembershipNumber: ieeeNumber.trim() || undefined,
-        department: department.trim() || "Computer Science",
-        degreeProgram: degreeProgram.trim() || undefined,
+        department: effectiveDept,
+        degreeProgram: effectiveProg,
         photoConsent,
         status: res.status || (event.feePkr > 0 ? "PAYMENT_PENDING" : "CONFIRMED"),
         ticketCode: res.ticketCode,
@@ -609,6 +636,71 @@ export default function EventDetailPage() {
                         </div>
                       </div>
 
+                      {/* Participant Category / Profession Selection */}
+                      <div className="space-y-1.5 p-3 bg-ieee-surfaceTint/50 rounded-xl border border-ieee-border">
+                        <div className="flex items-center justify-between">
+                          <label className="block font-semibold text-gray-800 text-xs">
+                            Participant Category / Profession *
+                          </label>
+                          <span className="text-[10px] text-ieee-blue font-medium font-sans">
+                            {profession === "STUDENT" && "University / College Student"}
+                            {profession === "INDUSTRIAL" && "Corporate / Tech Industry"}
+                            {profession === "OTHER" && "Faculty / Researcher / Guest"}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5 p-1 bg-white rounded-lg border text-[11px] font-semibold text-gray-600">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfession("STUDENT");
+                              setIdentityType("ROLL_NUMBER");
+                            }}
+                            className={clsx(
+                              "py-1.5 px-2 rounded-md transition-all text-center flex items-center justify-center gap-1.5",
+                              profession === "STUDENT"
+                                ? "bg-ieee-navy text-white shadow-xs font-bold"
+                                : "hover:text-gray-900"
+                            )}
+                          >
+                            <span>🎓 Student</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfession("INDUSTRIAL");
+                              if (identityType === "ROLL_NUMBER") {
+                                setIdentityType("CNIC");
+                              }
+                            }}
+                            className={clsx(
+                              "py-1.5 px-2 rounded-md transition-all text-center flex items-center justify-center gap-1.5",
+                              profession === "INDUSTRIAL"
+                                ? "bg-ieee-navy text-white shadow-xs font-bold"
+                                : "hover:text-gray-900"
+                            )}
+                          >
+                            <span>💼 Industry</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setProfession("OTHER");
+                              if (identityType === "ROLL_NUMBER") {
+                                setIdentityType("CNIC");
+                              }
+                            }}
+                            className={clsx(
+                              "py-1.5 px-2 rounded-md transition-all text-center flex items-center justify-center gap-1.5",
+                              profession === "OTHER"
+                                ? "bg-ieee-navy text-white shadow-xs font-bold"
+                                : "hover:text-gray-900"
+                            )}
+                          >
+                            <span>🌐 Other</span>
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Identification Document Selection */}
                       <div className="space-y-1.5 p-3 bg-gray-50/80 rounded-xl border border-gray-200">
                         <label className="block font-semibold text-gray-700 text-xs">
@@ -724,35 +816,153 @@ export default function EventDetailPage() {
                         )}
                       </div>
 
-                      {/* Department */}
-                      <div>
-                        <label className="block font-semibold text-gray-700 mb-1">
-                          Department / Organization *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={department}
-                          onChange={(e) => setDepartment(e.target.value)}
-                          placeholder="e.g. Computer Science & IT / UCET"
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                        />
-                      </div>
+                      {/* Dynamic Fields based on Selected Profession */}
+                      {profession === "STUDENT" && (
+                        <div className="space-y-3 p-3 bg-gray-50/70 rounded-xl border border-gray-200">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block font-semibold text-gray-700 mb-1">
+                                University / Campus *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={university}
+                                onChange={(e) => setUniversity(e.target.value)}
+                                placeholder="The Islamia University of Bahawalpur"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-semibold text-gray-700 mb-1">
+                                Department / Faculty *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={department}
+                                onChange={(e) => setDepartment(e.target.value)}
+                                placeholder="e.g. Computer Science & IT / UCET"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                              />
+                            </div>
+                          </div>
 
-                      {/* Program / Degree */}
-                      <div>
-                        <label className="block font-semibold text-gray-700 mb-1">
-                          Program / Degree *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={degreeProgram}
-                          onChange={(e) => setDegreeProgram(e.target.value)}
-                          placeholder="e.g. BS Computer Science, BS Software Engineering, MS AI"
-                          className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                        />
-                      </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div className="sm:col-span-2">
+                              <label className="block font-semibold text-gray-700 mb-1">
+                                Program / Degree *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={degreeProgram}
+                                onChange={(e) => setDegreeProgram(e.target.value)}
+                                placeholder="e.g. BS Computer Science, BS Software Engineering"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-semibold text-gray-700 mb-1">
+                                Current Semester *
+                              </label>
+                              <select
+                                value={semester}
+                                onChange={(e) => setSemester(e.target.value)}
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white font-medium"
+                              >
+                                <option value="1st">1st Semester</option>
+                                <option value="2nd">2nd Semester</option>
+                                <option value="3rd">3rd Semester</option>
+                                <option value="4th">4th Semester</option>
+                                <option value="5th">5th Semester</option>
+                                <option value="6th">6th Semester</option>
+                                <option value="7th">7th Semester</option>
+                                <option value="8th">8th Semester</option>
+                                <option value="Postgraduate / Alumni">Postgrad / Alumni</option>
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {profession === "INDUSTRIAL" && (
+                        <div className="space-y-3 p-3 bg-blue-50/40 rounded-xl border border-blue-100">
+                          <div>
+                            <label className="block font-semibold text-gray-800 mb-1">
+                              Company / Organization Name *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={organization}
+                              onChange={(e) => setOrganization(e.target.value)}
+                              placeholder="e.g. Systems Limited, Devsinc, Techlogix, Freelance"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <div>
+                              <label className="block font-semibold text-gray-800 mb-1">
+                                Job Title / Designation *
+                              </label>
+                              <input
+                                type="text"
+                                required
+                                value={designation}
+                                onChange={(e) => setDesignation(e.target.value)}
+                                placeholder="e.g. Senior Software Engineer, Tech Lead"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                              />
+                            </div>
+                            <div>
+                              <label className="block font-semibold text-gray-800 mb-1">
+                                Technical Domain / Field
+                              </label>
+                              <input
+                                type="text"
+                                value={degreeProgram}
+                                onChange={(e) => setDegreeProgram(e.target.value)}
+                                placeholder="e.g. AI & Machine Learning, Cloud DevOps"
+                                className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {profession === "OTHER" && (
+                        <div className="space-y-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                          <div>
+                            <label className="block font-semibold text-gray-800 mb-1">
+                              Organization / Institution / Affiliation *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={organization}
+                              onChange={(e) => setOrganization(e.target.value)}
+                              placeholder="e.g. Department of Physics / IUB, Govt Tech College, Self"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block font-semibold text-gray-800 mb-1">
+                              Role / Designation / Occupation *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              value={designation}
+                              onChange={(e) => setDesignation(e.target.value)}
+                              placeholder="e.g. Assistant Professor, Independent Researcher, Guest Delegate"
+                              className="w-full px-3 py-2 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white"
+                            />
+                          </div>
+                        </div>
+                      )}
 
                       {/* IEEE Member checkbox */}
                       <div className="pt-1">

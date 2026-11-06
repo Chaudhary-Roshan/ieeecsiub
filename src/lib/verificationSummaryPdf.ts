@@ -262,15 +262,29 @@ export async function generateVerificationSummaryPdf(
     rollY
   );
 
-  // Academic Department / Affiliation (Far Right) - Only for individual participant certificates
+  // Academic / Professional Affiliation (Far Right) - Only for individual participant certificates
   if (!cert.teamName) {
-    const affiliation = cert.semester
+    let affilLabel = "ACADEMIC AFFILIATION";
+    let affiliation = cert.semester
       ? `${cert.semester} Semester, ${cert.department || "Department of Computer Science & IT / UCET"}`
       : (cert.department || "Department of Computer Science & IT / UCET");
+
+    if (cert.profession === "INDUSTRIAL" || cert.organization) {
+      affilLabel = "PROFESSIONAL AFFILIATION";
+      affiliation = cert.designation
+        ? `${cert.organization || cert.department || "Corporate / Industry"} (${cert.designation})`
+        : (cert.organization || cert.department || "Corporate / Industry");
+    } else if (cert.profession === "OTHER") {
+      affilLabel = "INSTITUTIONAL AFFILIATION";
+      affiliation = cert.designation
+        ? `${cert.organization || cert.department || "Affiliation"} (${cert.designation})`
+        : (cert.organization || cert.department || "Affiliation");
+    }
+
     doc.setFont("helvetica", "normal");
     doc.setFontSize(7.5);
     doc.setTextColor(100, 110, 120);
-    doc.text("ACADEMIC AFFILIATION", col2X, currentY + 5);
+    doc.text(affilLabel, col2X, currentY + 5);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(8);

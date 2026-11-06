@@ -2,6 +2,7 @@ export type CertificateStatus = "ACTIVE" | "REVOKED" | "REPLACED";
 export type CertificateSource = "UPLOAD_REGISTRY" | "IN_SITE_GENERATED" | "LEGACY_IMPORT";
 
 export type IdentityType = "ROLL_NUMBER" | "CNIC" | "PASSPORT";
+export type AttendeeProfession = "STUDENT" | "INDUSTRIAL" | "OTHER";
 
 export type EventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "POSTPONED" | "CANCELLED";
 
@@ -107,6 +108,10 @@ export interface CertificateRecord {
   source: CertificateSource;
   batchId?: string;
   templateId?: string;
+  profession?: AttendeeProfession;
+  organization?: string;
+  designation?: string;
+  university?: string;
   teamName?: string;
   projectTitle?: string;
   teamMembers?: string[];
@@ -165,6 +170,10 @@ export interface Registration {
   checkedInAt?: string;
   paymentId?: string;
   // Hackathon & Project Expo Fields
+  profession?: AttendeeProfession;
+  organization?: string;
+  designation?: string;
+  university?: string;
   teamName?: string;
   projectTitle?: string;
   memberCount?: number;
@@ -242,6 +251,10 @@ export interface AttendanceRecord {
   attended: boolean;
   certificateCode?: string;
   checkedInAt?: string;
+  profession?: AttendeeProfession;
+  organization?: string;
+  designation?: string;
+  university?: string;
   teamName?: string;
   projectTitle?: string;
   teamMembers?: string[];
