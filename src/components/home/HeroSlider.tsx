@@ -104,8 +104,8 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
       )}
 
       {/* 2. Professional Brand Overlay Gradient (ensures WCAG AA compliant readability while keeping photo vivid) */}
-      <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#001428]/95 via-[#002855]/70 to-[#001733]/75 backdrop-brightness-90" />
-      <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,20,40,0.65)_100%)]" />
+      <div className="absolute inset-0 z-10 bg-gradient-to-t from-[#001428]/88 via-[#002855]/62 to-[#001733]/68 backdrop-brightness-95" />
+      <div className="absolute inset-0 z-10 bg-[radial-gradient(ellipse_at_center,transparent_0%,rgba(0,20,40,0.55)_100%)]" />
 
       {/* 3. Hero Content Container */}
       <div className="relative z-20 max-w-5xl mx-auto px-4 sm:px-8 py-16 sm:py-20 text-center text-white space-y-6">
@@ -261,7 +261,7 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
               {isPaused ? <Play size={12} /> : <Pause size={12} />}
             </button>
 
-            <div className="flex items-center gap-1.5 max-w-[280px] overflow-x-auto py-1.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+            <div className="flex items-center gap-1.5 max-w-[280px] overflow-x-auto py-1.5 no-scrollbar">
               {slides.map((slide, idx) => {
                 const isCurrent = idx === currentIndex;
                 const isUpcoming = Boolean(slide.isUpcoming);

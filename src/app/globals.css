@@ -52,6 +52,17 @@ h1, h2, h3, h4, h5, h6 {
   background: #00629B;
 }
 
+/* Hide scrollbar completely while maintaining scroll behavior */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
 /* Custom transitions and styling */
 @keyframes fadeIn {
   from {

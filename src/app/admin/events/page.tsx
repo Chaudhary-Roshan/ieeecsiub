@@ -441,9 +441,14 @@ export default function AdminEventsManagerPage() {
     return matchesTab && matchesSearch;
   });
 
+  const totalCount = events.length;
+  const upcomingCount = events.filter((e) => e.status === "UPCOMING" || e.status === "ONGOING").length;
+  const completedCount = events.filter((e) => e.status === "COMPLETED").length;
+  const openRegCount = events.filter((e) => e.isRegistrationOpen ?? (e.status === "UPCOMING")).length;
+
   return (
     <AdminLayout>
-      <div className="space-y-8 font-openSans">
+      <div className="space-y-6 sm:space-y-8 font-openSans">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -451,25 +456,76 @@ export default function AdminEventsManagerPage() {
               <CalendarPlus size={16} /> Chapter Event Administration
             </div>
             <h1 className="text-2xl sm:text-3xl font-montserrat font-extrabold text-ieee-navy mt-1">
-              Events Manager (Past, Ongoing & Upcoming)
+              Events Manager
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Create, edit, and organize all chapter technical events, workshops, seminars, and past archives.
+            <p className="text-xs text-gray-500 mt-1 max-w-2xl leading-relaxed">
+              Create, edit, and organize all chapter technical workshops, flagship seminars, hands-on bootcamps, and historical past event archives.
             </p>
           </div>
 
           <Button
             onClick={openCreateModal}
             variant="accent"
-            className="flex items-center gap-2 self-start shadow-md"
+            className="flex items-center gap-2 self-start shadow-md py-2.5 px-4 font-bold text-xs"
           >
             <Plus size={16} /> Create New Event
           </Button>
         </div>
 
+        {/* 4 KPI Summary Stat Cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs">
+            <span className="text-[11px] uppercase font-bold text-gray-500 block mb-1">
+              Total Events
+            </span>
+            <div className="text-2xl sm:text-3xl font-montserrat font-extrabold text-ieee-navy">
+              {totalCount}
+            </div>
+            <span className="text-[11px] text-gray-400 mt-1 block">
+              Chapter catalog database
+            </span>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs">
+            <span className="text-[11px] uppercase font-bold text-blue-600 block mb-1">
+              Upcoming &amp; Live
+            </span>
+            <div className="text-2xl sm:text-3xl font-montserrat font-extrabold text-ieee-blue">
+              {upcomingCount}
+            </div>
+            <span className="text-[11px] text-blue-600 mt-1 block">
+              Scheduled programs
+            </span>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs">
+            <span className="text-[11px] uppercase font-bold text-emerald-600 block mb-1">
+              Registration Open
+            </span>
+            <div className="text-2xl sm:text-3xl font-montserrat font-extrabold text-emerald-600">
+              {openRegCount}
+            </div>
+            <span className="text-[11px] text-emerald-600 mt-1 block">
+              Accepting attendees
+            </span>
+          </div>
+
+          <div className="bg-white border border-gray-200 rounded-xl p-4 sm:p-5 shadow-xs">
+            <span className="text-[11px] uppercase font-bold text-purple-600 block mb-1">
+              Past Archives
+            </span>
+            <div className="text-2xl sm:text-3xl font-montserrat font-extrabold text-purple-700">
+              {completedCount}
+            </div>
+            <span className="text-[11px] text-purple-600 mt-1 block">
+              Archived with credentials
+            </span>
+          </div>
+        </div>
+
         {/* Filter Tabs & Search Bar */}
-        <div className="bg-white border border-gray-200 rounded-card p-4 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-xs flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
             {[
               { id: "ALL", label: "All Events" },
               { id: "UPCOMING", label: "Upcoming" },
@@ -481,7 +537,7 @@ export default function AdminEventsManagerPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-semibold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-semibold transition-all whitespace-nowrap ${
                   activeTab === tab.id
                     ? "bg-ieee-navy text-white shadow-sm"
                     : "bg-gray-100 text-gray-600 hover:bg-gray-200"
@@ -492,7 +548,7 @@ export default function AdminEventsManagerPage() {
             ))}
           </div>
 
-          <div className="relative w-full md:w-64">
+          <div className="relative w-full md:w-72">
             <Search size={14} className="absolute left-3 top-3 text-gray-400" />
             <input
               type="text"
@@ -505,615 +561,647 @@ export default function AdminEventsManagerPage() {
         </div>
 
         {/* Events Table / List */}
-        <div className="bg-white border border-gray-200 rounded-card overflow-hidden shadow-sm">
+        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden shadow-xs">
           {filteredEvents.length === 0 ? (
             <div className="p-12 text-center text-gray-500 text-xs">
-              No events found matching the criteria. Click "Create New Event" to add one!
+              No events found matching the criteria. Click &quot;Create New Event&quot; to add one!
             </div>
           ) : (
             <div>
-              <div className="md:hidden px-4 py-1.5 bg-sky-50 border-b border-sky-100 text-[11px] text-ieee-blue flex items-center justify-between">
-                <span>↔ Scroll horizontally to view event details &amp; actions</span>
-                <span className="font-semibold">{filteredEvents.length} events</span>
+              <div className="md:hidden px-4 py-2 bg-sky-50 border-b border-sky-100 text-[11px] text-ieee-blue flex items-center justify-between font-medium">
+                <span>↔ Scroll horizontally to view actions</span>
+                <span className="font-bold">{filteredEvents.length} events</span>
               </div>
               <div className="overflow-x-auto custom-scrollbar w-full">
-                <table className="w-full min-w-[780px] text-left text-xs">
-                <thead className="bg-gray-50 border-b border-gray-200 font-montserrat font-bold text-gray-600 uppercase tracking-wider text-[11px]">
-                  <tr>
-                    <th className="p-4">Event Details</th>
-                    <th className="p-4">Schedule & Venue</th>
-                    <th className="p-4">Fee & Cert</th>
-                    <th className="p-4">Status</th>
-                    <th className="p-4">Registration</th>
-                    <th className="p-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {filteredEvents.map((evt) => (
-                    <tr key={evt.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="p-4 max-w-sm">
-                        <div className="font-montserrat font-bold text-ieee-navy text-sm">
-                          {evt.title}
-                        </div>
-                        <div className="text-[11px] text-gray-500 font-mono mt-0.5">
-                          Slug: /{evt.slug}
-                        </div>
-                        <p className="text-gray-600 line-clamp-1 mt-1 text-[11px]">
-                          {evt.description}
-                        </p>
-                      </td>
-
-                      <td className="p-4 text-gray-700 space-y-1">
-                        <div className="flex items-center gap-1.5 font-medium">
-                          <Calendar size={13} className="text-ieee-blue" />
-                          <span>{new Date(evt.startDate).toLocaleDateString()}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-gray-500">
-                          <MapPin size={13} className="text-ieee-orange" />
-                          <span className="truncate max-w-[200px]">{evt.venue}</span>
-                        </div>
-                      </td>
-
-                      <td className="p-4">
-                        <div className="font-bold text-gray-800">
-                          {evt.feePkr > 0 ? `PKR ${evt.feePkr}` : "Free"}
-                        </div>
-                        <div className="text-[10px] text-gray-500 mt-0.5">
-                          {evt.certificateType}
-                        </div>
-                      </td>
-
-                      <td className="p-4">
-                        <select
-                          value={evt.status}
-                          onChange={(e) => handleQuickStatusChange(evt.id, e.target.value as EventStatus)}
-                          className="text-xs font-semibold rounded px-2 py-1 border border-gray-200 focus:outline-none bg-white font-montserrat"
-                        >
-                          <option value="UPCOMING">Upcoming</option>
-                          <option value="ONGOING">Ongoing</option>
-                          <option value="COMPLETED">Completed (Past)</option>
-                          <option value="POSTPONED">Postponed</option>
-                          <option value="CANCELLED">Cancelled</option>
-                        </select>
-                      </td>
-
-                      <td className="p-4">
-                        <button
-                          type="button"
-                          onClick={() => handleToggleRegistration(evt)}
-                          className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-montserrat font-bold transition-all shadow-xs ${
-                            (evt.isRegistrationOpen ?? (evt.status === "UPCOMING"))
-                              ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
-                              : "bg-red-50 text-red-700 border border-red-300 hover:bg-red-100"
-                          }`}
-                          title={`Click to ${
-                            (evt.isRegistrationOpen ?? (evt.status === "UPCOMING"))
-                              ? "close registrations for this event"
-                              : "open registrations for this event"
-                          }`}
-                        >
-                          <span className={`w-2 h-2 rounded-full ${
-                            (evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "bg-emerald-500 animate-pulse" : "bg-red-500"
-                          }`} />
-                          {(evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "Open" : "Closed"}
-                        </button>
-                      </td>
-
-                      <td className="p-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Link
-                            href={`/events/${evt.slug}`}
-                            target="_blank"
-                            className="p-1.5 text-gray-500 hover:text-ieee-blue hover:bg-gray-100 rounded transition-colors"
-                            title="View Public Page"
-                          >
-                            <ExternalLink size={15} />
-                          </Link>
-                          <button
-                            onClick={() => openEditModal(evt)}
-                            className="p-1.5 text-gray-600 hover:text-ieee-navy hover:bg-gray-100 rounded transition-colors"
-                            title="Edit Event"
-                          >
-                            <Edit size={15} />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteEvent(evt)}
-                            className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded transition-colors"
-                            title="Delete Event"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        </div>
-                      </td>
+                <table className="w-full min-w-[820px] text-left text-xs">
+                  <thead className="bg-gray-50 border-b border-gray-200 font-montserrat font-bold text-gray-600 uppercase tracking-wider text-[11px]">
+                    <tr>
+                      <th className="p-4">Event Details</th>
+                      <th className="p-4">Schedule &amp; Venue</th>
+                      <th className="p-4">Fee &amp; Cert</th>
+                      <th className="p-4">Status</th>
+                      <th className="p-4">Registration</th>
+                      <th className="p-4 text-right">Actions</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {filteredEvents.map((evt) => (
+                      <tr key={evt.id} className="hover:bg-gray-50/80 transition-colors">
+                        <td className="p-4 max-w-sm">
+                          <div className="font-montserrat font-bold text-ieee-navy text-sm">
+                            {evt.title}
+                          </div>
+                          <div className="text-[11px] text-gray-500 font-mono mt-0.5">
+                            Slug: /{evt.slug}
+                          </div>
+                          <p className="text-gray-600 line-clamp-1 mt-1 text-[11px]">
+                            {evt.description}
+                          </p>
+                        </td>
+
+                        <td className="p-4 text-gray-700 space-y-1">
+                          <div className="flex items-center gap-1.5 font-medium">
+                            <Calendar size={13} className="text-ieee-blue" />
+                            <span>{new Date(evt.startDate).toLocaleDateString()}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 text-gray-500">
+                            <MapPin size={13} className="text-ieee-orange" />
+                            <span className="truncate max-w-[200px]">{evt.venue}</span>
+                          </div>
+                        </td>
+
+                        <td className="p-4">
+                          <div className="font-bold text-gray-800">
+                            {evt.feePkr > 0 ? `PKR ${evt.feePkr}` : "Free"}
+                          </div>
+                          <div className="text-[10px] text-gray-500 mt-0.5">
+                            {evt.certificateType}
+                          </div>
+                        </td>
+
+                        <td className="p-4">
+                          <select
+                            value={evt.status}
+                            onChange={(e) => handleQuickStatusChange(evt.id, e.target.value as EventStatus)}
+                            className="text-xs font-semibold rounded px-2.5 py-1.5 border border-gray-200 focus:outline-none bg-white font-montserrat shadow-2xs"
+                          >
+                            <option value="UPCOMING">Upcoming</option>
+                            <option value="ONGOING">Ongoing</option>
+                            <option value="COMPLETED">Completed (Past)</option>
+                            <option value="POSTPONED">Postponed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                          </select>
+                        </td>
+
+                        <td className="p-4">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRegistration(evt)}
+                            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-montserrat font-bold transition-all shadow-2xs ${
+                              (evt.isRegistrationOpen ?? (evt.status === "UPCOMING"))
+                                ? "bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                                : "bg-red-50 text-red-700 border border-red-300 hover:bg-red-100"
+                            }`}
+                            title={`Click to ${
+                              (evt.isRegistrationOpen ?? (evt.status === "UPCOMING"))
+                                ? "close registrations for this event"
+                                : "open registrations for this event"
+                            }`}
+                          >
+                            <span className={`w-2 h-2 rounded-full ${
+                              (evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "bg-emerald-500 animate-pulse" : "bg-red-500"
+                            }`} />
+                            {(evt.isRegistrationOpen ?? (evt.status === "UPCOMING")) ? "Open" : "Closed"}
+                          </button>
+                        </td>
+
+                        <td className="p-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Link
+                              href={`/events/${evt.slug}`}
+                              target="_blank"
+                              className="p-2 text-gray-500 hover:text-ieee-blue hover:bg-gray-100 rounded-lg transition-colors"
+                              title="View Public Page"
+                            >
+                              <ExternalLink size={15} />
+                            </Link>
+                            <button
+                              onClick={() => openEditModal(evt)}
+                              className="p-2 text-gray-600 hover:text-ieee-navy hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Edit Event"
+                            >
+                              <Edit size={15} />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteEvent(evt)}
+                              className="p-2 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Delete Event"
+                            >
+                              <Trash2 size={15} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )}
         </div>
 
-        {/* Create / Edit Modal */}
+        {/* Create / Edit Modal with Fixed Header, Sticky Footer, and Smooth Scrollable Slider Body */}
         {isModalOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-            <div className="bg-white rounded-card max-w-2xl w-full shadow-2xl border border-gray-200 p-6 md:p-8 space-y-6 my-8">
-              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
-                <div>
-                  <h3 className="font-montserrat font-extrabold text-xl text-ieee-navy">
-                    {editingEventId ? "Edit Event" : "Create New Chapter Event"}
-                  </h3>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Configure details for past, upcoming, or ongoing chapter programs.
-                  </p>
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-hidden animate-fadeIn">
+            <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl border border-gray-200 flex flex-col max-h-[92vh] overflow-hidden">
+              
+              {/* Sticky Modal Header */}
+              <div className="sticky top-0 bg-white z-20 px-6 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-ieee-blue/10 text-ieee-blue flex items-center justify-center font-bold shrink-0">
+                    <CalendarPlus size={20} />
+                  </div>
+                  <div>
+                    <h3 className="font-montserrat font-extrabold text-base sm:text-lg text-ieee-navy leading-tight">
+                      {editingEventId ? "Edit Event Configuration" : "Create New Chapter Event"}
+                    </h3>
+                    <p className="text-[11px] sm:text-xs text-gray-500 mt-0.5">
+                      {editingEventId
+                        ? "Update schedules, registration capacity, banner, and photo gallery."
+                        : "Configure event curriculum, schedules, venue, ticketing, and cover media."}
+                    </p>
+                  </div>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-700"
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                  title="Close modal"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              <form onSubmit={handleSaveEvent} className="space-y-4 text-xs">
+              {/* Scrollable Form Body with Visible Custom Scrollbar ("Slider") */}
+              <form onSubmit={handleSaveEvent} id="admin-event-form" className="flex-1 overflow-y-auto custom-scrollbar p-5 sm:p-6 space-y-5 text-xs">
                 {modalError && (
-                  <div className="p-3 bg-red-50 text-red-700 text-xs rounded-lg border border-red-200 flex items-center gap-2">
+                  <div className="p-3 bg-red-50 text-red-700 text-xs rounded-xl border border-red-200 flex items-center gap-2">
                     <AlertTriangle size={16} className="text-red-500 shrink-0" />
                     <span>{modalError}</span>
                   </div>
                 )}
-                {/* Title & Slug */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Event Title *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={title}
-                      onChange={(e) => {
-                        setTitle(e.target.value);
-                        if (!editingEventId) {
-                          const autoSlug = e.target.value
-                            .toLowerCase()
-                            .replace(/[^a-z0-9]+/g, "-")
-                            .replace(/(^-|-$)+/g, "");
-                          setSlug(`2026/${autoSlug}`);
-                        }
-                      }}
-                      placeholder="e.g. Hands-on Modern AI Agent Development"
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
+
+                {/* Card 1: 📌 Basic Information */}
+                <div className="p-4 bg-gray-50/70 border border-gray-200 rounded-xl space-y-3.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-ieee-navy font-montserrat">
+                    <span>📌</span> Basic Event Information
                   </div>
 
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      URL Slug * (Permanent link)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={slug}
-                      onChange={(e) => setSlug(e.target.value)}
-                      placeholder="2026/hands-on-ai-agents"
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono"
-                    />
-                  </div>
-                </div>
-
-                {/* Status & Status Reason */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Event Status *
-                    </label>
-                    <select
-                      value={status}
-                      onChange={(e) => setStatus(e.target.value as EventStatus)}
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white font-montserrat font-semibold"
-                    >
-                      <option value="UPCOMING">Upcoming</option>
-                      <option value="ONGOING">Ongoing</option>
-                      <option value="COMPLETED">Completed (Past Event)</option>
-                      <option value="POSTPONED">Postponed</option>
-                      <option value="CANCELLED">Cancelled</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Status Note / Notice (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={statusReason}
-                      onChange={(e) => setStatusReason(e.target.value)}
-                      placeholder="e.g. Rescheduled due to university midterms"
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Registration Open / Closed Control */}
-                <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl space-y-2">
-                  <div className="flex items-center justify-between">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                     <div>
-                      <span className="font-montserrat font-bold text-xs text-ieee-navy block">
-                        Attendee Registration Status
-                      </span>
-                      <span className="text-[11px] text-gray-500">
-                        Controls whether students can submit registrations on the public event page.
-                      </span>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Event Title *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={title}
+                        onChange={(e) => {
+                          setTitle(e.target.value);
+                          if (!editingEventId) {
+                            const autoSlug = e.target.value
+                              .toLowerCase()
+                              .replace(/[^a-z0-9]+/g, "-")
+                              .replace(/(^-|-$)+/g, "");
+                            setSlug(`2026/${autoSlug}`);
+                          }
+                        }}
+                        placeholder="e.g. Hands-on Modern AI Agent Development"
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                      />
                     </div>
 
-                    <div className="flex items-center gap-2">
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        URL Slug * (Permanent web path)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={slug}
+                        onChange={(e) => setSlug(e.target.value)}
+                        placeholder="2026/hands-on-ai-agents"
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">
+                      Event Overview &amp; Curriculum Description *
+                    </label>
+                    <textarea
+                      rows={3}
+                      required
+                      value={description}
+                      onChange={(e) => setDescription(e.target.value)}
+                      placeholder="Comprehensive overview of session curriculum, technologies covered, and practical student takeaways."
+                      className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Card 2: ⚙️ Status & Registration Open/Closed */}
+                <div className="p-4 bg-gray-50/70 border border-gray-200 rounded-xl space-y-3.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-ieee-navy font-montserrat">
+                    <span>⚙️</span> Event Lifecycle &amp; Registration Control
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Current Event Status *
+                      </label>
+                      <select
+                        value={status}
+                        onChange={(e) => setStatus(e.target.value as EventStatus)}
+                        className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none bg-white font-montserrat font-semibold"
+                      >
+                        <option value="UPCOMING">Upcoming</option>
+                        <option value="ONGOING">Ongoing</option>
+                        <option value="COMPLETED">Completed (Past Event)</option>
+                        <option value="POSTPONED">Postponed</option>
+                        <option value="CANCELLED">Cancelled</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Status Note / Banner Reason (Optional)
+                      </label>
+                      <input
+                        type="text"
+                        value={statusReason}
+                        onChange={(e) => setStatusReason(e.target.value)}
+                        placeholder="e.g. Rescheduled due to university midterms"
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Large Registration Open/Closed Toggle Buttons */}
+                  <div className="pt-1">
+                    <label className="block font-semibold text-gray-700 mb-1.5">
+                      Attendee Public Registration Status
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
                         onClick={() => setIsRegistrationOpen(true)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-bold transition-all flex items-center gap-1.5 ${
+                        className={`p-3 rounded-xl border text-xs font-montserrat font-bold transition-all flex items-center justify-center gap-2 ${
                           isRegistrationOpen
-                            ? "bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300"
-                            : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+                            ? "bg-emerald-600 text-white border-emerald-700 shadow-sm ring-2 ring-emerald-300"
+                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
                         }`}
                       >
-                        <span className={`w-2 h-2 rounded-full ${isRegistrationOpen ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
+                        <span className={`w-2.5 h-2.5 rounded-full ${isRegistrationOpen ? "bg-white animate-pulse" : "bg-emerald-500"}`} />
                         Registration Open
                       </button>
+
                       <button
                         type="button"
                         onClick={() => setIsRegistrationOpen(false)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-montserrat font-bold transition-all flex items-center gap-1.5 ${
+                        className={`p-3 rounded-xl border text-xs font-montserrat font-bold transition-all flex items-center justify-center gap-2 ${
                           !isRegistrationOpen
-                            ? "bg-red-600 text-white shadow-sm ring-2 ring-red-300"
-                            : "bg-white text-gray-600 border border-gray-200 hover:bg-gray-100"
+                            ? "bg-red-600 text-white border-red-700 shadow-sm ring-2 ring-red-300"
+                            : "bg-white text-gray-600 border-gray-300 hover:bg-gray-100"
                         }`}
                       >
-                        <span className={`w-2 h-2 rounded-full ${!isRegistrationOpen ? "bg-white" : "bg-red-500"}`} />
+                        <span className={`w-2.5 h-2.5 rounded-full ${!isRegistrationOpen ? "bg-white" : "bg-red-500"}`} />
                         Registration Closed
                       </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Description */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Event Overview & Description *
-                  </label>
-                  <textarea
-                    rows={3}
-                    required
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Provide a comprehensive summary of the event curriculum, speakers, and hands-on activities."
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                  />
-                </div>
-
-                {/* Dates */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Start Date & Time *
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
+                {/* Card 3: 📅 Schedule, Venue & Fees */}
+                <div className="p-4 bg-gray-50/70 border border-gray-200 rounded-xl space-y-3.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-ieee-navy font-montserrat">
+                    <span>📅</span> Schedule, Location &amp; Ticketing
                   </div>
 
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      End Date & Time *
-                    </label>
-                    <input
-                      type="datetime-local"
-                      required
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Venue & Online Mode */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <div className="sm:col-span-2">
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Venue / Location *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={venue}
-                      onChange={(e) => setVenue(e.target.value)}
-                      placeholder="e.g. Syed Tabish Alwari Auditorium, UCET IUB"
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Fee (PKR)
-                    </label>
-                    <input
-                      type="number"
-                      value={feePkr}
-                      onChange={(e) => setFeePkr(Number(e.target.value))}
-                      placeholder="0 for free"
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Bank & Payment Instructions (Visible when fee > 0) */}
-                {Number(feePkr) > 0 && (
-                  <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 animate-fadeIn">
-                    <div className="flex items-center justify-between">
-                      <label className="block font-semibold text-xs text-ieee-navy">
-                        Bank Account & Raast Payment Details (Shown to Attendees) *
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Start Date &amp; Time (PKT) *
                       </label>
-                      <span className="text-[10px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-full">
-                        Paid Event (PKR {feePkr})
-                      </span>
-                    </div>
-                    <textarea
-                      rows={4}
-                      value={paymentInstructions}
-                      onChange={(e) => setPaymentInstructions(e.target.value)}
-                      placeholder="Bank: Bank Alfalah / Meezan Bank&#10;Account Title: IEEE CS UCET-IUB&#10;Account / IBAN: 0123-456789012345&#10;Raast ID: 0300-1234567&#10;Payment Note: Please enter your Student Name & Roll No in transfer remarks."
-                      className="w-full p-2.5 bg-white border border-blue-200 rounded-lg text-xs font-mono focus:ring-1 focus:ring-ieee-blue outline-none text-gray-800"
-                    />
-                    <p className="text-[11px] text-gray-500">
-                      Specify the Bank Name, Account Title, IBAN / Account Number, and Raast ID. These details will be clearly presented in the payment section on the public event page.
-                    </p>
-                  </div>
-                )}
-
-                {/* Certificate Type & Rule */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Certificate Type
-                    </label>
-                    <input
-                      type="text"
-                      value={certificateType}
-                      onChange={(e) => setCertificateType(e.target.value)}
-                      placeholder="Certificate of Participation / Completion"
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-semibold text-gray-700 mb-1">
-                      Eligibility Rule
-                    </label>
-                    <input
-                      type="text"
-                      value={certificateRule}
-                      onChange={(e) => setCertificateRule(e.target.value)}
-                      placeholder="Minimum 80% physical attendance"
-                      className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                    />
-                  </div>
-                </div>
-
-                {/* Featured Cover Image */}
-                <div className="space-y-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                    <label className="block font-semibold text-gray-700">
-                      Featured Cover Image (Banner / Poster)
-                    </label>
-                    <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
-                      <UploadCloud size={14} /> {isUploadingBanner ? "Optimizing & Uploading..." : "Upload Banner Image"}
                       <input
-                        type="file"
-                        accept="image/*"
-                        disabled={isUploadingBanner}
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          setIsUploadingBanner(true);
-                          try {
-                            const uploadedUrl = await uploadImageFile(file, "banners");
-                            if (uploadedUrl) {
-                              setFeaturedImage(uploadedUrl);
-                            }
-                          } catch (upErr) {
-                            console.error("Banner upload error:", upErr);
-                          } finally {
-                            setIsUploadingBanner(false);
-                          }
-                        }}
+                        type="datetime-local"
+                        required
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
                       />
-                    </label>
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        End Date &amp; Time (PKT) *
+                      </label>
+                      <input
+                        type="datetime-local"
+                        required
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="text"
-                    value={featuredImage || ""}
-                    onChange={(e) => setFeaturedImage(e.target.value)}
-                    placeholder="Enter image URL, /ieee-cs-logo.png, or upload file"
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none text-xs font-mono bg-white"
-                  />
-                  {featuredImage && (
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="relative h-16 w-28 rounded-lg overflow-hidden border border-gray-300 bg-gray-100 flex-shrink-0">
-                        <img src={featuredImage} alt="Cover Preview" className="w-full h-full object-cover" />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                    <div className="sm:col-span-2">
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Physical Venue / Auditorium *
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        value={venue}
+                        onChange={(e) => setVenue(e.target.value)}
+                        placeholder="e.g. Syed Tabish Alwari Auditorium, UCET IUB"
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Fee in PKR (0 for Free)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={feePkr}
+                        onChange={(e) => setFeePkr(Number(e.target.value))}
+                        placeholder="0"
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-semibold"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Payment Details if Fee > 0 */}
+                  {Number(feePkr) > 0 && (
+                    <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-xl space-y-1.5 animate-fadeIn">
+                      <div className="flex items-center justify-between">
+                        <label className="block font-semibold text-xs text-ieee-navy">
+                          Bank Account &amp; Raast Payment Instructions *
+                        </label>
+                        <span className="text-[10px] text-blue-700 font-bold bg-blue-100 px-2 py-0.5 rounded-full">
+                          Paid Event (PKR {feePkr})
+                        </span>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => setFeaturedImage("/ieee-cs-logo.png")}
-                        className="text-[11px] text-gray-600 hover:underline font-semibold"
-                      >
-                        Reset to Default Logo
-                      </button>
+                      <textarea
+                        rows={3}
+                        value={paymentInstructions}
+                        onChange={(e) => setPaymentInstructions(e.target.value)}
+                        placeholder="Bank: Bank Alfalah / Meezan Bank&#10;Account Title: IEEE CS UCET-IUB&#10;Account / IBAN: 0123-456789012345&#10;Raast ID: 0300-1234567"
+                        className="w-full p-2.5 bg-white border border-blue-200 rounded-lg text-xs font-mono focus:ring-1 focus:ring-ieee-blue outline-none"
+                      />
                     </div>
                   )}
                 </div>
 
-                {/* Learning Objectives */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Learning Objectives (One per line)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={learningObjectives || ""}
-                    onChange={(e) => setLearningObjectives(e.target.value)}
-                    placeholder="Key hands-on takeaway 1&#10;Key hands-on takeaway 2"
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                  />
-                </div>
+                {/* Card 4: 📜 Certification Rules */}
+                <div className="p-4 bg-gray-50/70 border border-gray-200 rounded-xl space-y-3.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-ieee-navy font-montserrat">
+                    <span>📜</span> Official Certificate Specifications
+                  </div>
 
-                {/* Event Summary Report (Especially for Completed Events) */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Event Summary / Post-Event Report (Displayed on completed event page)
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={eventReport || ""}
-                    onChange={(e) => setEventReport(e.target.value)}
-                    placeholder="The workshop concluded successfully with 50 attendees. Keynote address and certificates distributed."
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
-                  />
-                </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Certificate Type
+                      </label>
+                      <input
+                        type="text"
+                        value={certificateType}
+                        onChange={(e) => setCertificateType(e.target.value)}
+                        placeholder="Certificate of Participation / Completion"
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                      />
+                    </div>
 
-                {/* Event Photo Gallery Images */}
-                <div className="space-y-2 p-3.5 bg-blue-50/40 rounded-xl border border-blue-100">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                    <label className="block font-bold text-ieee-navy text-xs flex items-center gap-1.5">
-                      <Camera size={14} className="text-ieee-blue" />
-                      Event Photo Gallery Images (Displayed in the Photo Gallery section on this event's page)
-                    </label>
-                    <div className="flex items-center gap-2">
-                      {galleryImages && (
-                        <button
-                          type="button"
-                          onClick={() => setGalleryImages("")}
-                          className="text-[10px] text-red-500 hover:underline font-semibold"
-                        >
-                          Clear
-                        </button>
-                      )}
+                    <div>
+                      <label className="block font-semibold text-gray-700 mb-1">
+                        Eligibility / Attendance Rule
+                      </label>
+                      <input
+                        type="text"
+                        value={certificateRule}
+                        onChange={(e) => setCertificateRule(e.target.value)}
+                        placeholder="Minimum 80% physical attendance verified via digital check-in"
+                        className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                      />
                     </div>
                   </div>
-
-                  <textarea
-                    rows={3}
-                    value={galleryImages || ""}
-                    onChange={(e) => setGalleryImages(e.target.value)}
-                    placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"
-                    className="w-full p-2.5 border rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-[11px] bg-white"
-                  />
-
-                  {/* Upload from Local Device */}
-                  <div className="flex items-center justify-between text-[11px] text-gray-500 pt-1">
-                    <span>Or upload image files from your computer:</span>
-                    <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
-                      <UploadCloud size={14} /> {isUploadingGallery ? "Processing photos..." : "Choose Files"}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        disabled={isUploadingGallery}
-                        className="hidden"
-                        onChange={async (e) => {
-                          const files = e.target.files;
-                          if (!files || files.length === 0) return;
-                          setIsUploadingGallery(true);
-                          try {
-                            const urls: string[] = [];
-                            for (const file of Array.from(files)) {
-                              const uploadedUrl = await uploadImageFile(file, "gallery");
-                              if (uploadedUrl) urls.push(uploadedUrl);
-                            }
-                            if (urls.length > 0) {
-                              setGalleryImages((prev) => {
-                                const current = (prev || "").trim();
-                                const additions = urls.join("\n");
-                                return current ? `${current}\n${additions}` : additions;
-                              });
-                            }
-                          } catch (upErr) {
-                            console.error("Gallery upload error:", upErr);
-                          } finally {
-                            setIsUploadingGallery(false);
-                          }
-                        }}
-                      />
-                    </label>
-                  </div>
-
-                  {/* Live Thumbnails Preview */}
-                  {(() => {
-                    const parsed = (typeof galleryImages === "string" ? galleryImages : "")
-                      .split("\n")
-                      .map((s) => (s ? String(s).trim() : ""))
-                      .filter(Boolean);
-                    if (parsed.length === 0) return null;
-
-                    return (
-                      <div className="pt-2">
-                        <span className="text-[10px] font-semibold text-gray-600 block mb-1">
-                          Previewing {parsed.length} Photos for this event:
-                        </span>
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
-                          {parsed.map((imgUrl, idx) => (
-                            <div key={idx} className="relative group h-14 rounded-lg overflow-hidden border border-gray-300 bg-gray-100">
-                              <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const updated = parsed.filter((_, i) => i !== idx).join("\n");
-                                  setGalleryImages(updated);
-                                }}
-                                className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
-                                title="Remove photo"
-                              >
-                                &times;
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
                 </div>
 
-                {/* Submit Buttons */}
-                <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+                {/* Card 5: 🖼️ Featured Banner & Photo Gallery */}
+                <div className="p-4 bg-gray-50/70 border border-gray-200 rounded-xl space-y-4">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-ieee-navy font-montserrat">
+                    <span>🖼️</span> Event Banner &amp; Photo Gallery
+                  </div>
+
+                  {/* Cover Banner */}
+                  <div className="space-y-2 p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <label className="block font-semibold text-gray-700">
+                        Featured Banner / Poster Image
+                      </label>
+                      <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
+                        <UploadCloud size={14} /> {isUploadingBanner ? "Uploading..." : "Upload Banner Image"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          disabled={isUploadingBanner}
+                          className="hidden"
+                          onChange={async (e) => {
+                            const file = e.target.files?.[0];
+                            if (!file) return;
+                            setIsUploadingBanner(true);
+                            try {
+                              const uploadedUrl = await uploadImageFile(file, "banners");
+                              if (uploadedUrl) {
+                                setFeaturedImage(uploadedUrl);
+                              }
+                            } catch (upErr) {
+                              console.error("Banner upload error:", upErr);
+                            } finally {
+                              setIsUploadingBanner(false);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    <input
+                      type="text"
+                      value={featuredImage || ""}
+                      onChange={(e) => setFeaturedImage(e.target.value)}
+                      placeholder="Image URL or upload file"
+                      className="w-full p-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none text-xs font-mono"
+                    />
+
+                    {featuredImage && (
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="relative h-16 w-28 rounded-lg overflow-hidden border border-gray-300 bg-gray-100 shrink-0">
+                          <img src={featuredImage} alt="Cover Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setFeaturedImage("/ieee-cs-logo.png")}
+                          className="text-[11px] text-gray-500 hover:text-ieee-navy hover:underline font-semibold"
+                        >
+                          Reset to Chapter Logo
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Photo Gallery */}
+                  <div className="space-y-2 p-3 bg-white rounded-lg border border-gray-200">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                      <label className="block font-semibold text-gray-700 flex items-center gap-1.5">
+                        <Camera size={14} className="text-ieee-blue" />
+                        Event Photo Gallery (Shown on completed event page)
+                      </label>
+                      <label className="cursor-pointer inline-flex items-center gap-1 text-xs text-ieee-blue hover:underline font-semibold">
+                        <UploadCloud size={14} /> {isUploadingGallery ? "Uploading photos..." : "Upload Multiple Photos"}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          disabled={isUploadingGallery}
+                          className="hidden"
+                          onChange={async (e) => {
+                            const files = e.target.files;
+                            if (!files || files.length === 0) return;
+                            setIsUploadingGallery(true);
+                            try {
+                              const urls: string[] = [];
+                              for (const file of Array.from(files)) {
+                                const uploadedUrl = await uploadImageFile(file, "gallery");
+                                if (uploadedUrl) urls.push(uploadedUrl);
+                              }
+                              if (urls.length > 0) {
+                                setGalleryImages((prev) => {
+                                  const current = (prev || "").trim();
+                                  const additions = urls.join("\n");
+                                  return current ? `${current}\n${additions}` : additions;
+                                });
+                              }
+                            } catch (upErr) {
+                              console.error("Gallery upload error:", upErr);
+                            } finally {
+                              setIsUploadingGallery(false);
+                            }
+                          }}
+                        />
+                      </label>
+                    </div>
+
+                    <textarea
+                      rows={3}
+                      value={galleryImages || ""}
+                      onChange={(e) => setGalleryImages(e.target.value)}
+                      placeholder="https://example.com/photo1.jpg&#10;https://example.com/photo2.jpg"
+                      className="w-full p-2 border border-gray-200 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none font-mono text-[11px]"
+                    />
+
+                    {/* Live Gallery Thumbnail Grid */}
+                    {(() => {
+                      const parsed = (typeof galleryImages === "string" ? galleryImages : "")
+                        .split("\n")
+                        .map((s) => (s ? String(s).trim() : ""))
+                        .filter(Boolean);
+                      if (parsed.length === 0) return null;
+
+                      return (
+                        <div className="pt-2">
+                          <span className="text-[10px] font-semibold text-gray-600 block mb-1">
+                            {parsed.length} Gallery Photos configured:
+                          </span>
+                          <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                            {parsed.map((imgUrl, idx) => (
+                              <div key={idx} className="relative group h-14 rounded-lg overflow-hidden border border-gray-300 bg-gray-100">
+                                <img src={imgUrl} alt={`Thumbnail ${idx + 1}`} className="w-full h-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const updated = parsed.filter((_, i) => i !== idx).join("\n");
+                                    setGalleryImages(updated);
+                                  }}
+                                  className="absolute top-0.5 right-0.5 w-4 h-4 bg-red-600 text-white rounded-full flex items-center justify-center text-[10px] opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="Remove photo"
+                                >
+                                  &times;
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                {/* Card 6: 📝 Curriculum & Post-Event Report */}
+                <div className="p-4 bg-gray-50/70 border border-gray-200 rounded-xl space-y-3.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs text-ieee-navy font-montserrat">
+                    <span>📝</span> Curriculum Objectives &amp; Post-Event Report
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">
+                      Learning Objectives (One objective per line)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={learningObjectives || ""}
+                      onChange={(e) => setLearningObjectives(e.target.value)}
+                      placeholder="Hands-on modern AI agent architecture&#10;Industry-grade Cloud API integrations&#10;Official verified IEEE certification"
+                      className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-gray-700 mb-1">
+                      Event Summary Report (Displayed on completed event page)
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={eventReport || ""}
+                      onChange={(e) => setEventReport(e.target.value)}
+                      placeholder="The technical workshop concluded successfully with over 50 university students and industry professionals in physical attendance."
+                      className="w-full p-2.5 bg-white border border-gray-300 rounded-lg focus:ring-1 focus:ring-ieee-blue outline-none"
+                    />
+                  </div>
+                </div>
+              </form>
+
+              {/* Sticky Modal Footer */}
+              <div className="sticky bottom-0 bg-gray-50/95 backdrop-blur-xs z-20 px-6 py-3.5 border-t border-gray-200 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-2 text-[11px] text-gray-500 font-mono">
+                  <span className="font-bold text-gray-700">URL Slug:</span>
+                  <span className="bg-white px-2 py-0.5 rounded border border-gray-200 text-ieee-navy font-semibold truncate max-w-[200px] sm:max-w-xs">
+                    {slug ? `/${slug}` : "No slug specified"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
                   <button
                     type="button"
+                    disabled={isSaving}
                     onClick={() => setIsModalOpen(false)}
-                    className="px-4 py-2 border rounded-lg text-gray-600 hover:bg-gray-50 font-semibold"
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-100 font-semibold transition-colors disabled:opacity-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
+                    form="admin-event-form"
                     disabled={isSaving}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-montserrat font-semibold text-xs tracking-wide bg-ieee-blue text-white hover:bg-ieee-navy focus:ring-2 focus:ring-ieee-blue shadow-sm hover:shadow disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-all"
+                    className="px-5 py-2 rounded-lg font-montserrat font-bold text-xs bg-ieee-navy hover:bg-ieee-blue text-white shadow-sm flex items-center gap-2 disabled:opacity-50 transition-colors cursor-pointer"
                   >
                     {isSaving ? (
                       <>
                         <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>{editingEventId ? "Saving..." : "Publishing Event..."}</span>
+                        <span>{editingEventId ? "Saving..." : "Publishing..."}</span>
                       </>
-                    ) : editingEventId ? (
-                      "Save Changes"
                     ) : (
-                      "Publish Event"
+                      editingEventId ? "Save Changes" : "Publish Event"
                     )}
                   </button>
                 </div>
-              </form>
+              </div>
+
             </div>
           </div>
         )}
