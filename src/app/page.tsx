@@ -28,31 +28,11 @@ export default async function HomePage() {
   const upcomingEvents = events.filter((e) => e.status === "UPCOMING" || e.status === "ONGOING").slice(0, 3);
   const completedEvents = events.filter((e) => e.status === "COMPLETED").slice(0, 3);
 
-  // Extract real past event images from completed chapter activities for the 5-second rotating hero slider
-  const pastEvents = events.filter(
-    (e) => e.status === "COMPLETED" || (e.startDate && new Date(e.startDate) < new Date())
-  );
+  // 1. Collect Upcoming Event Banners (UPCOMING or ONGOING events)
+  const activeUpcoming = events.filter((e) => e.status === "UPCOMING" || e.status === "ONGOING");
+  const upcomingSlides: HeroSlide[] = [];
 
-  const pastEventSlides: HeroSlide[] = [];
-
-  pastEvents.forEach((evt) => {
-    // Collect all gallery images
-    if (evt.galleryImages && Array.isArray(evt.galleryImages)) {
-      evt.galleryImages.forEach((imgUrl, i) => {
-        if (imgUrl && typeof imgUrl === "string" && imgUrl.length > 50) {
-          pastEventSlides.push({
-            id: `${evt.id}-gallery-${i}`,
-            imageUrl: imgUrl,
-            eventTitle: evt.title,
-            eventDate: evt.startDate,
-            venue: evt.venue,
-            slug: evt.slug,
-          });
-        }
-      });
-    }
-
-    // Collect featured image if distinct from default logo
+  activeUpcoming.forEach((evt) => {
     if (
       evt.featuredImage &&
       typeof evt.featuredImage === "string" &&
@@ -60,21 +40,109 @@ export default async function HomePage() {
       evt.featuredImage !== "/ieee-cs-logo.png" &&
       evt.featuredImage !== "/ieee-cs-logo-white.png"
     ) {
-      pastEventSlides.push({
+      upcomingSlides.push({
+        id: `${evt.id}-upcoming-banner`,
+        imageUrl: evt.featuredImage,
+        eventTitle: evt.title,
+        eventDate: evt.startDate,
+        venue: evt.venue,
+        slug: evt.slug,
+        isUpcoming: true,
+        badgeText: "Upcoming Chapter Event • Registration Open",
+      });
+    }
+  });
+
+  // 2. Collect and Group Past Event Photos by Event
+  const pastEvents = events.filter(
+    (e) => e.status === "COMPLETED" || (e.startDate && new Date(e.startDate) < new Date())
+  );
+
+  const pastEventGroups: { eventId: string; slides: HeroSlide[] }[] = [];
+
+  pastEvents.forEach((evt) => {
+    const eventPhotos: HeroSlide[] = [];
+
+    // Featured image first
+    if (
+      evt.featuredImage &&
+      typeof evt.featuredImage === "string" &&
+      evt.featuredImage.length > 50 &&
+      evt.featuredImage !== "/ieee-cs-logo.png" &&
+      evt.featuredImage !== "/ieee-cs-logo-white.png"
+    ) {
+      eventPhotos.push({
         id: `${evt.id}-featured`,
         imageUrl: evt.featuredImage,
         eventTitle: evt.title,
         eventDate: evt.startDate,
         venue: evt.venue,
         slug: evt.slug,
+        isUpcoming: false,
+      });
+    }
+
+    // Gallery images
+    if (evt.galleryImages && Array.isArray(evt.galleryImages)) {
+      evt.galleryImages.forEach((imgUrl, i) => {
+        if (
+          imgUrl &&
+          typeof imgUrl === "string" &&
+          imgUrl.length > 50 &&
+          imgUrl !== evt.featuredImage
+        ) {
+          eventPhotos.push({
+            id: `${evt.id}-gallery-${i}`,
+            imageUrl: imgUrl,
+            eventTitle: evt.title,
+            eventDate: evt.startDate,
+            venue: evt.venue,
+            slug: evt.slug,
+            isUpcoming: false,
+          });
+        }
+      });
+    }
+
+    if (eventPhotos.length > 0) {
+      pastEventGroups.push({
+        eventId: evt.id,
+        slides: eventPhotos,
       });
     }
   });
 
+  // 3. Interleave past event photos in groups of 3:
+  // 3 photos of Event 1 -> 3 photos of Event 2 -> (Event 3 ...) -> next 3 of Event 1 -> next 3 of Event 2 ...
+  const CHUNK_SIZE = 3;
+  const eventChunks = pastEventGroups.map((group) => {
+    const chunks: HeroSlide[][] = [];
+    for (let i = 0; i < group.slides.length; i += CHUNK_SIZE) {
+      chunks.push(group.slides.slice(i, i + CHUNK_SIZE));
+    }
+    return chunks;
+  });
+
+  const maxRounds = Math.max(0, ...eventChunks.map((c) => c.length));
+  const interleavedPastSlides: HeroSlide[] = [];
+
+  for (let round = 0; round < maxRounds; round++) {
+    for (let e = 0; e < eventChunks.length; e++) {
+      if (round < eventChunks[e].length) {
+        interleavedPastSlides.push(...eventChunks[e][round]);
+      }
+    }
+  }
+
+  // 4. Combined Hero Slides:
+  // Upcoming event banners lead the showcase so visitors immediately see active registration opportunities,
+  // followed by the round-robin 3-by-3 batches of past events.
+  const heroSlides: HeroSlide[] = [...upcomingSlides, ...interleavedPastSlides];
+
   return (
     <div className="flex flex-col w-full">
-      {/* 1. Dynamic Past Events Hero Showcase Slider (Auto-rotates every 5 seconds) */}
-      <HeroSlider slides={pastEventSlides} />
+      {/* 1. Dynamic Hero Showcase Slider (Upcoming banners + 3-by-3 shuffled past events, 5s rotation) */}
+      <HeroSlider slides={heroSlides} />
 
       {/* 2. Statistics Band: IEEE Blue (#00629B) with Process Cyan (#00B5E2) highlight numbers */}
       <section className="bg-ieee-blue text-white py-10 px-4 sm:px-8 border-y border-white/10 shadow-inner">

@@ -25,6 +25,8 @@ export interface HeroSlide {
   eventDate?: string;
   venue?: string;
   slug?: string;
+  isUpcoming?: boolean;
+  badgeText?: string;
 }
 
 interface HeroSliderProps {
@@ -119,10 +121,24 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
           />
         </div>
 
-        {/* Official Chapter Badge */}
-        <div className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-montserrat font-semibold tracking-wide text-ieee-cyan shadow-sm transition-colors">
-          <Sparkles size={14} className="text-ieee-orange animate-pulse" />
-          <span>Official Student Branch Chapter • UCET, IUB</span>
+        {/* Official Chapter Badge / Dynamic Slide State */}
+        <div className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/15 border border-white/20 px-3.5 sm:px-4 py-1.5 rounded-full text-xs font-montserrat font-semibold tracking-wide text-ieee-cyan shadow-sm transition-all duration-300">
+          {currentSlide?.isUpcoming ? (
+            <>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400"></span>
+              </span>
+              <span className="text-emerald-300 font-bold uppercase tracking-wider">
+                Upcoming Chapter Activity • Registrations Open
+              </span>
+            </>
+          ) : (
+            <>
+              <Sparkles size={14} className="text-ieee-orange animate-pulse" />
+              <span>Official Student Branch Chapter • UCET, IUB</span>
+            </>
+          )}
         </div>
 
         {/* Main Hero Headline */}
@@ -162,13 +178,32 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
           </Button>
         </div>
 
-        {/* 4. Live Past Event Showcase Tag (Auto-rotates every 5s) */}
+        {/* 4. Live Event Showcase Tag (Auto-rotates every 5s) */}
         {currentSlide && (
           <div className="pt-4 sm:pt-6">
-            <div className="inline-flex flex-col sm:flex-row items-center gap-2 sm:gap-3 bg-black/45 hover:bg-black/60 border border-white/20 px-4 py-2 sm:py-2.5 rounded-2xl sm:rounded-full backdrop-blur-md text-xs transition-all shadow-xl max-w-2xl mx-auto">
-              <div className="flex items-center gap-1.5 text-ieee-orange font-montserrat font-bold whitespace-nowrap">
-                <Camera size={14} className="text-ieee-cyan" />
-                <span>Past Event Highlight ({currentIndex + 1}/{totalSlides}):</span>
+            <div
+              className={`inline-flex flex-col sm:flex-row items-center gap-2 sm:gap-3 px-4 py-2 sm:py-2.5 rounded-2xl sm:rounded-full backdrop-blur-md text-xs transition-all shadow-xl max-w-2xl mx-auto border ${
+                currentSlide.isUpcoming
+                  ? "bg-ieee-blue/65 hover:bg-ieee-blue/85 border-ieee-cyan/70 shadow-cyan-900/40"
+                  : "bg-black/45 hover:bg-black/60 border-white/20"
+              }`}
+            >
+              <div className="flex items-center gap-1.5 font-montserrat font-bold whitespace-nowrap">
+                {currentSlide.isUpcoming ? (
+                  <>
+                    <Sparkles size={14} className="text-emerald-300 animate-spin" />
+                    <span className="text-emerald-300">
+                      Upcoming Event ({currentIndex + 1}/{totalSlides}):
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <Camera size={14} className="text-ieee-cyan" />
+                    <span className="text-ieee-orange">
+                      Past Event Spotlight ({currentIndex + 1}/{totalSlides}):
+                    </span>
+                  </>
+                )}
               </div>
               <div className="flex items-center gap-2 overflow-hidden text-center sm:text-left">
                 <span className="font-semibold text-white truncate max-w-xs sm:max-w-md">
@@ -183,9 +218,14 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
               {currentSlide.slug && (
                 <Link
                   href={`/events/${currentSlide.slug}`}
-                  className="text-ieee-cyan hover:text-white underline font-medium text-[11px] whitespace-nowrap flex items-center gap-1"
+                  className={`text-[11px] whitespace-nowrap flex items-center gap-1 transition-all ${
+                    currentSlide.isUpcoming
+                      ? "bg-gradient-to-r from-emerald-400 to-ieee-cyan text-ieee-navy font-extrabold px-3 py-1 rounded-full shadow-md hover:brightness-110"
+                      : "text-ieee-cyan hover:text-white underline font-medium"
+                  }`}
                 >
-                  View Details <ExternalLink size={11} />
+                  {currentSlide.isUpcoming ? "Register Now" : "View Details"}{" "}
+                  <ExternalLink size={11} />
                 </Link>
               )}
             </div>
@@ -199,7 +239,7 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
           {/* Previous Arrow */}
           <button
             onClick={handlePrev}
-            aria-label="Previous past event photo"
+            aria-label="Previous slide"
             className="absolute left-2 sm:left-6 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/35 hover:bg-black/70 text-white/80 hover:text-white border border-white/10 hover:border-white/30 backdrop-blur-sm transition-all shadow-lg focus:outline-none"
           >
             <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
@@ -208,7 +248,7 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
           {/* Next Arrow */}
           <button
             onClick={handleNext}
-            aria-label="Next past event photo"
+            aria-label="Next slide"
             className="absolute right-2 sm:right-6 top-1/2 -translate-y-1/2 z-30 p-2 sm:p-2.5 rounded-full bg-black/35 hover:bg-black/70 text-white/80 hover:text-white border border-white/10 hover:border-white/30 backdrop-blur-sm transition-all shadow-lg focus:outline-none"
           >
             <ChevronRight size={20} className="sm:w-6 sm:h-6" />
@@ -225,19 +265,32 @@ export const HeroSlider: React.FC<HeroSliderProps> = ({ slides }) => {
               {isPaused ? <Play size={12} /> : <Pause size={12} />}
             </button>
 
-            <div className="flex items-center gap-1.5 max-w-[260px] overflow-x-auto py-1 custom-scrollbar">
-              {slides.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentIndex(idx)}
-                  aria-label={`Go to past event photo ${idx + 1}`}
-                  className={`h-2 rounded-full transition-all duration-300 ${
-                    idx === currentIndex
-                      ? "w-7 bg-ieee-orange shadow-sm"
-                      : "w-2 bg-white/40 hover:bg-white/70"
-                  }`}
-                />
-              ))}
+            <div className="flex items-center gap-1.5 max-w-[280px] overflow-x-auto py-1 custom-scrollbar">
+              {slides.map((slide, idx) => {
+                const isCurrent = idx === currentIndex;
+                const isUpcoming = Boolean(slide.isUpcoming);
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setCurrentIndex(idx)}
+                    aria-label={`Go to slide ${idx + 1}`}
+                    title={
+                      isUpcoming
+                        ? `Upcoming: ${slide.eventTitle}`
+                        : `Past: ${slide.eventTitle}`
+                    }
+                    className={`h-2 rounded-full transition-all duration-300 flex-shrink-0 ${
+                      isCurrent
+                        ? isUpcoming
+                          ? "w-8 bg-emerald-400 shadow-sm"
+                          : "w-7 bg-ieee-orange shadow-sm"
+                        : isUpcoming
+                        ? "w-2.5 bg-emerald-400/50 hover:bg-emerald-300"
+                        : "w-2 bg-white/40 hover:bg-white/70"
+                    }`}
+                  />
+                );
+              })}
             </div>
 
             <span className="text-[10px] text-gray-300 font-mono hidden sm:inline ml-1">
